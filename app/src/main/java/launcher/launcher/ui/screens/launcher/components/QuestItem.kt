@@ -14,7 +14,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun QuestItem(
     text: String,
-    isCompleted: Boolean = false
+    isCompleted: Boolean = false,
+    modifier: Modifier
 ) {
     Text(
         text = text,
@@ -24,7 +25,7 @@ fun QuestItem(
         } else {
             MaterialTheme.typography.bodyLarge
         },
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
             .padding(8.dp),
         textAlign = TextAlign.Center
     )

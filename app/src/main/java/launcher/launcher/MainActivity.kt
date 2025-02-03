@@ -11,6 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.QuestTrackerScreen
+import launcher.launcher.ui.screens.quest.ViewQuest
 import launcher.launcher.ui.theme.LauncherTheme
 
 
@@ -25,13 +26,14 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     NavHost(
                         navController = navController,
-                        startDestination = Screen.QuestTracker.route,
-
-                        ) {
+                        startDestination = Screen.QuestTracker.route) {
                         composable(Screen.QuestTracker.route) {
                             QuestTrackerScreen(
                                 onNavigateToAppList = {
                                     navController.navigate(Screen.AppList.route)
+                                },
+                                onNavigateToViewQuest = {
+                                    navController.navigate(Screen.ViewQuest.route)
                                 }
                             )
                         }
@@ -39,6 +41,14 @@ class MainActivity : ComponentActivity() {
                             AppList(
                                 onNavigateToQuestTracker = {
                                     navController.popBackStack() // Navigate back to QuestTracker
+                                }
+                            )
+                        }
+
+                        composable(Screen.ViewQuest.route) {
+                            ViewQuest(
+                                onNavigateToQuestTracker = {
+                                    navController.popBackStack()
                                 }
                             )
                         }

@@ -5,8 +5,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.gestures.forEachGesture
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,7 +31,7 @@ import launcher.launcher.ui.screens.launcher.components.QuestItem
 
 
 @Composable
-fun QuestTrackerScreen(onNavigateToAppList: () -> Unit) {
+fun QuestTrackerScreen(onNavigateToAppList: () -> Unit, onNavigateToViewQuest: () -> Unit) {
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
     Box(
         modifier = Modifier
@@ -123,11 +121,18 @@ fun QuestTrackerScreen(onNavigateToAppList: () -> Unit) {
             }
 
             // Quest items
-            QuestItem("Study 3h")
-            QuestItem("Walk 3 kms")
+            QuestItem("Study 3h",modifier = Modifier.clickable {
+                onNavigateToViewQuest()
+            })
+            QuestItem("Walk 3 kms", modifier = Modifier.clickable {
+                onNavigateToViewQuest()
+            })
             QuestItem(
                 text = "Read a book",
-                isCompleted = true
+                isCompleted = true,
+                modifier = Modifier.clickable {
+                    onNavigateToViewQuest()
+                }
             )
 
             // Core Apps button
