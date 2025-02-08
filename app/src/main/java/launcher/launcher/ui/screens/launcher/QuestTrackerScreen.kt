@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.coroutineScope
 import launcher.launcher.R
 import launcher.launcher.ui.screens.launcher.components.QuestItem
+import launcher.launcher.ui.theme.JetBrainsMonoFont
+import launcher.launcher.ui.theme.customTypography
 
 
 @Composable
@@ -91,6 +93,7 @@ fun QuestTrackerScreen(onNavigateToAppList: () -> Unit, onNavigateToViewQuest: (
             Text(
                 text = "QUESTS",
                 style = MaterialTheme.typography.headlineLarge,
+                fontFamily = JetBrainsMonoFont,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 16.dp)
                     .align(Alignment.CenterHorizontally)

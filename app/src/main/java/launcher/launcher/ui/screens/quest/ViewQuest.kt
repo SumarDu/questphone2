@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.coroutineScope
+import launcher.launcher.ui.theme.JetBrainsMonoFont
 
 @Composable
 fun ViewQuest(
@@ -76,6 +77,7 @@ fun ViewQuest(
                 Text(
                     text = "Study 3hrs",
                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                    fontFamily = JetBrainsMonoFont,
                     modifier = Modifier.padding(top = 40.dp,)
                 )
 
