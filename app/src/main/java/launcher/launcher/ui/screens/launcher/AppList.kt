@@ -2,10 +2,6 @@ package launcher.launcher.ui.screens.launcher
 
 
 import android.content.Context
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,20 +14,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import launcher.launcher.models.AppInfo
 import launcher.launcher.ui.screens.launcher.components.AppItem
+import launcher.launcher.ui.screens.launcher.components.CoinDialog
 import launcher.launcher.utils.getCachedApps
 import launcher.launcher.utils.reloadApps
 
@@ -42,6 +34,8 @@ fun AppList(onNavigateToQuestTracker: () -> Unit) {
     val appsState = remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     val isShowingLoadingStatus = remember { mutableStateOf(true) }
     val errorState = remember { mutableStateOf<String?>(null) }
+    val isUserTryingOpenApp = remember { mutableStateOf(false) } // user is trying to open an app from the list
+    val userSelectedPackage = remember { mutableStateOf("") }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         LaunchedEffect(Unit) {
@@ -72,8 +66,19 @@ fun AppList(onNavigateToQuestTracker: () -> Unit) {
 
             LazyColumn {
                 items(appsState.value) { app ->
-                    AppItem(app.name, app.packageName)
+                    AppItem(app.name, app.packageName, onAppPressed = { packageName ->
+                        isUserTryingOpenApp.value = true
+                        userSelectedPackage.value = packageName
+                    })
                 }
+            }
+            if(isUserTryingOpenApp.value){
+                CoinDialog(coins = 32, onDismiss = {
+                    isUserTryingOpenApp.value = false
+                }, onConfirm = {
+                    val intent = context.packageManager.getLaunchIntentForPackage(userSelectedPackage.value)
+                    context.startActivity(intent)
+                })
             }
 
         }

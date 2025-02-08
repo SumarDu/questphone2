@@ -31,7 +31,7 @@ import launcher.launcher.ui.screens.launcher.components.QuestItem
 
 
 @Composable
-fun QuestTrackerScreen(onNavigateToAppList: () -> Unit, onNavigateToViewQuest: () -> Unit) {
+fun QuestTrackerScreen(onNavigateToAppList: () -> Unit, onNavigateToViewQuest: () -> Unit, onNavigateToEditQuest: () -> Unit) {
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
     Box(
         modifier = Modifier
@@ -132,6 +132,13 @@ fun QuestTrackerScreen(onNavigateToAppList: () -> Unit, onNavigateToViewQuest: (
                 isCompleted = true,
                 modifier = Modifier.clickable {
                     onNavigateToViewQuest()
+                }
+            )
+            QuestItem(
+                text = "Add a quest",
+                isCompleted = false,
+                modifier = Modifier.clickable {
+                    onNavigateToEditQuest()
                 }
             )
 

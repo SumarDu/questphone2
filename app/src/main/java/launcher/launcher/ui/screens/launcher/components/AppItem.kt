@@ -11,7 +11,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun AppItem(name: String, packageName: String) {
+fun AppItem(name: String, packageName: String, onAppPressed: (String) -> Unit) {
     val context = LocalContext.current
     Text(
         text = name,
@@ -20,8 +20,7 @@ fun AppItem(name: String, packageName: String) {
             .padding(16.dp)
             .fillMaxSize()
             .clickable {
-                val intent = context.packageManager.getLaunchIntentForPackage(packageName)
-                context.startActivity(intent)
+                onAppPressed(packageName)
             }
     )
 }

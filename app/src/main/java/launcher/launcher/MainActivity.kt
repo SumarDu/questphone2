@@ -11,6 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.QuestTrackerScreen
+import launcher.launcher.ui.screens.quest.EditQuest
 import launcher.launcher.ui.screens.quest.ViewQuest
 import launcher.launcher.ui.theme.LauncherTheme
 
@@ -34,6 +35,9 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onNavigateToViewQuest = {
                                     navController.navigate(Screen.ViewQuest.route)
+                                },
+                                onNavigateToEditQuest = {
+                                    navController.navigate(Screen.EditQuest.route)
                                 }
                             )
                         }
@@ -41,6 +45,14 @@ class MainActivity : ComponentActivity() {
                             AppList(
                                 onNavigateToQuestTracker = {
                                     navController.popBackStack() // Navigate back to QuestTracker
+                                }
+                            )
+                        }
+
+                        composable(Screen.EditQuest.route) {
+                            EditQuest(
+                                onNavigateToQuestTracker = {
+                                    navController.popBackStack()
                                 }
                             )
                         }
