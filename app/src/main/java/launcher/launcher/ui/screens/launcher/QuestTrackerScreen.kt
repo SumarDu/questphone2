@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.coroutineScope
 import launcher.launcher.R
+import launcher.launcher.ui.screens.launcher.components.LiveClock
 import launcher.launcher.ui.screens.launcher.components.QuestItem
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.ui.theme.customTypography
@@ -81,23 +82,21 @@ fun QuestTrackerScreen(onNavigateToAppList: () -> Unit, onNavigateToViewQuest: (
             modifier = Modifier.fillMaxWidth()
                 .align(Alignment.Center)
         ) {
-            // Simple house and trees ASCII art representation
-            Image(
-                bitmap = ImageBitmap.imageResource(R.drawable.img),
-                modifier = Modifier.padding(bottom = 24.dp)
-                    .align(Alignment.CenterHorizontally),
-                contentDescription = "ascii art"
+
+            LiveClock(
+                Modifier.padding(bottom = 16.dp)
+                    .align(Alignment.CenterHorizontally)
             )
 
             // QUESTS header
-            Text(
-                text = "QUESTS",
-                style = MaterialTheme.typography.headlineLarge,
-                fontFamily = JetBrainsMonoFont,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
-                    .align(Alignment.CenterHorizontally)
-            )
+//            Text(
+//                text = "QUESTS",
+//                style = MaterialTheme.typography.headlineLarge,
+//                fontFamily = JetBrainsMonoFont,
+//                fontWeight = FontWeight.Bold,
+//                modifier = Modifier.padding(bottom = 16.dp)
+//                    .align(Alignment.CenterHorizontally)
+//            )
 
             // Progress bar
             Box(
