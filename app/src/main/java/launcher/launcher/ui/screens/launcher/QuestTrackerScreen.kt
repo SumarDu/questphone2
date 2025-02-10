@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.coroutineScope
 import launcher.launcher.R
 import launcher.launcher.ui.screens.launcher.components.LiveClock
+import launcher.launcher.ui.screens.launcher.components.ProgressBar
 import launcher.launcher.ui.screens.launcher.components.QuestItem
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.ui.theme.customTypography
@@ -98,7 +99,6 @@ fun QuestTrackerScreen(onNavigateToAppList: () -> Unit, onNavigateToViewQuest: (
 //                    .align(Alignment.CenterHorizontally)
 //            )
 
-            // Progress bar
             Box(
                 modifier = Modifier
                     .width(100.dp)
@@ -106,20 +106,9 @@ fun QuestTrackerScreen(onNavigateToAppList: () -> Unit, onNavigateToViewQuest: (
                     .padding(bottom = 32.dp)
                     .align(Alignment.CenterHorizontally)
             ) {
-                Canvas(
+                ProgressBar(
                     modifier = Modifier.fillMaxSize()
-                ) {
-                    // Background
-                    drawRect(
-                        color = Color.DarkGray,
-                        size = size
-                    )
-                    // Progress (20%)
-                    drawRect(
-                        color = Color.White,
-                        size = size.copy(width = size.width * 0.2f)
-                    )
-                }
+                )
             }
 
             // Quest items
@@ -147,7 +136,6 @@ fun QuestTrackerScreen(onNavigateToAppList: () -> Unit, onNavigateToViewQuest: (
             // Core Apps button
             Text(
                 text = "Core Apps >",
-                color = Color.White,
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(top = 24.dp)
                     .align(Alignment.CenterHorizontally)

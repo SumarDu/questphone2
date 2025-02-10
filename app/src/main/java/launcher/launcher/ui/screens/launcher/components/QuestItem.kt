@@ -19,7 +19,6 @@ fun QuestItem(
 ) {
     Text(
         text = text,
-        color = if (isCompleted) Color.Gray else Color.White,
         style = if (isCompleted) {
             MaterialTheme.typography.bodyLarge.copy(textDecoration = TextDecoration.LineThrough)
         } else {

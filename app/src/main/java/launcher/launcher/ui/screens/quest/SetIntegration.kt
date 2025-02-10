@@ -7,14 +7,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.quest.components.InstructionsList
 import launcher.launcher.ui.screens.quest.components.IntegrationsList
 
 @Composable
 fun SetIntegration(
-    onNavigateToQuestInfo: () -> Unit,
+    navController: NavController,
 ) {
-
+    val selectedItem = remember { mutableStateOf<String?>(null) }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
@@ -23,7 +25,7 @@ fun SetIntegration(
                 horizontalArrangement = Arrangement.spacedBy(8.dp) // Space between buttons
             ) {
                 Button(
-                    onClick = { onNavigateToQuestInfo() },
+                    onClick = { navController.popBackStack() },
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.padding(bottom = 16.dp)
                 ) {
@@ -31,7 +33,9 @@ fun SetIntegration(
                 }
 
                 Button(
-                    onClick = { },
+                    onClick = {
+                        navController.navigate(Screen.SetFocusIntegration.route)
+                    },
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.padding(bottom = 16.dp)
                 ) {
@@ -59,7 +63,7 @@ fun SetIntegration(
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                 )
 
-                IntegrationsList()
+                IntegrationsList(selectedItem)
             }
         }
 

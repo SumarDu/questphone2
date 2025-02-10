@@ -15,6 +15,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -25,7 +26,9 @@ import androidx.compose.ui.unit.dp
 import launcher.launcher.R
 
 @Composable
-fun IntegrationsList() {
+fun IntegrationsList(
+    selectedItem : MutableState<String?>
+) {
     val items = listOf(
         Triple(R.drawable.baseline_timer_24, "Focus", "Block all apps except the essential ones for a set period, allowing you to stay focused on your work."),
         Triple(R.drawable.baseline_phone_android_24, "App", "Restrict access to a single app while blocking everything else."),
@@ -33,7 +36,6 @@ fun IntegrationsList() {
         Triple(R.drawable.baseline_extension_24, "Add", "Add more integrations")
     )
 
-    val selectedItem = remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
