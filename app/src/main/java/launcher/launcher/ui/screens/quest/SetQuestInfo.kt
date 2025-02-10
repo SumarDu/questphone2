@@ -1,26 +1,21 @@
 package launcher.launcher.ui.screens.quest
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import launcher.launcher.ui.screens.quest.components.InstructionsList
+import launcher.launcher.ui.screens.quest.components.IntegrationsList
 
 @Composable
 fun EditQuest(
-    onNavigateToQuestTracker: () -> Unit,
-    coins: Int = 100,
+    onNavigateToSetIntegration: () -> Unit,
     initialTitle: String = "Study 3hrs",
     initialReward: Int = 10,
-    initialInstructions: List<String> = listOf("Revise 0.C", "Practice Maths", "Complete Home-Works"),
-    onSaveQuest: ((String, Int, List<String>) -> Unit)? = null
+    initialInstructions: List<String> = listOf("Revise 0.C", "Practice Maths", "Complete Home-Works")
 ) {
     var questTitle by remember { mutableStateOf(initialTitle) }
     var reward by remember { mutableStateOf(initialReward) }
@@ -33,14 +28,12 @@ fun EditQuest(
         floatingActionButton = {
             Button(
                 onClick = {
-                    if (onSaveQuest != null) {
-                        onSaveQuest(questTitle, reward, instructions)
-                    }
+                    onNavigateToSetIntegration()
                 },
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.padding(bottom = 16.dp)
             ) {
-                Text(text = "Save Quest")
+                Text(text = "Next")
             }
         },
         floatingActionButtonPosition = FabPosition.End
@@ -51,13 +44,6 @@ fun EditQuest(
                 .padding(innerPadding),
             horizontalAlignment = Alignment.Start,
         ) {
-            Text(
-                text = "$coins coins",
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier
-                    .padding(24.dp)
-                    .align(Alignment.End)
-            )
 
             Column(
                 modifier = Modifier.padding(16.dp)
@@ -81,53 +67,13 @@ fun EditQuest(
                         .fillMaxWidth()
                         .padding(top = 16.dp)
                 )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 32.dp, bottom = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Instructions",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                    )
-                    IconButton(onClick = { showAddInstructionDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add instruction")
+                InstructionsList(
+                    instructions = instructions,
+                    onAddInstruction = { showAddInstructionDialog = true },
+                    onDeleteInstruction = { instruction ->
+                        instructions = instructions.filter { it != instruction }
                     }
-                }
-
-                LazyColumn {
-                    items(instructions) { instruction ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "\u2022 $instruction",
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(end = 8.dp)
-                            )
-                            IconButton(
-                                onClick = {
-                                    instructions = instructions.filter { it != instruction }
-                                }
-                            ) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Delete instruction",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    }
-                }
+                )
             }
         }
 

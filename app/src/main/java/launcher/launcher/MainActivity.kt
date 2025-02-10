@@ -12,6 +12,7 @@ import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.QuestTrackerScreen
 import launcher.launcher.ui.screens.quest.EditQuest
+import launcher.launcher.ui.screens.quest.SetIntegration
 import launcher.launcher.ui.screens.quest.ViewQuest
 import launcher.launcher.ui.theme.LauncherTheme
 
@@ -37,7 +38,7 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate(Screen.ViewQuest.route)
                                 },
                                 onNavigateToEditQuest = {
-                                    navController.navigate(Screen.EditQuest.route)
+                                    navController.navigate(Screen.SetQuestInfo.route)
                                 }
                             )
                         }
@@ -49,10 +50,10 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        composable(Screen.EditQuest.route) {
+                        composable(Screen.SetQuestInfo.route) {
                             EditQuest(
-                                onNavigateToQuestTracker = {
-                                    navController.popBackStack()
+                                onNavigateToSetIntegration = {
+                                    navController.navigate(Screen.SetIntegration.route)
                                 }
                             )
                         }
@@ -60,6 +61,14 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.ViewQuest.route) {
                             ViewQuest(
                                 onNavigateToQuestTracker = {
+                                    navController.popBackStack()
+                                }
+                            )
+                        }
+
+                        composable(Screen.SetIntegration.route) {
+                            SetIntegration(
+                                onNavigateToQuestInfo = {
                                     navController.popBackStack()
                                 }
                             )
