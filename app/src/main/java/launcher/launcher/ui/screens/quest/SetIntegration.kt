@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import launcher.launcher.Constants
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.quest.components.InstructionsList
 import launcher.launcher.ui.screens.quest.components.IntegrationsList
@@ -16,7 +17,7 @@ import launcher.launcher.ui.screens.quest.components.IntegrationsList
 fun SetIntegration(
     navController: NavController,
 ) {
-    val selectedItem = remember { mutableStateOf<String?>(null) }
+    val selectedItem = remember { mutableStateOf<Int?>(Constants.INTEGRATION_ID_APP_FOCUS) }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
@@ -34,7 +35,12 @@ fun SetIntegration(
 
                 Button(
                     onClick = {
-                        navController.navigate(Screen.SetFocusIntegration.route)
+                        when(selectedItem.value){
+                            Constants.INTEGRATION_ID_FOCUS ->
+                                navController.navigate(Screen.SetFocusIntegration.route)
+                            Constants.INTEGRATION_ID_APP_FOCUS ->
+                                navController.navigate(Screen.SetAppFocusIntegration.route)
+                        }
                     },
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.padding(bottom = 16.dp)

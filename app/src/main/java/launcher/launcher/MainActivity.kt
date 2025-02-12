@@ -14,6 +14,7 @@ import launcher.launcher.ui.screens.launcher.QuestTrackerScreen
 import launcher.launcher.ui.screens.quest.EditQuest
 import launcher.launcher.ui.screens.quest.SetIntegration
 import launcher.launcher.ui.screens.quest.ViewQuest
+import launcher.launcher.ui.screens.quest.integration.SetAppFocusIntegration
 import launcher.launcher.ui.screens.quest.integration.SetFocusIntegration
 import launcher.launcher.ui.theme.LauncherTheme
 
@@ -74,6 +75,9 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Screen.SetFocusIntegration.route) {
                             SetFocusIntegration(navController)
+                        }
+                        composable(Screen.SetAppFocusIntegration.route) {
+                            SetAppFocusIntegration(navController)
                         }
                     }
                 }
