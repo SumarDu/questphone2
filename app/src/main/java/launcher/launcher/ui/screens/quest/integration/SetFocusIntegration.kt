@@ -83,28 +83,28 @@ fun SetFocusIntegration(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                items(apps) { app ->
+                items(apps) { appInfo ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                selectedApps = if (selectedApps.contains(app.packageName)) {
-                                    selectedApps - app.packageName
+                                selectedApps = if (selectedApps.contains(appInfo.packageName)) {
+                                    selectedApps - appInfo.packageName
                                 } else {
-                                    selectedApps + app.packageName
+                                    selectedApps + appInfo.packageName
                                 }
                             }
                             .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
-                            checked = selectedApps.contains(app.packageName),
+                            checked = selectedApps.contains(appInfo.packageName),
                             onCheckedChange = { isChecked ->
-                                selectedApps = if (isChecked) selectedApps + app.packageName else selectedApps - app.packageName
+                                selectedApps = if (isChecked) selectedApps + appInfo.packageName else selectedApps - appInfo.packageName
                             }
                         )
                         Text(
-                            app.name,
+                            appInfo.name,
                             modifier = Modifier.padding(start = 8.dp)
                         )
                     }

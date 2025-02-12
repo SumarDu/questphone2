@@ -9,18 +9,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.quest.integration.components.SetFocusTimeUI
+import launcher.launcher.utils.getCachedApps
 
 
 @Composable
 fun SetAppFocusIntegration(
     navController: NavController
 ) {
-    val apps = listOf("Chrome", "YouTube", "WhatsApp", "Spotify", "Telegram")
+    val apps = getCachedApps(LocalContext.current)
     var selectedApp by remember { mutableStateOf("") }
 
     Scaffold(
@@ -55,34 +57,36 @@ fun SetAppFocusIntegration(
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp, vertical = 8.dp) // Consistent padding
         ) {
-            SetFocusTimeUI()
-            Spacer(modifier = Modifier.height(32.dp))
-            Text(
-                "Select App to focus",
-                modifier = Modifier.padding(bottom = 16.dp),
-                fontWeight = FontWeight.Bold
-            )
             LazyColumn(
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(apps) { app ->
+                item {
+                    SetFocusTimeUI()
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Text(
+                        "Select an app to focus",
+                        modifier = Modifier.padding(bottom = 16.dp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                items(apps) { appInfo ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                selectedApp = app // Only one selection allowed
+                                selectedApp = appInfo.packageName // Only one selection allowed
                             }
                             .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
-                            selected = selectedApp == app,
+                            selected = selectedApp == appInfo.packageName,
                             onClick = {
-                                selectedApp = app
+                                selectedApp = appInfo.packageName
                             }
                         )
                         Text(
-                            app,
+                            appInfo.name,
                             modifier = Modifier.padding(start = 8.dp)
                         )
                     }
