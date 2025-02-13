@@ -1,43 +1,28 @@
-package launcher.launcher.ui.screens.quest.integration
+package launcher.launcher.ui.screens.quest.setup
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import kotlinx.coroutines.withContext
-import launcher.launcher.models.AppInfo
-import launcher.launcher.ui.navigation.Screen
-import launcher.launcher.ui.screens.quest.integration.components.SetFocusTimeUI
+import launcher.launcher.ui.screens.quest.setup.components.SetFocusTimeUI
 import launcher.launcher.utils.getCachedApps
 
 
 @Composable
-fun SetFocusIntegration(
+fun SetAppFocusIntegration(
     navController: NavController
 ) {
-    val context = LocalContext.current
-    val apps = getCachedApps(context)
-
-    var selectedApps by remember { mutableStateOf(setOf<String>()) }
+    val apps = getCachedApps(LocalContext.current)
+    var selectedApp by remember { mutableStateOf("") }
 
     Scaffold(
         floatingActionButton = {
@@ -78,7 +63,7 @@ fun SetFocusIntegration(
                     SetFocusTimeUI()
                     Spacer(modifier = Modifier.height(32.dp))
                     Text(
-                        "Select Unrestricted Apps",
+                        "Select an app to focus",
                         modifier = Modifier.padding(bottom = 16.dp),
                         fontWeight = FontWeight.Bold
                     )
@@ -88,19 +73,15 @@ fun SetFocusIntegration(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                selectedApps = if (selectedApps.contains(appInfo.packageName)) {
-                                    selectedApps - appInfo.packageName
-                                } else {
-                                    selectedApps + appInfo.packageName
-                                }
+                                selectedApp = appInfo.packageName // Only one selection allowed
                             }
                             .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Checkbox(
-                            checked = selectedApps.contains(appInfo.packageName),
-                            onCheckedChange = { isChecked ->
-                                selectedApps = if (isChecked) selectedApps + appInfo.packageName else selectedApps - appInfo.packageName
+                        RadioButton(
+                            selected = selectedApp == appInfo.packageName,
+                            onClick = {
+                                selectedApp = appInfo.packageName
                             }
                         )
                         Text(
@@ -110,6 +91,7 @@ fun SetFocusIntegration(
                     }
                 }
             }
+
+        }
         }
     }
-}

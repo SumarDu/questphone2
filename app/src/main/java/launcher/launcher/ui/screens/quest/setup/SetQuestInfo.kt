@@ -1,14 +1,13 @@
-package launcher.launcher.ui.screens.quest
+package launcher.launcher.ui.screens.quest.setup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import launcher.launcher.ui.screens.quest.components.InstructionsList
-import launcher.launcher.ui.screens.quest.components.IntegrationsList
+import launcher.launcher.ui.screens.quest.setup.components.SelectDaysOfWeek
 
 @Composable
 fun EditQuest(
@@ -67,6 +66,7 @@ fun EditQuest(
                         .fillMaxWidth()
                         .padding(top = 16.dp)
                 )
+                SelectDaysOfWeek(onDaysSelected = {})
                 InstructionsList(
                     instructions = instructions,
                     onAddInstruction = { showAddInstructionDialog = true },

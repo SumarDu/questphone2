@@ -1,4 +1,4 @@
-package launcher.launcher.ui.screens.quest.integration
+package launcher.launcher.ui.screens.quest.setup
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,17 +13,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import launcher.launcher.ui.navigation.Screen
-import launcher.launcher.ui.screens.quest.integration.components.SetFocusTimeUI
+import launcher.launcher.ui.screens.quest.setup.components.SetFocusTimeUI
 import launcher.launcher.utils.getCachedApps
 
 
 @Composable
-fun SetAppFocusIntegration(
+fun SetFocusIntegration(
     navController: NavController
 ) {
-    val apps = getCachedApps(LocalContext.current)
-    var selectedApp by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val apps = getCachedApps(context)
+
+    var selectedApps by remember { mutableStateOf(setOf<String>()) }
 
     Scaffold(
         floatingActionButton = {
@@ -64,7 +65,7 @@ fun SetAppFocusIntegration(
                     SetFocusTimeUI()
                     Spacer(modifier = Modifier.height(32.dp))
                     Text(
-                        "Select an app to focus",
+                        "Select Unrestricted Apps",
                         modifier = Modifier.padding(bottom = 16.dp),
                         fontWeight = FontWeight.Bold
                     )
@@ -74,15 +75,19 @@ fun SetAppFocusIntegration(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                selectedApp = appInfo.packageName // Only one selection allowed
+                                selectedApps = if (selectedApps.contains(appInfo.packageName)) {
+                                    selectedApps - appInfo.packageName
+                                } else {
+                                    selectedApps + appInfo.packageName
+                                }
                             }
                             .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        RadioButton(
-                            selected = selectedApp == appInfo.packageName,
-                            onClick = {
-                                selectedApp = appInfo.packageName
+                        Checkbox(
+                            checked = selectedApps.contains(appInfo.packageName),
+                            onCheckedChange = { isChecked ->
+                                selectedApps = if (isChecked) selectedApps + appInfo.packageName else selectedApps - appInfo.packageName
                             }
                         )
                         Text(
@@ -92,7 +97,6 @@ fun SetAppFocusIntegration(
                     }
                 }
             }
-
-        }
         }
     }
+}

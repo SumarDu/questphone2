@@ -11,11 +11,11 @@ import androidx.navigation.compose.rememberNavController
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.QuestTrackerScreen
-import launcher.launcher.ui.screens.quest.EditQuest
+import launcher.launcher.ui.screens.quest.setup.EditQuest
 import launcher.launcher.ui.screens.quest.SetIntegration
 import launcher.launcher.ui.screens.quest.ViewQuest
-import launcher.launcher.ui.screens.quest.integration.SetAppFocusIntegration
-import launcher.launcher.ui.screens.quest.integration.SetFocusIntegration
+import launcher.launcher.ui.screens.quest.setup.SetAppFocusIntegration
+import launcher.launcher.ui.screens.quest.setup.SetFocusIntegration
 import launcher.launcher.ui.theme.LauncherTheme
 
 

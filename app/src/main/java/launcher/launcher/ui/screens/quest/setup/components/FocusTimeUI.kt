@@ -1,4 +1,4 @@
-package launcher.launcher.ui.screens.quest.integration.components
+package launcher.launcher.ui.screens.quest.setup.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
