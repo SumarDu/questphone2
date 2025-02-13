@@ -6,12 +6,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.quest.components.InstructionsList
+import launcher.launcher.ui.screens.quest.setup.components.Navigation
 import launcher.launcher.ui.screens.quest.setup.components.SelectDaysOfWeek
 
 @Composable
 fun EditQuest(
-    onNavigateToSetIntegration: () -> Unit,
+    navController: NavController,
     initialTitle: String = "Study 3hrs",
     initialReward: Int = 10,
     initialInstructions: List<String> = listOf("Revise 0.C", "Practice Maths", "Complete Home-Works")
@@ -25,15 +28,11 @@ fun EditQuest(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
-            Button(
-                onClick = {
-                    onNavigateToSetIntegration()
-                },
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.padding(bottom = 16.dp)
-            ) {
-                Text(text = "Next")
-            }
+
+            Navigation(onNextPressed = {
+//                navController.navigate(Screen.SetQuestInfo.route)
+            },
+                onBackPressed = { navController.popBackStack() })
         },
         floatingActionButtonPosition = FabPosition.End
     ) { innerPadding ->

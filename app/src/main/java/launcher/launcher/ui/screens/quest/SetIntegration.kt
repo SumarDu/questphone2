@@ -12,6 +12,7 @@ import launcher.launcher.Constants
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.quest.components.InstructionsList
 import launcher.launcher.ui.screens.quest.components.IntegrationsList
+import launcher.launcher.ui.screens.quest.setup.components.Navigation
 
 @Composable
 fun SetIntegration(
@@ -21,33 +22,17 @@ fun SetIntegration(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
-            Row(
-                modifier = Modifier.padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp) // Space between buttons
-            ) {
-                Button(
-                    onClick = { navController.popBackStack() },
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.padding(bottom = 16.dp)
-                ) {
-                    Text(text = "Previous")
-                }
 
-                Button(
-                    onClick = {
-                        when(selectedItem.value){
-                            Constants.INTEGRATION_ID_FOCUS ->
-                                navController.navigate(Screen.SetFocusIntegration.route)
-                            Constants.INTEGRATION_ID_APP_FOCUS ->
-                                navController.navigate(Screen.SetAppFocusIntegration.route)
-                        }
-                    },
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.padding(bottom = 16.dp)
-                ) {
-                    Text(text = "Next")
+            Navigation(onNextPressed = {
+                when(selectedItem.value){
+                    Constants.INTEGRATION_ID_FOCUS ->
+                        navController.navigate(Screen.SetFocusIntegration.route)
+                    Constants.INTEGRATION_ID_APP_FOCUS ->
+                        navController.navigate(Screen.SetAppFocusIntegration.route)
                 }
-            }
+                                       },
+                onBackPressed = { navController.popBackStack() },
+                isBackButtonHidden = true)
         },
         floatingActionButtonPosition = FabPosition.End
     ) { innerPadding ->

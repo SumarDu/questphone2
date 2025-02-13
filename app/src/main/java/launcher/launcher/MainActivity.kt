@@ -40,7 +40,7 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate(Screen.ViewQuest.route)
                                 },
                                 onNavigateToEditQuest = {
-                                    navController.navigate(Screen.SetQuestInfo.route)
+                                    navController.navigate(Screen.SetIntegration.route)
                                 }
                             )
                         }
@@ -53,11 +53,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable(Screen.SetQuestInfo.route) {
-                            EditQuest(
-                                onNavigateToSetIntegration = {
-                                    navController.navigate(Screen.SetIntegration.route)
-                                }
-                            )
+                            EditQuest(navController)
                         }
 
                         composable(Screen.ViewQuest.route) {

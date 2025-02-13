@@ -13,6 +13,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import launcher.launcher.ui.navigation.Screen
+import launcher.launcher.ui.screens.quest.setup.components.Navigation
 import launcher.launcher.ui.screens.quest.setup.components.SetFocusTimeUI
 import launcher.launcher.utils.getCachedApps
 
@@ -26,28 +28,11 @@ fun SetAppFocusIntegration(
 
     Scaffold(
         floatingActionButton = {
-            Row(
-                modifier = Modifier.padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp) // Space between buttons
-            ) {
-                Button(
-                    onClick = { navController.popBackStack() },
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.padding(bottom = 16.dp)
-                ) {
-                    Text(text = "Previous")
-                }
 
-                Button(
-                    onClick = {
-                        navController.popBackStack()
-                    },
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.padding(bottom = 16.dp)
-                ) {
-                    Text(text = "Next")
-                }
-            }
+            Navigation(onNextPressed = {
+                navController.navigate(Screen.SetQuestInfo.route)
+            },
+                onBackPressed = { navController.popBackStack() })
         }
     ) { paddingValues ->
         Column(
