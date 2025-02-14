@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class BaseQuestInfo(
-    val title: String,
-    val instructions: List<String>,
-    val reward: Int,
+    val title: String = "",
+    val instructions: List<String> = emptyList(),
+    val reward: Int = 5,
 )

@@ -1,0 +1,78 @@
+package launcher.launcher.ui.screens.quest
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import launcher.launcher.Constants
+import launcher.launcher.ui.navigation.QuestSetupScreen
+import launcher.launcher.ui.screens.quest.setup.SetAppFocusIntegration
+import launcher.launcher.ui.screens.quest.setup.SetFocusIntegration
+import launcher.launcher.ui.screens.quest.setup.SetIntegration
+import launcher.launcher.ui.screens.quest.setup.SetQuestMetaInfo
+import launcher.launcher.ui.screens.quest.setup.components.Navigation
+
+@Composable
+fun SetupNewQuest(
+    quitAddNew: () -> Unit
+){
+
+    val currentScreen = remember { mutableStateOf(QuestSetupScreen.Integration.route) }
+
+    val selectedIntegration = remember { mutableStateOf<Int?>(Constants.INTEGRATION_ID_APP_FOCUS) }
+
+
+    val questTitle = remember { mutableStateOf("") }
+    val reward = remember { mutableIntStateOf(5) }
+    val instructions = remember { mutableStateOf(emptyList<String>()) }
+
+    val selectedUnrestrictedApps = remember { mutableStateOf(emptySet<String>()) }
+    val selectedFocusApp = remember { mutableStateOf("") }
+
+    val nextScreenId = remember { mutableStateOf(QuestSetupScreen.QuestInfo.route) }
+    val previousScreenId = remember { mutableStateOf("finish") }
+    val isBackButtonFinish = remember { mutableStateOf(false) }
+
+
+
+    Scaffold(
+    floatingActionButton = {
+        Navigation(onNextPressed = {
+            currentScreen.value = nextScreenId.value
+        },
+            onBackPressed = {
+                if(isBackButtonFinish.value){
+                    quitAddNew()
+                }else{
+                    currentScreen.value = previousScreenId.value
+                }
+            },
+            isBackButtonFinish = isBackButtonFinish
+        )
+
+    }
+    )
+    {
+        paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp, vertical = 8.dp) // Consistent padding
+        ) {
+            when(currentScreen.value){
+                QuestSetupScreen.Integration.route -> SetIntegration(previousScreenId,nextScreenId,isBackButtonFinish,selectedIntegration)
+                QuestSetupScreen.QuestInfo.route -> SetQuestMetaInfo(previousScreenId,nextScreenId,isBackButtonFinish,instructions,reward,questTitle,selectedIntegration)
+                QuestSetupScreen.FocusIntegration.route -> SetFocusIntegration(previousScreenId,nextScreenId,isBackButtonFinish,selectedUnrestrictedApps)
+                QuestSetupScreen.AppFocusIntegration.route -> SetAppFocusIntegration(previousScreenId,nextScreenId,isBackButtonFinish,selectedFocusApp)
+            }
+        }
+    }
+
+}

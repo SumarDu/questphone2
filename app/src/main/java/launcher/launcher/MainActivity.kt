@@ -11,8 +11,7 @@ import androidx.navigation.compose.rememberNavController
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.QuestTrackerScreen
-import launcher.launcher.ui.screens.quest.setup.EditQuest
-import launcher.launcher.ui.screens.quest.SetIntegration
+import launcher.launcher.ui.screens.quest.SetupNewQuest
 import launcher.launcher.ui.screens.quest.ViewQuest
 import launcher.launcher.ui.screens.quest.setup.SetAppFocusIntegration
 import launcher.launcher.ui.screens.quest.setup.SetFocusIntegration
@@ -40,7 +39,7 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate(Screen.ViewQuest.route)
                                 },
                                 onNavigateToEditQuest = {
-                                    navController.navigate(Screen.SetIntegration.route)
+                                    navController.navigate(Screen.AddNewQuest.route)
                                 }
                             )
                         }
@@ -52,10 +51,6 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        composable(Screen.SetQuestInfo.route) {
-                            EditQuest(navController)
-                        }
-
                         composable(Screen.ViewQuest.route) {
                             ViewQuest(
                                 onNavigateToQuestTracker = {
@@ -64,16 +59,10 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        composable(Screen.SetIntegration.route) {
-                            SetIntegration(
-                                navController
-                            )
-                        }
-                        composable(Screen.SetFocusIntegration.route) {
-                            SetFocusIntegration(navController)
-                        }
-                        composable(Screen.SetAppFocusIntegration.route) {
-                            SetAppFocusIntegration(navController)
+                        composable(Screen.AddNewQuest.route) {
+                            SetupNewQuest {
+                                navController.popBackStack()
+                            }
                         }
                     }
                 }
