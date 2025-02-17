@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import launcher.launcher.models.quest.FocusTimeConfig
 import launcher.launcher.ui.navigation.AddNewQuestSubScreens
 import launcher.launcher.ui.screens.quest.setup.components.SetFocusTimeUI
 import launcher.launcher.utils.getCachedApps
@@ -23,7 +24,7 @@ fun SetAppFocusIntegration(
     isBackButtonFinish: MutableState<Boolean>,
 
     selectedApp: MutableState<String>,
-
+    focusTimeConfig: MutableState<FocusTimeConfig>
 ) {
 
     previousScreen.value = AddNewQuestSubScreens.QuestInfo.route
@@ -34,7 +35,7 @@ fun SetAppFocusIntegration(
         modifier = Modifier.fillMaxSize()
     ) {
         item {
-            SetFocusTimeUI()
+            SetFocusTimeUI(focusTimeConfig)
             Spacer(modifier = Modifier.height(32.dp))
             Text(
                 "Select an app to focus",

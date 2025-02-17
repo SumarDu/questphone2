@@ -14,13 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import launcher.launcher.Constants
 import launcher.launcher.models.DayOfWeek
+import launcher.launcher.models.quest.FocusTimeConfig
 import launcher.launcher.ui.navigation.AddNewQuestSubScreens
 import launcher.launcher.ui.screens.quest.setup.ReviewFinalSettings
 import launcher.launcher.ui.screens.quest.setup.SetAppFocusIntegration
@@ -52,6 +52,7 @@ fun SetupNewQuest(
     val previousScreenId = remember { mutableStateOf("finish") }
     val isBackButtonFinish = remember { mutableStateOf(false) }
 
+    val focusTimeConfig = remember { mutableStateOf(FocusTimeConfig()) }
 
     BackHandler {
         if (isBackButtonFinish.value) {
@@ -134,7 +135,8 @@ fun SetupNewQuest(
                             nextScreenId,
 
                             isBackButtonFinish,
-                            selectedFocusApp
+                            selectedFocusApp,
+                            focusTimeConfig
                         )
 
                         AddNewQuestSubScreens.SaveNewQuest.route -> {
@@ -147,7 +149,8 @@ fun SetupNewQuest(
                                 selectedDays,
                                 selectedIntegration,
                                 selectedFocusApp,
-                                selectedUnrestrictedApps
+                                selectedUnrestrictedApps,
+                                focusTimeConfig
                             )
                         }
                     }

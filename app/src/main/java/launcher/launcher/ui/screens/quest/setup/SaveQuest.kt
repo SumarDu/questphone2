@@ -10,7 +10,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import launcher.launcher.Constants
 import launcher.launcher.models.DayOfWeek
-import launcher.launcher.ui.navigation.AddNewQuestSubScreens
+import launcher.launcher.models.quest.FocusTimeConfig
 
 @Composable
 fun ReviewFinalSettings(
@@ -18,10 +18,13 @@ fun ReviewFinalSettings(
     selectedDays: MutableState<Set<DayOfWeek>>,
     selectedIntegration: MutableState<Int?>,
     selectedFocusApp: MutableState<String>,
-    selectedUnrestrictedApps: MutableState<Set<String>>
-) {
+    selectedUnrestrictedApps: MutableState<Set<String>>,
+    focusTimeConfig: MutableState<FocusTimeConfig>,
+
+    ) {
     Text("Review Settings",
-        style = MaterialTheme.typography.headlineLarge)
+        style = MaterialTheme.typography.headlineLarge,
+        modifier = Modifier.padding(top = 32.dp))
 
     Text("Please cross check all you choices. You won't be allowed to change any configurations for this quest until you pay 150 coins.",
         style = MaterialTheme.typography.bodyLarge,
@@ -64,6 +67,12 @@ fun ReviewFinalSettings(
 
             }
 
+        }
+
+        item {
+            ReviewItem("Initial Time",focusTimeConfig.value.initialTime + " " + focusTimeConfig.value.initialUnit)
+            ReviewItem("Goal Time",focusTimeConfig.value.finalTime + " " + focusTimeConfig.value.finalUnit)
+            ReviewItem("Increment Time",focusTimeConfig.value.incrementTime + " " + focusTimeConfig.value.incrementUnit)
         }
     }
 

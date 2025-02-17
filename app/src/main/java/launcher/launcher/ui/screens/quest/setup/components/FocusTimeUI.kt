@@ -1,24 +1,11 @@
 package launcher.launcher.ui.screens.quest.setup.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -26,75 +13,31 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import launcher.launcher.models.quest.FocusTimeConfig
 
 
 @Composable
-fun SetFocusTimeUI() {
-    var initialTime by remember { mutableStateOf("1") }
-    var finalTime by remember { mutableStateOf("5") }
-    var incrementTime by remember { mutableStateOf("15") }
-
-    var initialUnit by remember { mutableStateOf("h") }
-    var finalUnit by remember { mutableStateOf("h") }
-    var incrementUnit by remember { mutableStateOf("m") }
-
+fun SetFocusTimeUI(
+    focusTimeState : MutableState<FocusTimeConfig>
+) {
+    val focusTime = focusTimeState.value
     val units = listOf("h", "m")
-
-    @Composable
-    fun TimeUnitSelector(
-        selectedUnit: String,
-        onSelect: (String) -> Unit,
-        modifier: Modifier = Modifier
-    ) {
-        Row(
-            modifier = modifier
-                .clip(MaterialTheme.shapes.small)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(4.dp) // Consistent padding
-        ) {
-            units.forEach { unit ->
-                TextButton(
-                    onClick = { onSelect(unit) },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = if (selectedUnit == unit)
-                            MaterialTheme.colorScheme.onPrimary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant,
-                        containerColor = if (selectedUnit == unit)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            Color.Transparent
-                    ),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = unit,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (selectedUnit == unit) FontWeight.Bold else FontWeight.Normal
-                    )
-                }
-            }
-        }
-    }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp), // Consistent vertical padding
+            .padding(vertical = 8.dp), // Consistent padding
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         listOf(
-            Triple("Initial Focus Time", initialTime, initialUnit) to { time: String, unit: String ->
-                initialTime = time
-                initialUnit = unit
+            Triple("Initial Focus Time", focusTime.initialTime, focusTime.initialUnit) to { time: String, unit: String ->
+                focusTimeState.value = focusTime.copy(initialTime = time, initialUnit = unit)
             },
-            Triple("Increment Daily by", incrementTime, incrementUnit) to { time: String, unit: String ->
-                incrementTime = time
-                incrementUnit = unit
+            Triple("Increment Daily by", focusTime.incrementTime, focusTime.incrementUnit) to { time: String, unit: String ->
+                focusTimeState.value = focusTime.copy(incrementTime = time, incrementUnit = unit)
             },
-            Triple("Goal Focus Time", finalTime, finalUnit) to { time: String, unit: String ->
-                finalTime = time
-                finalUnit = unit
+            Triple("Goal Focus Time", focusTime.finalTime, focusTime.finalUnit) to { time: String, unit: String ->
+                focusTimeState.value = focusTime.copy(finalTime = time, finalUnit = unit)
             }
         ).forEach { (data, update) ->
             Row(
@@ -129,6 +72,45 @@ fun SetFocusTimeUI() {
                     selectedUnit = data.third,
                     onSelect = { update(data.second, it) },
                     modifier = Modifier.width(80.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun TimeUnitSelector(
+    selectedUnit: String,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val units = listOf("h", "m")
+
+    Row(
+        modifier = modifier
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(4.dp) // Consistent padding
+    ) {
+        units.forEach { unit ->
+            TextButton(
+                onClick = { onSelect(unit) },
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = if (selectedUnit == unit)
+                        MaterialTheme.colorScheme.onPrimary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    containerColor = if (selectedUnit == unit)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        Color.Transparent
+                ),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = unit,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (selectedUnit == unit) FontWeight.Bold else FontWeight.Normal
                 )
             }
         }
