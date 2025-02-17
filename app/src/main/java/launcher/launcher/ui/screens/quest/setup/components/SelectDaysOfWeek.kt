@@ -13,13 +13,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import launcher.launcher.models.DayOfWeek
 
 @Composable
 fun SelectDaysOfWeek(
-    onDaysSelected: (Set<DayOfWeek>) -> Unit,
+    selectedDays: MutableState<Set<DayOfWeek>>,
     modifier: Modifier = Modifier
 ) {
-    var selectedDays by remember { mutableStateOf(emptySet<DayOfWeek>()) }
 
     Column(
         modifier = modifier
@@ -41,14 +41,13 @@ fun SelectDaysOfWeek(
             DayOfWeek.entries.forEach { day ->
                 DayButton(
                     day = day,
-                    isSelected = day in selectedDays,
+                    isSelected = day in selectedDays.value,
                     onSelected = { selected ->
-                        selectedDays = if (selected) {
-                            selectedDays + day
+                        selectedDays.value = if (selected) {
+                            selectedDays.value + day
                         } else {
-                            selectedDays - day
+                            selectedDays.value - day
                         }
-                        onDaysSelected(selectedDays)
                     }
                 )
             }
@@ -110,8 +109,4 @@ private fun DayButton(
             )
         }
     }
-}
-
-enum class DayOfWeek {
-    MON, TUE, WED, THU, FRI, SAT, SUN
 }

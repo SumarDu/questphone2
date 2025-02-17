@@ -1,11 +1,13 @@
 package launcher.launcher.ui.screens.quest.setup
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import launcher.launcher.Constants
-import launcher.launcher.ui.navigation.QuestSetupScreen
+import launcher.launcher.models.DayOfWeek
+import launcher.launcher.ui.navigation.AddNewQuestSubScreens
 import launcher.launcher.ui.screens.quest.components.InstructionsList
 import launcher.launcher.ui.screens.quest.setup.components.SelectDaysOfWeek
 
@@ -19,16 +21,18 @@ fun SetQuestMetaInfo(
     reward: MutableIntState,
     questTitle: MutableState<String>,
 
+
+    selectedDays: MutableState<Set<DayOfWeek>>,
     selectedIntegration: MutableState<Int?>,
     ) {
     var newInstruction by remember { mutableStateOf("") }
     var showAddInstructionDialog by remember { mutableStateOf(false) }
 
-    previousScreen.value = QuestSetupScreen.Integration.route
+    previousScreen.value = AddNewQuestSubScreens.Integration.route
 
     when(selectedIntegration.value){
-        Constants.INTEGRATION_ID_FOCUS -> nextScreen.value = QuestSetupScreen.FocusIntegration.route
-        Constants.INTEGRATION_ID_APP_FOCUS -> nextScreen.value = QuestSetupScreen.AppFocusIntegration.route
+        Constants.INTEGRATION_ID_FOCUS -> nextScreen.value = AddNewQuestSubScreens.FocusIntegration.route
+        Constants.INTEGRATION_ID_APP_FOCUS -> nextScreen.value = AddNewQuestSubScreens.AppFocusIntegration.route
     }
     isBackButtonFinish.value = false
 
@@ -51,7 +55,7 @@ fun SetQuestMetaInfo(
             .fillMaxWidth()
             .padding(top = 16.dp)
     )
-    SelectDaysOfWeek(onDaysSelected = {})
+    SelectDaysOfWeek(selectedDays)
     InstructionsList(
         instructions = instructions.value,
         onAddInstruction = { showAddInstructionDialog = true },

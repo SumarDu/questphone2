@@ -10,14 +10,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.AppList
-import launcher.launcher.ui.screens.launcher.QuestTrackerScreen
+import launcher.launcher.ui.screens.launcher.HomeScreen
+import launcher.launcher.ui.screens.quest.ListAllQuests
 import launcher.launcher.ui.screens.quest.SetupNewQuest
 import launcher.launcher.ui.screens.quest.ViewQuest
-import launcher.launcher.ui.screens.quest.setup.SetAppFocusIntegration
-import launcher.launcher.ui.screens.quest.setup.SetFocusIntegration
 import launcher.launcher.ui.theme.LauncherTheme
-
-
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,17 +28,7 @@ class MainActivity : ComponentActivity() {
                         navController = navController,
                         startDestination = Screen.QuestTracker.route) {
                         composable(Screen.QuestTracker.route) {
-                            QuestTrackerScreen(
-                                onNavigateToAppList = {
-                                    navController.navigate(Screen.AppList.route)
-                                },
-                                onNavigateToViewQuest = {
-                                    navController.navigate(Screen.ViewQuest.route)
-                                },
-                                onNavigateToEditQuest = {
-                                    navController.navigate(Screen.AddNewQuest.route)
-                                }
-                            )
+                            HomeScreen(navController)
                         }
                         composable(Screen.AppList.route) {
                             AppList(
@@ -63,6 +50,9 @@ class MainActivity : ComponentActivity() {
                             SetupNewQuest {
                                 navController.popBackStack()
                             }
+                        }
+                        composable(Screen.ListAllQuest.route) {
+                            ListAllQuests(navController)
                         }
                     }
                 }

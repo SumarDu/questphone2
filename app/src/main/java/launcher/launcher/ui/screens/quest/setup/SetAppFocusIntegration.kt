@@ -11,9 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import launcher.launcher.ui.navigation.QuestSetupScreen
-import launcher.launcher.ui.navigation.Screen
-import launcher.launcher.ui.screens.quest.setup.components.Navigation
+import launcher.launcher.ui.navigation.AddNewQuestSubScreens
 import launcher.launcher.ui.screens.quest.setup.components.SetFocusTimeUI
 import launcher.launcher.utils.getCachedApps
 
@@ -24,11 +22,12 @@ fun SetAppFocusIntegration(
     nextScreen: MutableState<String>,
     isBackButtonFinish: MutableState<Boolean>,
 
-    selectedApp: MutableState<String>
+    selectedApp: MutableState<String>,
+
 ) {
 
-    previousScreen.value = QuestSetupScreen.QuestInfo.route
-    nextScreen.value = "finish"
+    previousScreen.value = AddNewQuestSubScreens.QuestInfo.route
+    nextScreen.value = AddNewQuestSubScreens.SaveNewQuest.route
     isBackButtonFinish.value = false
     val apps = getCachedApps(LocalContext.current)
     LazyColumn(

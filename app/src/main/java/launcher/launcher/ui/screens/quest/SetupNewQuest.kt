@@ -14,13 +14,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
 import launcher.launcher.Constants
-import launcher.launcher.ui.navigation.QuestSetupScreen
+import launcher.launcher.models.DayOfWeek
+import launcher.launcher.ui.navigation.AddNewQuestSubScreens
+import launcher.launcher.ui.screens.quest.setup.ReviewFinalSettings
 import launcher.launcher.ui.screens.quest.setup.SetAppFocusIntegration
 import launcher.launcher.ui.screens.quest.setup.SetFocusIntegration
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
@@ -32,8 +34,8 @@ fun SetupNewQuest(
     quitAddNew: () -> Unit
 ) {
 
-    val currentScreen = remember { mutableStateOf(QuestSetupScreen.Integration.route) }
-    var isNavigatingForward = remember { mutableStateOf(true) }
+    val currentScreen = remember { mutableStateOf(AddNewQuestSubScreens.Integration.route) }
+    val isNavigatingForward = remember { mutableStateOf(true) }
 
     val selectedIntegration = remember { mutableStateOf<Int?>(Constants.INTEGRATION_ID_APP_FOCUS) }
 
@@ -41,14 +43,14 @@ fun SetupNewQuest(
     val questTitle = remember { mutableStateOf("") }
     val reward = remember { mutableIntStateOf(5) }
     val instructions = remember { mutableStateOf(emptyList<String>()) }
+    val selectedDays = remember { mutableStateOf(emptySet<DayOfWeek>()) }
 
     val selectedUnrestrictedApps = remember { mutableStateOf(emptySet<String>()) }
     val selectedFocusApp = remember { mutableStateOf("") }
 
-    val nextScreenId = remember { mutableStateOf(QuestSetupScreen.QuestInfo.route) }
+    val nextScreenId = remember { mutableStateOf(AddNewQuestSubScreens.QuestInfo.route) }
     val previousScreenId = remember { mutableStateOf("finish") }
     val isBackButtonFinish = remember { mutableStateOf(false) }
-
 
 
     BackHandler {
@@ -101,36 +103,53 @@ fun SetupNewQuest(
             ) { targetScreen ->
                 Column {
                     when (targetScreen) {
-                        QuestSetupScreen.Integration.route -> SetIntegration(
+                        AddNewQuestSubScreens.Integration.route -> SetIntegration(
                             previousScreenId,
                             nextScreenId,
                             isBackButtonFinish,
                             selectedIntegration
                         )
 
-                        QuestSetupScreen.QuestInfo.route -> SetQuestMetaInfo(
+                        AddNewQuestSubScreens.QuestInfo.route -> SetQuestMetaInfo(
                             previousScreenId,
                             nextScreenId,
                             isBackButtonFinish,
                             instructions,
                             reward,
                             questTitle,
+                            selectedDays,
                             selectedIntegration
                         )
 
-                        QuestSetupScreen.FocusIntegration.route -> SetFocusIntegration(
+                        AddNewQuestSubScreens.FocusIntegration.route -> SetFocusIntegration(
                             previousScreenId,
                             nextScreenId,
+
                             isBackButtonFinish,
                             selectedUnrestrictedApps
                         )
 
-                        QuestSetupScreen.AppFocusIntegration.route -> SetAppFocusIntegration(
+                        AddNewQuestSubScreens.AppFocusIntegration.route -> SetAppFocusIntegration(
                             previousScreenId,
                             nextScreenId,
+
                             isBackButtonFinish,
                             selectedFocusApp
                         )
+
+                        AddNewQuestSubScreens.SaveNewQuest.route -> {
+                            when(selectedIntegration.value){
+                                Constants.INTEGRATION_ID_FOCUS -> previousScreenId.value = AddNewQuestSubScreens.FocusIntegration.route
+                                Constants.INTEGRATION_ID_APP_FOCUS -> previousScreenId.value = AddNewQuestSubScreens.AppFocusIntegration.route
+                            }
+                            ReviewFinalSettings(
+                                reward,
+                                selectedDays,
+                                selectedIntegration,
+                                selectedFocusApp,
+                                selectedUnrestrictedApps
+                            )
+                        }
                     }
                 }
             }
