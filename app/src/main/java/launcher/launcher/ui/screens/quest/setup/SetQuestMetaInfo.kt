@@ -39,6 +39,7 @@ fun SetQuestMetaInfo(
         Constants.INTEGRATION_ID_FOCUS -> nextScreen.value = AddNewQuestSubScreens.FocusIntegration.route
         Constants.INTEGRATION_ID_APP_FOCUS -> nextScreen.value = AddNewQuestSubScreens.AppFocusIntegration.route
     }
+    reward.intValue = 1
     isBackButtonFinish.value = false
 
     OutlinedTextField(
@@ -52,18 +53,6 @@ fun SetQuestMetaInfo(
             .padding(top = 40.dp)
     )
 
-    OutlinedTextField(
-        value = reward.intValue.toString(),
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        onValueChange = {
-            reward.intValue = it.toIntOrNull() ?: reward.intValue
-        },
-        label = { Text("Reward (coins)") },
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp)
-    )
     SelectDaysOfWeek(selectedDays)
     InstructionsList(
         instructions = instructions.value,

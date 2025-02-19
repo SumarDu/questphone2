@@ -24,6 +24,7 @@ import kotlinx.coroutines.withContext
 import launcher.launcher.models.AppInfo
 import launcher.launcher.ui.screens.launcher.components.AppItem
 import launcher.launcher.ui.screens.launcher.components.CoinDialog
+import launcher.launcher.utils.CoinHelper
 import launcher.launcher.utils.getCachedApps
 import launcher.launcher.utils.reloadApps
 
@@ -36,6 +37,9 @@ fun AppList(onNavigateToQuestTracker: () -> Unit) {
     val errorState = remember { mutableStateOf<String?>(null) }
     val isUserTryingOpenApp = remember { mutableStateOf(false) } // user is trying to open an app from the list
     val userSelectedPackage = remember { mutableStateOf("") }
+
+
+    val coinHelper = CoinHelper(LocalContext.current)
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         LaunchedEffect(Unit) {
@@ -73,9 +77,10 @@ fun AppList(onNavigateToQuestTracker: () -> Unit) {
                 }
             }
             if(isUserTryingOpenApp.value){
-                CoinDialog(coins = 32, onDismiss = {
+                CoinDialog(coins = coinHelper.getCoinCount(), onDismiss = {
                     isUserTryingOpenApp.value = false
                 }, onConfirm = {
+                    coinHelper.decrementCoinCount(1)
                     val intent = context.packageManager.getLaunchIntentForPackage(userSelectedPackage.value)
                     context.startActivity(intent)
                 })

@@ -23,14 +23,18 @@ import launcher.launcher.models.quest.BaseQuestInfo
 import launcher.launcher.models.quest.FocusAppQuestInfo
 import launcher.launcher.models.quest.FocusQuestInfo
 import launcher.launcher.ui.theme.JetBrainsMonoFont
+import launcher.launcher.utils.CoinHelper
 import launcher.launcher.utils.QuestListHelper
 
 @Composable
 fun ViewQuest(
     baseQuestInfo: BaseQuestInfo
 ) {
+    val coinHelper = CoinHelper(LocalContext.current)
+
     var focusQuestInfo = FocusQuestInfo()
     var appFocusQuestInfo = FocusAppQuestInfo()
+
 
     var duration = 0L
 
@@ -51,7 +55,9 @@ fun ViewQuest(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
             Button(
-                onClick = { /* Start quest */ },
+                onClick = {
+                    coinHelper.incrementCoinCount(baseQuestInfo.reward)
+                },
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.padding(bottom = 16.dp)
             ) {
@@ -70,7 +76,7 @@ fun ViewQuest(
             ) {
             // Coins display
             Text(
-                text = "100 coins",
+                text = "${coinHelper.getCoinCount()} coins",
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier
                     .padding(24.dp)

@@ -11,9 +11,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import launcher.launcher.utils.CoinHelper
 
 @Composable
 fun CoinDialog(
@@ -27,7 +29,7 @@ fun CoinDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "$coins coins",
+                    text = "Balance: $coins coins",
                     color = Color.White,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )

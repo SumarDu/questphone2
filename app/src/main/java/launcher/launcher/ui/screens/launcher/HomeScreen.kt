@@ -31,6 +31,7 @@ import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.components.LiveClock
 import launcher.launcher.ui.screens.launcher.components.ProgressBar
 import launcher.launcher.ui.screens.launcher.components.QuestItem
+import launcher.launcher.utils.CoinHelper
 import launcher.launcher.utils.QuestListHelper
 
 
@@ -38,6 +39,7 @@ import launcher.launcher.utils.QuestListHelper
 fun HomeScreen(navController: NavController) {
     val questListHelper = QuestListHelper(LocalContext.current)
     val questList =  questListHelper.getQuestList()
+    val coinHelper = CoinHelper(LocalContext.current)
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
     Box(
         modifier = Modifier
@@ -74,7 +76,7 @@ fun HomeScreen(navController: NavController) {
         ) {
             // Coins display
             Text(
-                text = "100 coins",
+                text = "${coinHelper.getCoinCount()} coins",
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(24.dp)
                     .align(Alignment.End)
