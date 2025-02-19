@@ -7,12 +7,13 @@ import kotlinx.serialization.Serializable
  *
  * @property questInfo
  * @property focusTimeConfig
- * @property selectedApps list of unrestricted apps during the focus session
+ * @property unrestrictedApps list of unrestricted apps during the focus session
  */
 
 @Serializable
 data class FocusQuestInfo(
-    val questInfo: BaseQuestInfo,
-    val focusTimeConfig: FocusTimeConfig,
-    val selectedApps: Set<String>
+    val questInfo: BaseQuestInfo = BaseQuestInfo(),
+    val focusTimeConfig: FocusTimeConfig = FocusTimeConfig(),
+    val unrestrictedApps: Set<String> = emptySet(),
+    val nextFocusDuration : Long = 300_000
 )

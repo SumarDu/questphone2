@@ -12,6 +12,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class FocusAppQuestInfo(
     val questInfo: BaseQuestInfo = BaseQuestInfo(),
-    val focusQuestInfo: FocusTimeConfig,
-    val selectedApp: String
+    val focusQuestInfo: FocusTimeConfig = FocusTimeConfig(),
+    val selectedApp: String = "",
+    val nextFocusDuration : Long = 300_000
 )

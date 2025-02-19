@@ -189,7 +189,8 @@ fun SetupNewQuest(
                                         val data = FocusQuestInfo(
                                             baseQuestInfo,
                                             focusTimeConfig.value,
-                                            selectedUnrestrictedApps.value
+                                            selectedUnrestrictedApps.value,
+                                            focusTimeConfig.value.initialTimeInMs
                                         )
                                         baseQuestInfo.integrationId = Constants.INTEGRATION_ID_FOCUS
                                         questListHelper.appendFocusQuest(baseQuestInfo, data)
@@ -199,7 +200,8 @@ fun SetupNewQuest(
                                         val data = FocusAppQuestInfo(
                                             baseQuestInfo,
                                             focusTimeConfig.value,
-                                            selectedFocusApp.value
+                                            selectedFocusApp.value,
+                                            focusTimeConfig.value.initialTimeInMs
                                         )
                                         baseQuestInfo.integrationId =
                                             Constants.INTEGRATION_ID_APP_FOCUS

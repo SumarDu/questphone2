@@ -1,15 +1,8 @@
 package launcher.launcher.ui.screens.quest
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,28 +11,42 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.coroutineScope
+import launcher.launcher.Constants
 import launcher.launcher.models.quest.BaseQuestInfo
+import launcher.launcher.models.quest.FocusAppQuestInfo
+import launcher.launcher.models.quest.FocusQuestInfo
 import launcher.launcher.ui.theme.JetBrainsMonoFont
+import launcher.launcher.utils.QuestListHelper
 
 @Composable
 fun ViewQuest(
     baseQuestInfo: BaseQuestInfo
 ) {
+    var focusQuestInfo = FocusQuestInfo()
+    var appFocusQuestInfo = FocusAppQuestInfo()
+
+    var duration = 0L
+
+    val questListHelper = QuestListHelper(LocalContext.current)
+    when(baseQuestInfo.integrationId){
+        Constants.INTEGRATION_ID_FOCUS -> {
+            focusQuestInfo = questListHelper.getFocusQuestInfo(baseQuestInfo) ?: return
+            duration = focusQuestInfo.nextFocusDuration
+        }
+        Constants.INTEGRATION_ID_APP_FOCUS -> {
+            appFocusQuestInfo = questListHelper.getAppFocusQuestInfo(baseQuestInfo) ?: return
+            duration = focusQuestInfo.nextFocusDuration
+
+        }
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
@@ -55,7 +62,8 @@ fun ViewQuest(
     ) { innerPadding ->
 
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
                 .padding(innerPadding),
             horizontalAlignment = Alignment.Start,
 
@@ -64,7 +72,8 @@ fun ViewQuest(
             Text(
                 text = "100 coins",
                 style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(24.dp)
+                modifier = Modifier
+                    .padding(24.dp)
                     .align(Alignment.End)
             )
 
@@ -81,9 +90,40 @@ fun ViewQuest(
 
                 Text(
                     text = "Reward: ${baseQuestInfo.reward} coins",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin),
-                    modifier = Modifier.padding(top = 8.dp)
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
+
+                Text(
+                    text = "Duration: ${duration / 60_000}m",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin),
+                    modifier = Modifier.padding(top = 32.dp)
+                )
+
+                val pm = LocalContext.current.packageManager
+                when(baseQuestInfo.integrationId){
+                    Constants.INTEGRATION_ID_FOCUS -> {
+                        var apps = ""
+                        focusQuestInfo.unrestrictedApps.forEach { value ->
+                            apps +=  pm.getApplicationLabel(pm.getApplicationInfo(value,0)).toString()
+                            apps += " "
+                        }
+                        Text(
+                            text = "Unrestricted Apps: $apps",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin),
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+                    Constants.INTEGRATION_ID_APP_FOCUS -> {
+                        val app = pm.getApplicationLabel(pm.getApplicationInfo(appFocusQuestInfo.selectedApp,0)).toString()
+                        Text(
+                            text = "Focus App: $app",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin),
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+                }
+
+
 
                 Text(
                     text = "Instructions",
