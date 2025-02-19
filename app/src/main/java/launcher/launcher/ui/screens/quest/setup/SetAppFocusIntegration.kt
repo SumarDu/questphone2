@@ -28,7 +28,7 @@ fun SetAppFocusIntegration(
 ) {
 
     previousScreen.value = AddNewQuestSubScreens.QuestInfo.route
-    nextScreen.value = AddNewQuestSubScreens.SaveNewQuest.route
+    nextScreen.value = AddNewQuestSubScreens.ReviewQuest.route
     isBackButtonFinish.value = false
     val apps = getCachedApps(LocalContext.current)
     LazyColumn(

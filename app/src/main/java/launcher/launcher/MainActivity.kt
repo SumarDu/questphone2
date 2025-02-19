@@ -5,9 +5,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.Surface
+import androidx.navigation.NavArgument
+import androidx.navigation.NavArgumentBuilder
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import kotlinx.serialization.json.Json
+import launcher.launcher.models.quest.BaseQuestInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.HomeScreen
@@ -20,6 +26,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
             LauncherTheme {
                 Surface {
@@ -38,12 +45,14 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        composable(Screen.ViewQuest.route) {
-                            ViewQuest(
-                                onNavigateToQuestTracker = {
-                                    navController.popBackStack()
-                                }
-                            )
+                        composable(
+                            route = "${Screen.ViewQuest.route}{baseQuestInfo}",
+                            arguments = listOf(navArgument("baseQuestInfo") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val json = backStackEntry.arguments?.getString("baseQuestInfo")
+                            val baseQuestInfo = json?.let { Json.decodeFromString<BaseQuestInfo>(it) }
+
+                            ViewQuest(baseQuestInfo!!)
                         }
 
                         composable(Screen.AddNewQuest.route) {

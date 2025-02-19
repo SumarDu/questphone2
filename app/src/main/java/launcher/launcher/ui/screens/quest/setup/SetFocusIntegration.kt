@@ -12,7 +12,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import launcher.launcher.ui.navigation.AddNewQuestSubScreens
-import launcher.launcher.ui.screens.quest.setup.components.SetFocusTimeUI
 import launcher.launcher.utils.getCachedApps
 
 
@@ -29,7 +28,7 @@ fun SetFocusIntegration(
     val apps = getCachedApps(context)
 
     previousScreen.value = AddNewQuestSubScreens.QuestInfo.route
-    nextScreen.value = AddNewQuestSubScreens.SaveNewQuest.route
+    nextScreen.value = AddNewQuestSubScreens.ReviewQuest.route
     isBackButtonFinish.value = false
     LazyColumn(
         modifier = Modifier.fillMaxSize()

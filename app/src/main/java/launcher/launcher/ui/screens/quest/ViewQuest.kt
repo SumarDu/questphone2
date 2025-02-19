@@ -33,14 +33,12 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.coroutineScope
+import launcher.launcher.models.quest.BaseQuestInfo
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 
 @Composable
 fun ViewQuest(
-    onNavigateToQuestTracker: () -> Unit,
-    coins: Int = 100,
-    reward: Int = 10,
-    instructions: List<String> = listOf("Revise 0.C", "Practice Maths", "Complete Home-Works")
+    baseQuestInfo: BaseQuestInfo
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -75,14 +73,14 @@ fun ViewQuest(
             ) {
 
                 Text(
-                    text = "Study 3hrs",
+                    text = baseQuestInfo.title,
                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                     fontFamily = JetBrainsMonoFont,
                     modifier = Modifier.padding(top = 40.dp,)
                 )
 
                 Text(
-                    text = "Reward: 10 coins",
+                    text = "Reward: ${baseQuestInfo.reward} coins",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin),
                     modifier = Modifier.padding(top = 8.dp)
                 )
@@ -94,7 +92,7 @@ fun ViewQuest(
                 )
 
                 LazyColumn {
-                    items(instructions) {
+                    items(baseQuestInfo.instructions) {
                         Text(
                             text = "\u2022 $it",
                             style = MaterialTheme.typography.bodyLarge,

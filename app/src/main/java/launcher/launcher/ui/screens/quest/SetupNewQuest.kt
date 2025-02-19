@@ -1,5 +1,8 @@
+@file:Suppress("IMPLICIT_CAST_TO_ANY")
+
 package launcher.launcher.ui.screens.quest
 
+import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -13,21 +16,29 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import kotlinx.serialization.serializer
 import launcher.launcher.Constants
 import launcher.launcher.models.DayOfWeek
+import launcher.launcher.models.quest.BaseQuestInfo
+import launcher.launcher.models.quest.FocusAppQuestInfo
+import launcher.launcher.models.quest.FocusQuestInfo
 import launcher.launcher.models.quest.FocusTimeConfig
 import launcher.launcher.ui.navigation.AddNewQuestSubScreens
+import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.quest.setup.ReviewFinalSettings
 import launcher.launcher.ui.screens.quest.setup.SetAppFocusIntegration
 import launcher.launcher.ui.screens.quest.setup.SetFocusIntegration
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
 import launcher.launcher.ui.screens.quest.setup.SetQuestMetaInfo
 import launcher.launcher.ui.screens.quest.setup.components.Navigation
+import launcher.launcher.utils.QuestListHelper
 
 @Composable
 fun SetupNewQuest(
@@ -53,6 +64,8 @@ fun SetupNewQuest(
     val isBackButtonFinish = remember { mutableStateOf(false) }
 
     val focusTimeConfig = remember { mutableStateOf(FocusTimeConfig()) }
+
+    val savedPreferences = LocalContext.current.getSharedPreferences("quest_ist",Context.MODE_PRIVATE)
 
     BackHandler {
         if (isBackButtonFinish.value) {
@@ -139,11 +152,12 @@ fun SetupNewQuest(
                             focusTimeConfig
                         )
 
-                        AddNewQuestSubScreens.SaveNewQuest.route -> {
+                        AddNewQuestSubScreens.ReviewQuest.route -> {
                             when(selectedIntegration.value){
                                 Constants.INTEGRATION_ID_FOCUS -> previousScreenId.value = AddNewQuestSubScreens.FocusIntegration.route
                                 Constants.INTEGRATION_ID_APP_FOCUS -> previousScreenId.value = AddNewQuestSubScreens.AppFocusIntegration.route
                             }
+                            nextScreenId.value = AddNewQuestSubScreens.SavingDialog.route
                             ReviewFinalSettings(
                                 reward,
                                 selectedDays,
@@ -153,7 +167,44 @@ fun SetupNewQuest(
                                 focusTimeConfig
                             )
                         }
+
+                        AddNewQuestSubScreens.SavingDialog.route -> {
+                            val questListHelper = QuestListHelper(LocalContext.current)
+
+                            LaunchedEffect(Unit) {
+                                val baseQuestInfo = BaseQuestInfo(
+                                    title = questTitle.value,
+                                    instructions = instructions.value,
+                                    reward = reward.intValue
+                                )
+
+                                when (selectedIntegration.value) {
+                                    Constants.INTEGRATION_ID_FOCUS -> {
+                                        val data = FocusQuestInfo(
+                                            baseQuestInfo,
+                                            focusTimeConfig.value,
+                                            selectedUnrestrictedApps.value
+                                        )
+                                        baseQuestInfo.integrationId = Constants.INTEGRATION_ID_FOCUS
+                                        questListHelper.appendFocusQuest(baseQuestInfo, data)
+                                    }
+
+                                    Constants.INTEGRATION_ID_APP_FOCUS -> {
+                                        val data = FocusAppQuestInfo(
+                                            baseQuestInfo,
+                                            focusTimeConfig.value,
+                                            selectedFocusApp.value
+                                        )
+                                        baseQuestInfo.integrationId =
+                                            Constants.INTEGRATION_ID_APP_FOCUS
+                                        questListHelper.appendFocusAppQuest(baseQuestInfo, data)
+                                    }
+                                }
+                                quitAddNew()
+                            }
+                        }
                     }
+
                 }
             }
         }

@@ -2,10 +2,16 @@ package launcher.launcher.models.quest
 
 import kotlinx.serialization.Serializable
 
+/**
+ * Block all apps except a specific selected app
+ *
+ * @property questInfo
+ * @property focusQuestInfo
+ * @property selectedApp app that user wants to concentrate on
+ */
 @Serializable
 data class FocusAppQuestInfo(
     val questInfo: BaseQuestInfo = BaseQuestInfo(),
-    val initialTime: Int = 10,
-    val incrementValue: Int = 2,
-    val goalTime:Int = 100
+    val focusQuestInfo: FocusTimeConfig,
+    val selectedApp: String
 )
