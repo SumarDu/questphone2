@@ -22,6 +22,7 @@ fun SetAppFocusIntegration(
     previousScreen: MutableState<String>,
     nextScreen: MutableState<String>,
     isBackButtonFinish: MutableState<Boolean>,
+    isNextEnabled: MutableState<Boolean>,
 
     selectedApp: MutableState<String>,
     focusTimeConfig: MutableState<FocusTimeConfig>
@@ -30,12 +31,16 @@ fun SetAppFocusIntegration(
     previousScreen.value = AddNewQuestSubScreens.QuestInfo.route
     nextScreen.value = AddNewQuestSubScreens.ReviewQuest.route
     isBackButtonFinish.value = false
+    isNextEnabled.value = selectedApp.value.isNotEmpty() && focusTimeConfig.value.finalTime.toInt()!=0 && focusTimeConfig.value.initialTime.toInt()!=0 && focusTimeConfig.value.incrementTime.toInt()!=0
+
     val apps = getCachedApps(LocalContext.current)
+
+    SetFocusTimeUI(focusTimeConfig)
     LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
+
         item {
-            SetFocusTimeUI(focusTimeConfig)
             Spacer(modifier = Modifier.height(32.dp))
             Text(
                 "Select an app to focus",

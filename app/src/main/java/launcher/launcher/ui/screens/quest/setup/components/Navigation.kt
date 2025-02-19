@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
 import launcher.launcher.ui.navigation.Screen
 
 @Composable
-fun Navigation(onBackPressed: ()->Unit, onNextPressed: ()->Unit, isBackButtonFinish:MutableState<Boolean> = mutableStateOf(false)){
+fun Navigation(onBackPressed: ()->Unit, onNextPressed: ()->Unit, isBackButtonFinish:MutableState<Boolean> , isNextEnabled: MutableState<Boolean>){
     Row(
         modifier = Modifier.padding(bottom = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp) // Space between buttons
@@ -31,6 +31,7 @@ fun Navigation(onBackPressed: ()->Unit, onNextPressed: ()->Unit, isBackButtonFin
             onClick = {
                 onNextPressed()
             },
+            enabled = isNextEnabled.value,
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.padding(bottom = 16.dp)
         ) {

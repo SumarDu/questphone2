@@ -11,7 +11,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import launcher.launcher.models.quest.FocusTimeConfig
 import launcher.launcher.ui.navigation.AddNewQuestSubScreens
+import launcher.launcher.ui.screens.quest.setup.components.SetFocusTimeUI
 import launcher.launcher.utils.getCachedApps
 
 
@@ -20,9 +22,10 @@ fun SetFocusIntegration(
     previousScreen: MutableState<String>,
     nextScreen: MutableState<String>,
     isBackButtonFinish: MutableState<Boolean>,
+    isNextEnabled: MutableState<Boolean>,
 
     selectedApps: MutableState<Set<String>>,
-
+    focusTimeConfig: MutableState<FocusTimeConfig>
 ) {
     val context = LocalContext.current
     val apps = getCachedApps(context)
@@ -30,11 +33,14 @@ fun SetFocusIntegration(
     previousScreen.value = AddNewQuestSubScreens.QuestInfo.route
     nextScreen.value = AddNewQuestSubScreens.ReviewQuest.route
     isBackButtonFinish.value = false
+    isNextEnabled.value = selectedApps.value.isNotEmpty() && focusTimeConfig.value.finalTime.toInt()!=0 && focusTimeConfig.value.initialTime.toInt()!=0 && focusTimeConfig.value.incrementTime.toInt()!=0
+
+
+    SetFocusTimeUI(focusTimeConfig)
     LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
         item {
-//            SetFocusTimeUI(initialTime,finalTime,incrementTime)
             Spacer(modifier = Modifier.height(32.dp))
             Text(
                 "Select Unrestricted Apps",

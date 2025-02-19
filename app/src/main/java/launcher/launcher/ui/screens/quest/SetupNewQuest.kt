@@ -47,7 +47,6 @@ fun SetupNewQuest(
 
     val currentScreen = remember { mutableStateOf(AddNewQuestSubScreens.Integration.route) }
     val isNavigatingForward = remember { mutableStateOf(true) }
-
     val selectedIntegration = remember { mutableStateOf<Int?>(Constants.INTEGRATION_ID_APP_FOCUS) }
 
 
@@ -62,6 +61,7 @@ fun SetupNewQuest(
     val nextScreenId = remember { mutableStateOf(AddNewQuestSubScreens.QuestInfo.route) }
     val previousScreenId = remember { mutableStateOf("finish") }
     val isBackButtonFinish = remember { mutableStateOf(false) }
+    val isNextEnabled = remember { mutableStateOf(true) }
 
     val focusTimeConfig = remember { mutableStateOf(FocusTimeConfig()) }
 
@@ -92,7 +92,8 @@ fun SetupNewQuest(
                         currentScreen.value = previousScreenId.value
                     }
                 },
-                isBackButtonFinish = isBackButtonFinish
+                isBackButtonFinish = isBackButtonFinish,
+                isNextEnabled = isNextEnabled
             )
 
         }
@@ -128,6 +129,8 @@ fun SetupNewQuest(
                             previousScreenId,
                             nextScreenId,
                             isBackButtonFinish,
+                            isNextEnabled,
+
                             instructions,
                             reward,
                             questTitle,
@@ -138,16 +141,19 @@ fun SetupNewQuest(
                         AddNewQuestSubScreens.FocusIntegration.route -> SetFocusIntegration(
                             previousScreenId,
                             nextScreenId,
-
                             isBackButtonFinish,
-                            selectedUnrestrictedApps
+                            isNextEnabled,
+
+                            selectedUnrestrictedApps,
+                            focusTimeConfig
                         )
 
                         AddNewQuestSubScreens.AppFocusIntegration.route -> SetAppFocusIntegration(
                             previousScreenId,
                             nextScreenId,
-
                             isBackButtonFinish,
+                            isNextEnabled,
+
                             selectedFocusApp,
                             focusTimeConfig
                         )

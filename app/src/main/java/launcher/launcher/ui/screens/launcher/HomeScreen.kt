@@ -10,25 +10,34 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.coroutineScope
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import launcher.launcher.models.quest.BaseQuestInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.components.LiveClock
 import launcher.launcher.ui.screens.launcher.components.ProgressBar
 import launcher.launcher.ui.screens.launcher.components.QuestItem
+import launcher.launcher.utils.QuestListHelper
 
 
 @Composable
 fun HomeScreen(navController: NavController) {
+    val questListHelper = QuestListHelper(LocalContext.current)
+    val questList =  questListHelper.getQuestList()
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
     Box(
         modifier = Modifier
@@ -92,6 +101,8 @@ fun HomeScreen(navController: NavController) {
 //                    .align(Alignment.CenterHorizontally)
 //            )
 
+
+
             Box(
                 modifier = Modifier
                     .width(100.dp)
@@ -104,27 +115,23 @@ fun HomeScreen(navController: NavController) {
                 )
             }
 
-            // Quest items
-            QuestItem("Study 3h",modifier = Modifier.clickable {
-                navController.navigate(Screen.ViewQuest.route)
-            })
-            QuestItem("Walk 3 kms", modifier = Modifier.clickable {
-                navController.navigate(Screen.ViewQuest.route)
-            })
-            QuestItem(
-                text = "List quests",
-                isCompleted = true,
-                modifier = Modifier.clickable {
-                    navController.navigate(Screen.ListAllQuest.route)
+            LazyColumn {
+                items(questList.size){ index ->
+                    val baseQuest = questList[index]
+                    QuestItem(baseQuest.title,modifier = Modifier.clickable {
+                        val data = Json.encodeToString<BaseQuestInfo>(baseQuest )
+                        navController.navigate(Screen.ViewQuest.route + data)
+                    })
                 }
-            )
-            QuestItem(
-                text = "Add a quest",
-                isCompleted = false,
-                modifier = Modifier.clickable {
-                    navController.navigate(Screen.AddNewQuest.route)
+                item {
+                    QuestItem(
+                        text = "List quests",
+                        modifier = Modifier.clickable {
+                            navController.navigate(Screen.ListAllQuest.route)
+                        }
+                    )
                 }
-            )
+            }
 
             // Core Apps button
             Text(

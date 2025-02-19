@@ -1,9 +1,11 @@
 package launcher.launcher.ui.screens.quest.setup
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import launcher.launcher.Constants
 import launcher.launcher.models.DayOfWeek
@@ -17,6 +19,8 @@ fun SetQuestMetaInfo(
     nextScreen: MutableState<String>,
     isBackButtonFinish: MutableState<Boolean>,
 
+    isNextEnabled: MutableState<Boolean>,
+
     instructions: MutableState<List<String>>,
     reward: MutableIntState,
     questTitle: MutableState<String>,
@@ -29,6 +33,7 @@ fun SetQuestMetaInfo(
     var showAddInstructionDialog by remember { mutableStateOf(false) }
 
     previousScreen.value = AddNewQuestSubScreens.Integration.route
+    isNextEnabled.value = questTitle.value.isNotEmpty() && selectedDays.value.isNotEmpty() && reward.intValue!=0
 
     when(selectedIntegration.value){
         Constants.INTEGRATION_ID_FOCUS -> nextScreen.value = AddNewQuestSubScreens.FocusIntegration.route
@@ -38,6 +43,8 @@ fun SetQuestMetaInfo(
 
     OutlinedTextField(
         value = questTitle.value,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
         onValueChange = { questTitle.value = it },
         label = { Text("Quest Title") },
         modifier = Modifier
@@ -47,6 +54,8 @@ fun SetQuestMetaInfo(
 
     OutlinedTextField(
         value = reward.intValue.toString(),
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         onValueChange = {
             reward.intValue = it.toIntOrNull() ?: reward.intValue
         },
