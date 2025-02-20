@@ -33,6 +33,7 @@ import launcher.launcher.ui.screens.launcher.components.ProgressBar
 import launcher.launcher.ui.screens.launcher.components.QuestItem
 import launcher.launcher.utils.CoinHelper
 import launcher.launcher.utils.QuestListHelper
+import launcher.launcher.utils.getCurrentDate
 
 
 @Composable
@@ -40,6 +41,9 @@ fun HomeScreen(navController: NavController) {
     val questListHelper = QuestListHelper(LocalContext.current)
     val questList =  questListHelper.getQuestList()
     val coinHelper = CoinHelper(LocalContext.current)
+
+    val currentDate = getCurrentDate()
+
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
     Box(
         modifier = Modifier
@@ -120,9 +124,12 @@ fun HomeScreen(navController: NavController) {
             LazyColumn {
                 items(questList.size){ index ->
                     val baseQuest = questList[index]
-                    QuestItem(baseQuest.title,modifier = Modifier.clickable {
-                        val data = Json.encodeToString<BaseQuestInfo>(baseQuest )
-                        navController.navigate(Screen.ViewQuest.route + data)
+                    QuestItem(
+                        text =  baseQuest.title,
+                        isCompleted = questListHelper.isQuestCompleted(baseQuest.title,currentDate)?:false,
+                        modifier = Modifier.clickable {
+                            val data = Json.encodeToString<BaseQuestInfo>(baseQuest )
+                            navController.navigate(Screen.ViewQuest.route + data)
                     })
                 }
                 item {

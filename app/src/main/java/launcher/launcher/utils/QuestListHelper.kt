@@ -1,11 +1,10 @@
 package launcher.launcher.utils
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
+import android.icu.text.CaseMap.Title
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import launcher.launcher.Constants
 import launcher.launcher.models.quest.BaseQuestInfo
 import launcher.launcher.models.quest.FocusAppQuestInfo
 import launcher.launcher.models.quest.FocusQuestInfo
@@ -54,20 +53,34 @@ class QuestListHelper(context: Context) {
 
     fun getAppFocusQuestInfo(baseData: BaseQuestInfo): FocusAppQuestInfo? {
         val questInfo =
-            sharedPreferences.getString(QUEST_INFO_SUFFIX + baseData.title, null) ?: return null
+            sharedPreferences.getString(QUEST_MORE_INFO_SUFFIX + baseData.title, null) ?: return null
         return json.decodeFromString<FocusAppQuestInfo>(questInfo)
     }
 
     fun getFocusQuestInfo(baseData: BaseQuestInfo): FocusQuestInfo? {
         val questInfo =
-            sharedPreferences.getString(QUEST_INFO_SUFFIX + baseData.title, null) ?: return null
+            sharedPreferences.getString(QUEST_MORE_INFO_SUFFIX + baseData.title, null) ?: return null
         return json.decodeFromString<FocusQuestInfo>(questInfo)
     }
+
+    fun isQuestCompleted(title:String, date: String): Boolean? {
+        val lastPerformed =
+            sharedPreferences.getString(QUEST_LAST_PERFORMED_SUFFIX + title, null) ?: return null
+
+        return lastPerformed == date
+    }
+
+    fun setComplete(title:String, date: String, isComplete: Boolean) {
+        sharedPreferences.edit().putString(QUEST_LAST_PERFORMED_SUFFIX + title, date).apply()
+    }
+
 
 
     companion object {
         private const val PREF_NAME = "all_quest_preferences"
         private const val ALL_QUESTS_LIST_KEY = "quest_list"
-        private const val QUEST_INFO_SUFFIX = "quest_data_"
+        private const val QUEST_MORE_INFO_SUFFIX = "quest_data_"
+        private const val QUEST_LAST_PERFORMED_SUFFIX = "date_wen_quest_lst_d_"
+
     }
 }

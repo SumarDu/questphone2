@@ -25,6 +25,7 @@ import launcher.launcher.models.quest.FocusQuestInfo
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.CoinHelper
 import launcher.launcher.utils.QuestListHelper
+import launcher.launcher.utils.getCurrentDate
 
 @Composable
 fun ViewQuest(
@@ -57,6 +58,7 @@ fun ViewQuest(
             Button(
                 onClick = {
                     coinHelper.incrementCoinCount(baseQuestInfo.reward)
+                    questListHelper.setComplete(baseQuestInfo.title, getCurrentDate(),true)
                 },
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.padding(bottom = 16.dp)
