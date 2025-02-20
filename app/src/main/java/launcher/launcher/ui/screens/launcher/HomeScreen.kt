@@ -44,6 +44,13 @@ fun HomeScreen(navController: NavController) {
 
     val currentDate = getCurrentDate()
 
+    val completedQuests: MutableSet<String> = mutableSetOf()
+    questList.forEach{item ->
+        if(questListHelper.isQuestCompleted(item.title,currentDate) == true){
+            completedQuests.add(item.title)
+        }
+    }
+
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
     Box(
         modifier = Modifier
@@ -117,7 +124,8 @@ fun HomeScreen(navController: NavController) {
                     .align(Alignment.CenterHorizontally)
             ) {
                 ProgressBar(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    progress = completedQuests.size / questList.size
                 )
             }
 
@@ -126,7 +134,7 @@ fun HomeScreen(navController: NavController) {
                     val baseQuest = questList[index]
                     QuestItem(
                         text =  baseQuest.title,
-                        isCompleted = questListHelper.isQuestCompleted(baseQuest.title,currentDate)?:false,
+                        isCompleted = completedQuests.contains(baseQuest.title),
                         modifier = Modifier.clickable {
                             val data = Json.encodeToString<BaseQuestInfo>(baseQuest )
                             navController.navigate(Screen.ViewQuest.route + data)

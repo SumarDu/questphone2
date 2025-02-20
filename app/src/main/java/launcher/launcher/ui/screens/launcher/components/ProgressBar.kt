@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
 @Composable
-fun ProgressBar(modifier: Modifier) {
+fun ProgressBar(modifier: Modifier, progress: Int) {
     val backgroundColor = MaterialTheme.colorScheme.surfaceVariant
     val progressColor = MaterialTheme.colorScheme.primary
 
@@ -22,7 +22,7 @@ fun ProgressBar(modifier: Modifier) {
         // Progress (20%)
         drawRect(
             color = progressColor,
-            size = size.copy(width = size.width * 0.2f)
+            size = size.copy(width = size.width * progress)
         )
     }
 }
