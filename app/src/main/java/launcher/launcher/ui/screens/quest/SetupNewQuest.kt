@@ -181,6 +181,8 @@ fun SetupNewQuest(
                                 val baseQuestInfo = BaseQuestInfo(
                                     title = questTitle.value,
                                     instructions = instructions.value,
+                                    selectedDays = selectedDays.value,
+                                    integrationId = selectedIntegration.value ?: Constants.INTEGRATION_ID_FOCUS,
                                     reward = reward.intValue
                                 )
 

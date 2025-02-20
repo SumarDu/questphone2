@@ -39,7 +39,7 @@ import launcher.launcher.utils.getCurrentDate
 @Composable
 fun HomeScreen(navController: NavController) {
     val questListHelper = QuestListHelper(LocalContext.current)
-    val questList =  questListHelper.getQuestList()
+    val questList =  questListHelper.filterQuestsForToday(questListHelper.getQuestList())
     val coinHelper = CoinHelper(LocalContext.current)
 
     val currentDate = getCurrentDate()

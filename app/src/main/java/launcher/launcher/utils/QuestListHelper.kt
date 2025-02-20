@@ -3,6 +3,7 @@ package launcher.launcher.utils
 import android.content.Context
 import android.content.SharedPreferences
 import android.icu.text.CaseMap.Title
+import android.util.Log
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import launcher.launcher.models.quest.BaseQuestInfo
@@ -74,7 +75,12 @@ class QuestListHelper(context: Context) {
         sharedPreferences.edit().putString(QUEST_LAST_PERFORMED_SUFFIX + title, date).apply()
     }
 
-
+    fun filterQuestsForToday(quests: List<BaseQuestInfo>): List<BaseQuestInfo> {
+        val today = getCurrentDay() // Get today's enum value
+        Log.d("current day",today.name)
+        Log.d("all quests ",quests.toString())
+        return quests.filter { it.selectedDays.contains(today) }
+    }
 
     companion object {
         private const val PREF_NAME = "all_quest_preferences"
