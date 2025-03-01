@@ -38,7 +38,7 @@ fun IntegrationsList(
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
 
         items(items) { item ->
@@ -59,7 +59,7 @@ fun IntegrationsList(
                 Column(modifier = Modifier.padding(start = 8.dp)) {
                     Text(
                         text = item.label,
-                        style = MaterialTheme.typography.bodyLarge.copy(
+                        style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = if (selectedItem.value == item.id) FontWeight.Bold else FontWeight.Normal
                         )
                     )

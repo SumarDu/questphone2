@@ -33,6 +33,7 @@ import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.quest.setup.ReviewFinalSettings
 import launcher.launcher.ui.screens.quest.setup.SetAppFocusIntegration
 import launcher.launcher.ui.screens.quest.setup.SetFocusIntegration
+import launcher.launcher.ui.screens.quest.setup.SetFocusTimeUI
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
 import launcher.launcher.ui.screens.quest.setup.SetQuestMetaInfo
 import launcher.launcher.ui.screens.quest.setup.components.Navigation
@@ -137,6 +138,14 @@ fun SetupNewQuest(
                             selectedIntegration
                         )
 
+                        AddNewQuestSubScreens.FocusDuration.route -> SetFocusTimeUI(
+                            previousScreenId,
+                            nextScreenId,
+                            isBackButtonFinish,
+                            selectedIntegration,
+                            isNextEnabled,
+                            focusTimeConfig
+                        )
                         AddNewQuestSubScreens.FocusIntegration.route -> SetFocusIntegration(
                             previousScreenId,
                             nextScreenId,
@@ -144,7 +153,6 @@ fun SetupNewQuest(
                             isNextEnabled,
 
                             selectedUnrestrictedApps,
-                            focusTimeConfig
                         )
 
                         AddNewQuestSubScreens.AppFocusIntegration.route -> SetAppFocusIntegration(
@@ -154,7 +162,6 @@ fun SetupNewQuest(
                             isNextEnabled,
 
                             selectedFocusApp,
-                            focusTimeConfig
                         )
 
                         AddNewQuestSubScreens.ReviewQuest.route -> {

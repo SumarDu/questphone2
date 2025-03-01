@@ -13,7 +13,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import launcher.launcher.models.quest.FocusTimeConfig
 import launcher.launcher.ui.navigation.AddNewQuestSubScreens
-import launcher.launcher.ui.screens.quest.setup.components.SetFocusTimeUI
 import launcher.launcher.utils.getCachedApps
 
 
@@ -24,24 +23,29 @@ fun SetAppFocusIntegration(
     isBackButtonFinish: MutableState<Boolean>,
     isNextEnabled: MutableState<Boolean>,
 
-    selectedApp: MutableState<String>,
-    focusTimeConfig: MutableState<FocusTimeConfig>
+    selectedApp: MutableState<String>
 ) {
 
     previousScreen.value = AddNewQuestSubScreens.QuestInfo.route
-    nextScreen.value = AddNewQuestSubScreens.ReviewQuest.route
+    nextScreen.value = AddNewQuestSubScreens.FocusDuration.route
     isBackButtonFinish.value = false
-    isNextEnabled.value = selectedApp.value.isNotEmpty() && focusTimeConfig.value.finalTime.toInt()!=0 && focusTimeConfig.value.initialTime.toInt()!=0 && focusTimeConfig.value.incrementTime.toInt()!=0
+    isNextEnabled.value = selectedApp.value.isNotEmpty()
 
     val apps = getCachedApps(LocalContext.current)
 
-    SetFocusTimeUI(focusTimeConfig)
+    Text(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 32.dp, bottom = 32.dp),
+        text = "App Focus",
+        style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+    )
+
     LazyColumn(
         modifier = Modifier.fillMaxSize()
     ) {
 
         item {
-            Spacer(modifier = Modifier.height(32.dp))
             Text(
                 "Select an app to focus",
                 modifier = Modifier.padding(bottom = 16.dp),

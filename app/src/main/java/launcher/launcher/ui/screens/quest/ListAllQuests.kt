@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import launcher.launcher.models.DayOfWeek
 import launcher.launcher.models.quest.BaseQuestInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.utils.QuestListHelper
@@ -67,9 +69,7 @@ fun ListAllQuests(navHostController: NavHostController) {
                         onQueryChanged = {}
                     )
                 }
-                items(questList.size) { index ->
-
-                    val questBase = questList[index]
+                items(questList){questBase: BaseQuestInfo ->
                     QuestItem(
                         title = questBase.title,
                         reward = questBase.reward,
@@ -91,26 +91,27 @@ private fun QuestItem(
     reward: Int,
     onClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                onClick()
-            }
-            .padding(vertical = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium
-        )
-        Text(
-            text = "$reward",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
-    }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    onClick()
+                }
+                .padding(vertical = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = "$reward",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
 }
 
 @Composable

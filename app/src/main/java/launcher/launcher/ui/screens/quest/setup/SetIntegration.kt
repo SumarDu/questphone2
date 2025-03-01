@@ -27,7 +27,7 @@ fun SetIntegration(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 32.dp, bottom = 32.dp),
-        text = "Integration",
+        text = "Select Integration",
         style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
     )
 

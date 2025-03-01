@@ -1,4 +1,4 @@
-package launcher.launcher.ui.screens.quest.components
+package launcher.launcher.ui.screens.quest.setup.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,7 +23,7 @@ fun InstructionsList(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 32.dp, bottom = 4.dp),
+                .padding(top = 16.dp, bottom = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {

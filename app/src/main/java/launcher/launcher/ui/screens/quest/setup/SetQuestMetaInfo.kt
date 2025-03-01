@@ -5,12 +5,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import launcher.launcher.Constants
 import launcher.launcher.models.DayOfWeek
 import launcher.launcher.ui.navigation.AddNewQuestSubScreens
-import launcher.launcher.ui.screens.quest.components.InstructionsList
+import launcher.launcher.ui.screens.quest.setup.components.InstructionsList
 import launcher.launcher.ui.screens.quest.setup.components.SelectDaysOfWeek
 
 @Composable
@@ -42,6 +43,13 @@ fun SetQuestMetaInfo(
     reward.intValue = 1
     isBackButtonFinish.value = false
 
+    Text(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 32.dp, bottom = 32.dp),
+        text = "Set Info",
+        style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+    )
     OutlinedTextField(
         value = questTitle.value,
         singleLine = true,
@@ -50,10 +58,10 @@ fun SetQuestMetaInfo(
         label = { Text("Quest Title") },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 40.dp)
     )
 
-    SelectDaysOfWeek(selectedDays)
+    SelectDaysOfWeek(selectedDays,
+        modifier = Modifier.padding(top=16.dp))
     InstructionsList(
         instructions = instructions.value,
         onAddInstruction = { showAddInstructionDialog = true },
