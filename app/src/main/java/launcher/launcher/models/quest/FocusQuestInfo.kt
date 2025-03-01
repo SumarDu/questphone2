@@ -15,5 +15,5 @@ data class FocusQuestInfo(
     val questInfo: BaseQuestInfo = BaseQuestInfo(),
     val focusTimeConfig: FocusTimeConfig = FocusTimeConfig(),
     val unrestrictedApps: Set<String> = emptySet(),
-    val nextFocusDuration : Long = 300_000
+    var nextFocusDuration : Long = 300_000
 )

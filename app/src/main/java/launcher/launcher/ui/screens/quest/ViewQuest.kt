@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -32,14 +33,15 @@ fun ViewQuest(
     baseQuestInfo: BaseQuestInfo
 ) {
     val coinHelper = CoinHelper(LocalContext.current)
-
     var focusQuestInfo = FocusQuestInfo()
     var appFocusQuestInfo = FocusAppQuestInfo()
-
 
     var duration = 0L
 
     val questListHelper = QuestListHelper(LocalContext.current)
+
+    var isQuestComplete = questListHelper.isQuestCompleted(baseQuestInfo.title, getCurrentDate()) ?: false
+
     when(baseQuestInfo.integrationId){
         Constants.INTEGRATION_ID_FOCUS -> {
             focusQuestInfo = questListHelper.getFocusQuestInfo(baseQuestInfo) ?: return
@@ -55,15 +57,26 @@ fun ViewQuest(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
-            Button(
-                onClick = {
-                    coinHelper.incrementCoinCount(baseQuestInfo.reward)
-                    questListHelper.setComplete(baseQuestInfo.title, getCurrentDate(),true)
-                },
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.padding(bottom = 16.dp)
-            ) {
-                Text(text = "Start Quest")
+            if(!isQuestComplete) {
+                Button(
+                    onClick = {
+                        coinHelper.incrementCoinCount(baseQuestInfo.reward)
+                        questListHelper.setComplete(baseQuestInfo.title, getCurrentDate(), true)
+                        isQuestComplete = true
+                        when(baseQuestInfo.integrationId) {
+                            Constants.INTEGRATION_ID_FOCUS -> {
+                                questListHelper.updateFocusQuestNextDuration(baseQuestInfo)
+                            }
+                            Constants.INTEGRATION_ID_APP_FOCUS -> {
+                                questListHelper.updateAppFocusQuestNextDuration(baseQuestInfo)
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.padding(bottom = 16.dp)
+                ) {
+                    Text(text = "Start Quest")
+                }
             }
         },
         floatingActionButtonPosition = FabPosition.End
@@ -102,7 +115,7 @@ fun ViewQuest(
                 )
 
                 Text(
-                    text = "Duration: ${duration / 60_000}m",
+                    text =  if(!isQuestComplete) "Duration: ${duration / 60_000}m" else "Next Duration: ${duration / 60_000}m",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin),
                     modifier = Modifier.padding(top = 32.dp)
                 )

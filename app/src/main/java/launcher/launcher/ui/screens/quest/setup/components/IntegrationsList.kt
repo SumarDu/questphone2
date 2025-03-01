@@ -26,7 +26,7 @@ import launcher.launcher.models.IntegrationInfo
 
 @Composable
 fun IntegrationsList(
-    selectedItem : MutableState<Int?>
+    selectedItem: MutableState<Int?>
 ) {
     val items = listOf(
         IntegrationInfo(R.drawable.baseline_timer_24, "Focus", "Block all apps except the essential ones for a set period, allowing you to stay focused on your work.", Constants.INTEGRATION_ID_FOCUS),
@@ -45,8 +45,7 @@ fun IntegrationsList(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { selectedItem.value = item.id }
-                    .padding(8.dp),
+                    .clickable { selectedItem.value = item.id },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = { selectedItem.value = item.id }) {

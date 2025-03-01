@@ -63,6 +63,20 @@ class QuestListHelper(context: Context) {
             sharedPreferences.getString(QUEST_MORE_INFO_SUFFIX + baseData.title, null) ?: return null
         return json.decodeFromString<FocusQuestInfo>(questInfo)
     }
+    fun updateFocusQuestNextDuration(baseData: BaseQuestInfo){
+        val data = getFocusQuestInfo(baseData)
+        if (data != null) {
+            data.nextFocusDuration = data.focusTimeConfig.incrementTimeInMs
+            sharedPreferences.edit().putString("quest_data_"+baseData.title,json.encodeToString(data)).apply()
+        }
+    }
+    fun updateAppFocusQuestNextDuration(baseData: BaseQuestInfo){
+        val data = getFocusQuestInfo(baseData)
+        if (data != null) {
+            data.nextFocusDuration = data.focusTimeConfig.incrementTimeInMs
+            sharedPreferences.edit().putString("quest_data_"+baseData.title,json.encodeToString(data)).apply()
+        }
+    }
 
     fun isQuestCompleted(title:String, date: String): Boolean? {
         val lastPerformed =
@@ -74,6 +88,7 @@ class QuestListHelper(context: Context) {
     fun setComplete(title:String, date: String, isComplete: Boolean) {
         sharedPreferences.edit().putString(QUEST_LAST_PERFORMED_SUFFIX + title, date).apply()
     }
+
 
     fun filterQuestsForToday(quests: List<BaseQuestInfo>): List<BaseQuestInfo> {
         val today = getCurrentDay() // Get today's enum value

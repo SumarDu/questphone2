@@ -1,13 +1,23 @@
 package launcher.launcher.ui.navigation
 
+/**
+ * Main screen navigation
+ *
+ * @property route
+ */
 sealed class Screen(val route: String) {
-    data object QuestTracker : Screen("quest_tracker")
-    data object AppList : Screen("app_list")
+    data object QuestTracker : Screen("quest_tracker/")
+    data object AppList : Screen("app_list/")
     data object ViewQuest : Screen("view_quest/")
-    data object AddNewQuest : Screen("add_quest")
-    data object ListAllQuest : Screen("list_quest")
+    data object AddNewQuest : Screen("add_quest/")
+    data object ListAllQuest : Screen("list_quest/")
 }
 
+/**
+ * All sub screens that show up when setting up a new quest
+ *
+ * @property route
+ */
 sealed class AddNewQuestSubScreens(val route: String) {
     data object QuestInfo : AddNewQuestSubScreens("set_quest_info")
     data object Integration : AddNewQuestSubScreens("set_quest_integration")

@@ -14,18 +14,21 @@ fun SetIntegration(
     previousScreen: MutableState<String>,
     nextScreen: MutableState<String>,
     isBackButtonFinish: MutableState<Boolean>,
+    isNextEnabled: MutableState<Boolean>,
     selectedIntegration: MutableState<Int?>
 ) {
 
     previousScreen.value = "finish"
     nextScreen.value = AddNewQuestSubScreens.QuestInfo.route
     isBackButtonFinish.value = true
+    isNextEnabled.value = true
+
     Text(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 32.dp, bottom = 32.dp),
         text = "Integration",
-        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+        style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
     )
 
     IntegrationsList(selectedIntegration)

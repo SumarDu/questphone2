@@ -1,5 +1,3 @@
-@file:Suppress("IMPLICIT_CAST_TO_ANY")
-
 package launcher.launcher.ui.screens.quest
 
 import android.content.Context
@@ -122,6 +120,7 @@ fun SetupNewQuest(
                             previousScreenId,
                             nextScreenId,
                             isBackButtonFinish,
+                            isNextEnabled,
                             selectedIntegration
                         )
 
