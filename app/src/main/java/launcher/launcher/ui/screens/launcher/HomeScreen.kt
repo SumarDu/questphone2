@@ -15,38 +15,38 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import launcher.launcher.models.quest.BaseQuestInfo
+import launcher.launcher.data.quest.BaseQuest
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.components.LiveClock
 import launcher.launcher.ui.screens.launcher.components.ProgressBar
-import launcher.launcher.ui.screens.launcher.components.QuestItem
 import launcher.launcher.utils.CoinHelper
-import launcher.launcher.utils.QuestListHelper
+import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.getCurrentDate
 
 
 @Composable
 fun HomeScreen(navController: NavController) {
-    val questListHelper = QuestListHelper(LocalContext.current)
-    val questList =  questListHelper.filterQuestsForToday(questListHelper.getQuestList())
+    val questHelper = QuestHelper(LocalContext.current)
+    val questList =  questHelper.filterQuestForToday(questHelper.getQuestList())
     val coinHelper = CoinHelper(LocalContext.current)
 
     val currentDate = getCurrentDate()
 
     val completedQuests: MutableSet<String> = mutableSetOf()
     questList.forEach{item ->
-        if(questListHelper.isQuestCompleted(item.title,currentDate) == true){
+        if(questHelper.isQuestCompleted(item.title,currentDate) == true){
             completedQuests.add(item.title)
         }
     }
@@ -136,7 +136,7 @@ fun HomeScreen(navController: NavController) {
                         text =  baseQuest.title,
                         isCompleted = completedQuests.contains(baseQuest.title),
                         modifier = Modifier.clickable {
-                            val data = Json.encodeToString<BaseQuestInfo>(baseQuest )
+                            val data = Json.encodeToString<BaseQuest>(baseQuest )
                             navController.navigate(Screen.ViewQuest.route + data)
                     })
                 }
@@ -162,4 +162,23 @@ fun HomeScreen(navController: NavController) {
             )
         }
     }}
+}
+
+@Composable
+fun QuestItem(
+    text: String,
+    isCompleted: Boolean = false,
+    modifier: Modifier
+) {
+    Text(
+        text = text,
+        style = if (isCompleted) {
+            MaterialTheme.typography.bodyLarge.copy(textDecoration = TextDecoration.LineThrough)
+        } else {
+            MaterialTheme.typography.bodyLarge
+        },
+        modifier = modifier.fillMaxWidth()
+            .padding(8.dp),
+        textAlign = TextAlign.Center
+    )
 }

@@ -1,6 +1,5 @@
 package launcher.launcher.ui.screens.quest
 
-import android.content.ClipData.Item
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,8 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -30,10 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import launcher.launcher.models.DayOfWeek
-import launcher.launcher.models.quest.BaseQuestInfo
+import launcher.launcher.data.quest.BaseQuest
 import launcher.launcher.ui.navigation.Screen
-import launcher.launcher.utils.QuestListHelper
+import launcher.launcher.utils.QuestHelper
 
 @Composable
 fun ListAllQuests(navHostController: NavHostController) {
@@ -51,8 +47,8 @@ fun ListAllQuests(navHostController: NavHostController) {
         floatingActionButtonPosition = FabPosition.End
     ) { innerPadding ->
 
-        val questListHelper = QuestListHelper(LocalContext.current)
-        val questList = questListHelper.getQuestList()
+        val questHelper = QuestHelper(LocalContext.current)
+        val questList = questHelper.getQuestList()
         Column(
             modifier = Modifier.fillMaxWidth()
                 .padding(innerPadding)
@@ -69,12 +65,12 @@ fun ListAllQuests(navHostController: NavHostController) {
                         onQueryChanged = {}
                     )
                 }
-                items(questList){questBase: BaseQuestInfo ->
+                items(questList){questBase: BaseQuest ->
                     QuestItem(
                         title = questBase.title,
                         reward = questBase.reward,
                         onClick = {
-                            val data = Json.encodeToString<BaseQuestInfo>(questBase)
+                            val data = Json.encodeToString<BaseQuest>(questBase)
                             navHostController.navigate(Screen.ViewQuest.route + data)
                         }
                     )

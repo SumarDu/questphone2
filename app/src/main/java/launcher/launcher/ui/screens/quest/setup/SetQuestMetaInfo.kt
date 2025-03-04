@@ -9,7 +9,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import launcher.launcher.Constants
-import launcher.launcher.models.DayOfWeek
+import launcher.launcher.data.DayOfWeek
 import launcher.launcher.ui.navigation.AddNewQuestSubScreens
 import launcher.launcher.ui.screens.quest.setup.components.InstructionsList
 import launcher.launcher.ui.screens.quest.setup.components.SelectDaysOfWeek

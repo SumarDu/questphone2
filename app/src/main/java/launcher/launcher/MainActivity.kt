@@ -5,15 +5,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.Surface
-import androidx.navigation.NavArgument
-import androidx.navigation.NavArgumentBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.serialization.json.Json
-import launcher.launcher.models.quest.BaseQuestInfo
+import launcher.launcher.data.quest.BaseQuest
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.HomeScreen
@@ -50,9 +48,9 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(navArgument("baseQuestInfo") { type = NavType.StringType })
                         ) { backStackEntry ->
                             val json = backStackEntry.arguments?.getString("baseQuestInfo")
-                            val baseQuestInfo = json?.let { Json.decodeFromString<BaseQuestInfo>(it) }
+                            val baseQuest = json?.let { Json.decodeFromString<BaseQuest>(it) }
 
-                            ViewQuest(baseQuestInfo!!)
+                            ViewQuest(baseQuest!!)
                         }
 
                         composable(Screen.AddNewQuest.route) {

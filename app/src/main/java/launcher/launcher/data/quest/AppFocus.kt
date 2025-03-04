@@ -1,4 +1,4 @@
-package launcher.launcher.models.quest
+package launcher.launcher.data.quest
 
 import kotlinx.serialization.Serializable
 
@@ -10,8 +10,8 @@ import kotlinx.serialization.Serializable
  * @property selectedApp app that user wants to concentrate on
  */
 @Serializable
-data class FocusAppQuestInfo(
-    val questInfo: BaseQuestInfo = BaseQuestInfo(),
+data class AppFocus(
+    val questInfo: BaseQuest = BaseQuest(),
     val focusQuestInfo: FocusTimeConfig = FocusTimeConfig(),
     val selectedApp: String = "",
     val nextFocusDuration : Long = 300_000

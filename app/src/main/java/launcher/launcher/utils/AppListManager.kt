@@ -7,7 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import launcher.launcher.models.AppInfo
+import launcher.launcher.data.AppInfo
 
 
 // Cache the app list in SharedPreferences

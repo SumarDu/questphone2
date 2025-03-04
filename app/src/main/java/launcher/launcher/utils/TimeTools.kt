@@ -1,6 +1,6 @@
 package launcher.launcher.utils
 
-import launcher.launcher.models.DayOfWeek
+import launcher.launcher.data.DayOfWeek
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date

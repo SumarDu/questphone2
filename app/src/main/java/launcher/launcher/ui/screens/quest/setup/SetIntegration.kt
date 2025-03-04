@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import launcher.launcher.data.IntegrationId
 import launcher.launcher.ui.navigation.AddNewQuestSubScreens
 import launcher.launcher.ui.screens.quest.setup.components.IntegrationsList
 
@@ -15,7 +16,7 @@ fun SetIntegration(
     nextScreen: MutableState<String>,
     isBackButtonFinish: MutableState<Boolean>,
     isNextEnabled: MutableState<Boolean>,
-    selectedIntegration: MutableState<Int?>
+    selectedIntegration: MutableState<IntegrationId?>
 ) {
 
     previousScreen.value = "finish"

@@ -9,8 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import launcher.launcher.Constants
-import launcher.launcher.models.DayOfWeek
-import launcher.launcher.models.quest.FocusTimeConfig
+import launcher.launcher.data.DayOfWeek
+import launcher.launcher.data.quest.FocusTimeConfig
 
 @Composable
 fun ReviewFinalSettings(

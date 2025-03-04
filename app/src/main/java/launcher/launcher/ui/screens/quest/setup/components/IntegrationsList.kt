@@ -22,16 +22,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import launcher.launcher.Constants
 import launcher.launcher.R
-import launcher.launcher.models.IntegrationInfo
+import launcher.launcher.data.IntegrationId
+import launcher.launcher.data.IntegrationInfo
 
 @Composable
 fun IntegrationsList(
-    selectedItem: MutableState<Int?>
+    selectedItem: MutableState<IntegrationId?>
 ) {
     val items = listOf(
-        IntegrationInfo(R.drawable.baseline_timer_24, "Focus", "Block all apps except the essential ones for a set period, allowing you to stay focused on your work.", Constants.INTEGRATION_ID_FOCUS),
-        IntegrationInfo(R.drawable.baseline_phone_android_24, "App", "Restrict access to a single app while blocking everything else.", Constants.INTEGRATION_ID_APP_FOCUS),
-        IntegrationInfo(R.drawable.baseline_directions_run_24, "Health Connect", "Earn coins by doing workout.", Constants.INTEGRATION_ID_HEALTH_CONNECT),
+        IntegrationInfo(R.drawable.baseline_timer_24, "Deep Focus", "Block all apps except the essential ones for a set period, allowing you to stay focused on your work.", IntegrationId.DEEP_FOCUS),
+        IntegrationInfo(R.drawable.baseline_phone_android_24, "App", "Restrict access to a single app while blocking everything else.", IntegrationId.APP_FOCUS),
+        IntegrationInfo(R.drawable.baseline_directions_run_24, "Health Connect", "Earn coins by doing workout.", IntegrationId.HEALTH),
         IntegrationInfo(R.drawable.baseline_extension_24, "Add", "Add more integrations")
     )
 

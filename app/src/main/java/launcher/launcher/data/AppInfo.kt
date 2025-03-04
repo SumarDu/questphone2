@@ -1,4 +1,4 @@
-package launcher.launcher.models
+package launcher.launcher.data
 
 import kotlinx.serialization.Serializable
 

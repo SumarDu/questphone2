@@ -17,7 +17,6 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -26,7 +25,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import launcher.launcher.models.AppInfo
+import launcher.launcher.data.AppInfo
 import launcher.launcher.ui.screens.launcher.components.AppItem
 import launcher.launcher.ui.screens.launcher.components.CoinDialog
 import launcher.launcher.utils.CoinHelper

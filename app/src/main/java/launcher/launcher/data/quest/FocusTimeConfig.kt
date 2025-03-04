@@ -1,4 +1,4 @@
-package launcher.launcher.models.quest
+package launcher.launcher.data.quest
 
 import kotlinx.serialization.Serializable
 
@@ -11,7 +11,8 @@ import kotlinx.serialization.Serializable
  * @property initialUnit
  * @property finalUnit
  * @property incrementUnit
- */@Serializable
+ */
+@Serializable
 data class FocusTimeConfig(
     var initialTime: String = "5",
     var finalTime: String = "5",

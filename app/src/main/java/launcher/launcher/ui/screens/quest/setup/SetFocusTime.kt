@@ -16,7 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import launcher.launcher.Constants
-import launcher.launcher.models.quest.FocusTimeConfig
+import launcher.launcher.data.quest.FocusTimeConfig
 import launcher.launcher.ui.navigation.AddNewQuestSubScreens
 
 @Composable

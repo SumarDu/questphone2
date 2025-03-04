@@ -1,9 +1,9 @@
-package launcher.launcher.models.quest
+package launcher.launcher.data.quest
 
 import kotlinx.serialization.Serializable
 
 /**
- * The Focus quest blocks all apps except a few ones.
+ * The Deep Focus Quest blocks all apps except a few selected ones.
  *
  * @property questInfo
  * @property focusTimeConfig
@@ -11,8 +11,8 @@ import kotlinx.serialization.Serializable
  */
 
 @Serializable
-data class FocusQuestInfo(
-    val questInfo: BaseQuestInfo = BaseQuestInfo(),
+data class DeepFocus(
+    val questInfo: BaseQuest = BaseQuest(),
     val focusTimeConfig: FocusTimeConfig = FocusTimeConfig(),
     val unrestrictedApps: Set<String> = emptySet(),
     var nextFocusDuration : Long = 300_000

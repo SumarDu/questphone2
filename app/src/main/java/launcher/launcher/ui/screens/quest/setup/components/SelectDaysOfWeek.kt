@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import launcher.launcher.models.DayOfWeek
+import launcher.launcher.data.DayOfWeek
 
 @Composable
 fun SelectDaysOfWeek(
