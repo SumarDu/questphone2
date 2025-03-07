@@ -3,6 +3,7 @@ package launcher.launcher.data
 import launcher.launcher.R
 import launcher.launcher.ui.screens.quest.setup.app_focus.SetAppFocus
 import launcher.launcher.ui.screens.quest.setup.deep_focus.SetDeepFocus
+import launcher.launcher.ui.screens.quest.view.AppFocusQuestView
 import launcher.launcher.ui.screens.quest.view.DeepFocusQuestView
 
 
@@ -23,7 +24,7 @@ class IntegrationInformation {
                 description = "Restrict access to a single app while blocking everything else.",
                 id = IntegrationId.APP_FOCUS,
                 setupScreen = { SetAppFocus() },
-                viewScreen = {baseQuest -> DeepFocusQuestView(baseQuest) }
+                viewScreen = {baseQuest -> AppFocusQuestView(baseQuest) }
             ),
             IntegrationInfo(
                 icon = R.drawable.baseline_directions_run_24,

@@ -15,7 +15,7 @@ import kotlin.reflect.KFunction
  * @property description
  * @property id
  * @property setupScreen
- * @property viewScreen The screen that shows up when user presses an item from the quest list on home screen. basically the screen that shows when you go to do that a quest
+ * @property viewScreen The screen that shows up when user presses an item from the quest list on home screen. basically the screen where you do the quest
  */
 data class IntegrationInfo(
     val icon: Int = R.drawable.baseline_extension_24,

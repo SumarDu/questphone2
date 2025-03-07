@@ -46,7 +46,7 @@ fun DeepFocusQuestView(
                 )
 
                 Text(
-                    text =  if(!isQuestComplete) "Duration: ${duration / 60_000}m" else "Next Duration: ${duration / 60_000}m",
+                    text = if (!isQuestComplete) "Duration: ${duration / 60_000}m" else "Next Duration: ${duration / 60_000}m",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin),
                     modifier = Modifier.padding(top = 32.dp)
                 )
@@ -54,7 +54,7 @@ fun DeepFocusQuestView(
                 val pm = LocalContext.current.packageManager
                 var apps = ""
                 deepFocus.unrestrictedApps.forEach { value ->
-                    apps +=  pm.getApplicationLabel(pm.getApplicationInfo(value,0)).toString()
+                    apps += pm.getApplicationLabel(pm.getApplicationInfo(value, 0)).toString()
                     apps += " "
                 }
                 Text(
@@ -69,16 +69,11 @@ fun DeepFocusQuestView(
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
                 )
-//
-//                LazyColumn {
-//                    items(baseQuest.instructions) {
-//                        Text(
-//                            text = "\u2022 $it",
-//                            style = MaterialTheme.typography.bodyLarge,
-//                            modifier = Modifier.padding(4.dp)
-//                        )
-//                    }
-//                }
+                Text(
+                    text = baseQuest.instructions,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(4.dp)
+                )
             }
         }
 

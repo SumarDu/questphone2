@@ -32,7 +32,7 @@ fun SetAppFocus() {
 
     val showDialog = remember { mutableStateOf(false) }
     val selectedApp = remember { mutableStateOf("") }
-    val baseQuestState = remember { BaseQuestState(initialIntegrationId = IntegrationId.DEEP_FOCUS) }
+    val baseQuestState = remember { BaseQuestState(initialIntegrationId = IntegrationId.APP_FOCUS) }
     val focusTimeConfig = remember { mutableStateOf(FocusTimeConfig()) }
 
     val scrollState = rememberScrollState()
