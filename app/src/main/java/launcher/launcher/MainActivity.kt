@@ -8,16 +8,19 @@ import androidx.compose.material3.Surface
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.quest.BaseQuest
 import launcher.launcher.ui.navigation.Screen
+import launcher.launcher.ui.navigation.SetupQuestScreen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.HomeScreen
 import launcher.launcher.ui.screens.quest.ListAllQuests
-import launcher.launcher.ui.screens.quest.SetupNewQuest
 import launcher.launcher.ui.screens.quest.ViewQuest
+import launcher.launcher.ui.screens.quest.setup.deep_focus.SetDeepFocus
+import launcher.launcher.ui.screens.quest.setup.SetIntegration
 import launcher.launcher.ui.theme.LauncherTheme
 
 class MainActivity : ComponentActivity() {
@@ -32,17 +35,21 @@ class MainActivity : ComponentActivity() {
                     NavHost(
                         navController = navController,
                         startDestination = Screen.QuestTracker.route) {
+
                         composable(Screen.QuestTracker.route) {
                             HomeScreen(navController)
                         }
                         composable(Screen.AppList.route) {
                             AppList(
                                 onNavigateToQuestTracker = {
-                                    navController.popBackStack() // Navigate back to QuestTracker
+                                    navController.popBackStack()
                                 }
                             )
                         }
 
+                        composable(Screen.ListAllQuest.route) {
+                            ListAllQuests(navController)
+                        }
                         composable(
                             route = "${Screen.ViewQuest.route}{baseQuestInfo}",
                             arguments = listOf(navArgument("baseQuestInfo") { type = NavType.StringType })
@@ -53,13 +60,15 @@ class MainActivity : ComponentActivity() {
                             ViewQuest(baseQuest!!)
                         }
 
-                        composable(Screen.AddNewQuest.route) {
-                            SetupNewQuest {
-                                navController.popBackStack()
+                        navigation(startDestination = SetupQuestScreen.Integration.route, route = Screen.AddNewQuest.route){
+                            composable(SetupQuestScreen.Integration.route) {
+                                SetIntegration(
+                                    navController
+                                )
                             }
-                        }
-                        composable(Screen.ListAllQuest.route) {
-                            ListAllQuests(navController)
+                            composable(route = SetupQuestScreen.DeepFocus.route) {
+                                SetDeepFocus()
+                            }
                         }
                     }
                 }

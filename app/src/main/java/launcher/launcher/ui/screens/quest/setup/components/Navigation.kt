@@ -14,10 +14,10 @@ import androidx.compose.ui.unit.dp
 import launcher.launcher.ui.navigation.Screen
 
 @Composable
-fun Navigation(onBackPressed: ()->Unit, onNextPressed: ()->Unit, isBackButtonFinish:MutableState<Boolean> , isNextEnabled: MutableState<Boolean>){
+fun Navigation(onBackPressed: ()->Unit, onNextPressed: ()->Unit, backButtonText: String = "Back", proceedButtonText: String = "Next", isNextEnabled: MutableState<Boolean>){
     Row(
         modifier = Modifier.padding(bottom = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp) // Space between buttons
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Button(
             onClick = { onBackPressed() },
@@ -25,7 +25,7 @@ fun Navigation(onBackPressed: ()->Unit, onNextPressed: ()->Unit, isBackButtonFin
             modifier = Modifier.padding(bottom = 16.dp)
 
         ) {
-            Text(text = if(isBackButtonFinish.value) "Exit" else "Previous")
+            Text(text = backButtonText)
         }
         Button(
             onClick = {
@@ -35,7 +35,7 @@ fun Navigation(onBackPressed: ()->Unit, onNextPressed: ()->Unit, isBackButtonFin
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.padding(bottom = 16.dp)
         ) {
-            Text(text = "Next")
+            Text(text = proceedButtonText)
         }
     }
 }

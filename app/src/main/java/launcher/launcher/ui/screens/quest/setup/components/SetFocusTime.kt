@@ -1,8 +1,7 @@
-package launcher.launcher.ui.screens.quest.setup
+package launcher.launcher.ui.screens.quest.setup.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -15,91 +14,58 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import launcher.launcher.Constants
-import launcher.launcher.data.quest.FocusTimeConfig
-import launcher.launcher.ui.navigation.AddNewQuestSubScreens
+import launcher.launcher.data.quest.focus.FocusTimeConfig
 
 @Composable
 fun SetFocusTimeUI(
-    previousScreen: MutableState<String>,
-    nextScreen: MutableState<String>,
-    isBackButtonFinish: MutableState<Boolean>,
-    selectedIntegration: MutableState<Int?>,
-    isNextEnabled: MutableState<Boolean>,
-
     focusTime: MutableState<FocusTimeConfig>
 ) {
-
-    when(selectedIntegration.value){
-        Constants.INTEGRATION_ID_FOCUS -> previousScreen.value = AddNewQuestSubScreens.FocusIntegration.route
-        Constants.INTEGRATION_ID_APP_FOCUS -> previousScreen.value = AddNewQuestSubScreens.AppFocusIntegration.route
-    }
-    nextScreen.value = AddNewQuestSubScreens.ReviewQuest.route
-    isBackButtonFinish.value = false
-
-    isNextEnabled.value = focusTime.value.initialTime.isNotEmpty() && focusTime.value.finalTime.isNotEmpty()
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-    ) {
-
-        Text(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 32.dp, bottom = 32.dp),
-            text = "Duration",
-            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-        )
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            item {
-                TimeInputRow(
-                    label = "Initial Focus Time",
-                    description = "Starting duration for your focus sessions",
-                    time = focusTime.value.initialTime,
-                    unit = focusTime.value.initialUnit,
-                    onUpdate = { value, unit ->
-                        val initial = convertToMinutes(value, unit)
-                        val goal = convertToMinutes(focusTime.value.finalTime, focusTime.value.finalUnit)
-                        if (initial in 0..goal) {
-                            focusTime.value = focusTime.value.copy(initialTime = value, initialUnit = unit)
-                        }
-                    }
-                )
-            }
-            item {
-                TimeInputRow(
-                    label = "Increment Daily by",
-                    description = "How much to increase each day",
-                    time = focusTime.value.incrementTime,
-                    unit = focusTime.value.incrementUnit,
-                    availableUnits = listOf("m"),
-                    onUpdate = { value, unit ->
-                        focusTime.value = focusTime.value.copy(incrementTime = value, incrementUnit = unit)
-                    }
-                )
-            }
-            item {
-                TimeInputRow(
-                    label = "Goal Focus Time",
-                    description = "Target duration to build up to",
-                    time = focusTime.value.finalTime,
-                    unit = focusTime.value.finalUnit,
-                    onUpdate = { value, unit ->
-                        val initial = convertToMinutes(focusTime.value.initialTime, focusTime.value.initialUnit)
-                        val goal = convertToMinutes(value, unit)
-                        if (goal >= initial) {
-                            focusTime.value = focusTime.value.copy(finalTime = value, finalUnit = unit)
-                        }
-                    }
-                )
+//
+//    Text(
+//        modifier = Modifier
+//            .fillMaxWidth()
+//            .padding(top = 16.dp),
+//        text = "Duration",
+//        style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+//    )
+    TimeInputRow(
+        label = "Initial Focus Time",
+        description = "Starting duration for your focus sessions",
+        time = focusTime.value.initialTime,
+        unit = focusTime.value.initialUnit,
+        onUpdate = { value, unit ->
+            val initial = convertToMinutes(value, unit)
+            val goal = convertToMinutes(focusTime.value.finalTime, focusTime.value.finalUnit)
+            if (initial in 0..goal) {
+                focusTime.value = focusTime.value.copy(initialTime = value, initialUnit = unit)
             }
         }
-    }
+    )
+
+    TimeInputRow(
+        label = "Increment Daily by",
+        description = "How much to increase each day",
+        time = focusTime.value.incrementTime,
+        unit = focusTime.value.incrementUnit,
+        availableUnits = listOf("m"),
+        onUpdate = { value, unit ->
+            focusTime.value = focusTime.value.copy(incrementTime = value, incrementUnit = unit)
+        }
+    )
+
+    TimeInputRow(
+        label = "Goal Focus Time",
+        description = "Target duration to build up to",
+        time = focusTime.value.finalTime,
+        unit = focusTime.value.finalUnit,
+        onUpdate = { value, unit ->
+            val initial = convertToMinutes(focusTime.value.initialTime, focusTime.value.initialUnit)
+            val goal = convertToMinutes(value, unit)
+            if (goal >= initial) {
+                focusTime.value = focusTime.value.copy(finalTime = value, finalUnit = unit)
+            }
+        }
+    )
 }
 
 @Composable

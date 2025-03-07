@@ -7,5 +7,5 @@ data class IntegrationInfo(
     val icon: Int,
     val label: String,
     val description: String,
-    val id: IntegrationId = null
+    val id: IntegrationId = IntegrationId.APP_FOCUS
 )

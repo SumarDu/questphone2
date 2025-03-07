@@ -2,8 +2,6 @@ package launcher.launcher.ui.screens.quest.view
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -12,7 +10,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import launcher.launcher.data.quest.BaseQuest
-import launcher.launcher.data.quest.DeepFocus
+import launcher.launcher.data.quest.focus.DeepFocus
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.getCurrentDate
@@ -30,8 +28,7 @@ fun DeepFocusQuestView(
         isQuestComplete = isQuestComplete,
         onQuestStarted = {
 
-        },
-        questViewBody = {
+        }) {
             Column(
                 modifier = Modifier.padding(16.dp)
             ) {
@@ -72,19 +69,18 @@ fun DeepFocusQuestView(
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
                 )
-
-                LazyColumn {
-                    items(baseQuest.instructions) {
-                        Text(
-                            text = "\u2022 $it",
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(4.dp)
-                        )
-                    }
-                }
+//
+//                LazyColumn {
+//                    items(baseQuest.instructions) {
+//                        Text(
+//                            text = "\u2022 $it",
+//                            style = MaterialTheme.typography.bodyLarge,
+//                            modifier = Modifier.padding(4.dp)
+//                        )
+//                    }
+//                }
             }
         }
-    )
 
 }
 

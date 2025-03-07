@@ -1,6 +1,7 @@
 package launcher.launcher.data.quest
 
 import kotlinx.serialization.Serializable
+import launcher.launcher.data.quest.focus.FocusTimeConfig
 
 /**
  * Block all apps except a specific selected app

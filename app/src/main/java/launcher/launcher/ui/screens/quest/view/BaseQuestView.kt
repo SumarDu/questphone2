@@ -13,13 +13,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import launcher.launcher.Constants
-import launcher.launcher.data.quest.DeepFocus
 import launcher.launcher.utils.CoinHelper
-import launcher.launcher.utils.getCurrentDate
 
 @Composable
 fun BaseQuestView(isQuestComplete: Boolean, onQuestStarted: () -> Unit, questViewBody : @Composable () -> Unit) {

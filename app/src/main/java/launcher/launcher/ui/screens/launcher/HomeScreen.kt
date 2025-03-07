@@ -89,18 +89,21 @@ fun HomeScreen(navController: NavController) {
             Text(
                 text = "${coinHelper.getCoinCount()} coins",
                 style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(24.dp)
+                modifier = Modifier
+                    .padding(24.dp)
                     .align(Alignment.End)
             )
         }
 
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
                 .align(Alignment.Center)
         ) {
 
             LiveClock(
-                Modifier.padding(bottom = 16.dp)
+                Modifier
+                    .padding(bottom = 16.dp)
                     .align(Alignment.CenterHorizontally)
             )
 
@@ -116,17 +119,19 @@ fun HomeScreen(navController: NavController) {
 
 
 
-            Box(
-                modifier = Modifier
-                    .width(100.dp)
-                    .height(50.dp)
-                    .padding(bottom = 32.dp)
-                    .align(Alignment.CenterHorizontally)
-            ) {
-                ProgressBar(
-                    modifier = Modifier.fillMaxSize(),
-                    progress = completedQuests.size / questList.size
-                )
+            if(questList.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .width(100.dp)
+                        .height(50.dp)
+                        .padding(bottom = 32.dp)
+                        .align(Alignment.CenterHorizontally)
+                ) {
+                    ProgressBar(
+                        modifier = Modifier.fillMaxSize(),
+                        progress = completedQuests.size / questList.size
+                    )
+                }
             }
 
             LazyColumn {
@@ -154,7 +159,8 @@ fun HomeScreen(navController: NavController) {
             Text(
                 text = "Core Apps >",
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 24.dp)
+                modifier = Modifier
+                    .padding(top = 24.dp)
                     .align(Alignment.CenterHorizontally)
                     .clickable {
                         navController.navigate(Screen.AppList.route)
@@ -177,7 +183,8 @@ fun QuestItem(
         } else {
             MaterialTheme.typography.bodyLarge
         },
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
             .padding(8.dp),
         textAlign = TextAlign.Center
     )

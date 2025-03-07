@@ -14,25 +14,33 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import launcher.launcher.data.DayOfWeek
+import launcher.launcher.data.quest.BaseQuestState
 
 @Composable
 fun SelectDaysOfWeek(
-    selectedDays: MutableState<Set<DayOfWeek>>,
+    baseQuest: BaseQuestState,
     modifier: Modifier = Modifier
 ) {
 
     Column(
         modifier = modifier
-            .padding(top = 16.dp)
             .fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+
         Text(
-            text = "Select Days",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            text = "Choose Days",
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleMedium
         )
 
+        Text(
+            text = "Select the days on which you want to perform this quest.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Absolute.SpaceBetween,
@@ -41,12 +49,12 @@ fun SelectDaysOfWeek(
             DayOfWeek.entries.forEach { day ->
                 DayButton(
                     day = day,
-                    isSelected = day in selectedDays.value,
+                    isSelected = day in baseQuest.selectedDays,
                     onSelected = { selected ->
-                        selectedDays.value = if (selected) {
-                            selectedDays.value + day
+                        baseQuest.selectedDays = if (selected) {
+                            baseQuest.selectedDays + day
                         } else {
-                            selectedDays.value - day
+                            baseQuest.selectedDays - day
                         }
                     }
                 )
@@ -55,7 +63,6 @@ fun SelectDaysOfWeek(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DayButton(
     day: DayOfWeek,
