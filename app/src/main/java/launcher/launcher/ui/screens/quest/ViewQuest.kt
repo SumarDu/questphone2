@@ -2,6 +2,7 @@ package launcher.launcher.ui.screens.quest
 
 import androidx.compose.runtime.Composable
 import launcher.launcher.data.IntegrationId
+import launcher.launcher.data.IntegrationInformation
 import launcher.launcher.data.quest.BaseQuest
 import launcher.launcher.ui.screens.quest.view.DeepFocusQuestView
 
@@ -9,10 +10,5 @@ import launcher.launcher.ui.screens.quest.view.DeepFocusQuestView
 fun ViewQuest(
     baseQuest: BaseQuest
 ) {
-    when(baseQuest.integrationId){
-        IntegrationId.APP_FOCUS -> TODO()
-        IntegrationId.DEEP_FOCUS -> DeepFocusQuestView(baseQuest)
-        IntegrationId.HEALTH -> TODO()
-    }
-
+    IntegrationInformation.viewScreens[baseQuest.integrationId.name]?.invoke(baseQuest)
 }

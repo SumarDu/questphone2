@@ -8,8 +8,7 @@ import kotlinx.serialization.json.Json
 import launcher.launcher.data.quest.BaseQuest
 
 /* How quests are stored:
-Each quest has a Base Quest object that contains essential details like the title. This basic data is required for all types of quests.
-
+Each quest has a BasicQuestInfo object that contains essential details like the title. This basic data is required for all types of quests.
 - All BasicQuestInfo objects are stored in a list under the key `ALL_QUEST_LIST_KEY`.
 - Each Quest has a unique title in this list.
 - Quest-specific data (such as selected apps, focus time settings, etc.) is stored separately under the key `"quest_data_$title"`.

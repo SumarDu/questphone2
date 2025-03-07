@@ -1,4 +1,4 @@
-package launcher.launcher.ui.screens.quest.setup.deep_focus
+package launcher.launcher.ui.screens.quest.setup.app_focus
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.*
@@ -17,6 +17,7 @@ import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.focus.DeepFocus
 import launcher.launcher.data.quest.focus.FocusTimeConfig
 import launcher.launcher.data.quest.BaseQuestState
+import launcher.launcher.data.quest.focus.AppFocus
 import launcher.launcher.ui.screens.quest.setup.ReviewDialog
 import launcher.launcher.ui.screens.quest.setup.components.SetBaseQuest
 import launcher.launcher.ui.screens.quest.setup.components.SetFocusTimeUI
@@ -25,12 +26,12 @@ import launcher.launcher.utils.getCachedApps
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
-fun SetDeepFocus() {
+fun SetAppFocus() {
     val context = LocalContext.current
     val apps = remember { getCachedApps(context).map { it.name to it.packageName } }
 
     val showDialog = remember { mutableStateOf(false) }
-    val selectedApps = remember { mutableStateListOf<String>() }
+    val selectedApp = remember { mutableStateOf("") }
     val baseQuestState = remember { BaseQuestState(initialIntegrationId = IntegrationId.DEEP_FOCUS) }
     val focusTimeConfig = remember { mutableStateOf(FocusTimeConfig()) }
 
@@ -41,27 +42,27 @@ fun SetDeepFocus() {
 
 
     if (showDialog.value) {
-        SelectAppsDialog(
+        SelectAppDialog(
             apps = apps,
-            selectedApps = selectedApps,
+            selectedApp = selectedApp,
             onDismiss = { showDialog.value = false }
         )
     }
     if (isReviewDialogVisible.value) {
         ReviewDialog(
             items = listOf(
-                baseQuestState.toBaseQuest(), DeepFocus(
+                baseQuestState.toBaseQuest(), AppFocus(
                     focusTimeConfig = focusTimeConfig.value,
-                    unrestrictedApps = selectedApps.toSet()
+                    selectedFocusApp = selectedApp.value
 
                 )
             ),
 
             onConfirm = {
                 sp.appendToQuestList(
-                    baseQuestState.toBaseQuest(), DeepFocus(
+                    baseQuestState.toBaseQuest(), AppFocus(
                         focusTimeConfig = focusTimeConfig.value,
-                        unrestrictedApps = selectedApps.toSet()
+                        selectedFocusApp = selectedApp.value
                     )
                 )
                 isReviewDialogVisible.value = false
@@ -92,7 +93,7 @@ fun SetDeepFocus() {
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 8.dp),
-                        text = "Deep Focus ",
+                        text = "App Focus",
                         style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                     )
                     SetBaseQuest(baseQuestState)
@@ -100,9 +101,8 @@ fun SetDeepFocus() {
                     OutlinedButton(
                         onClick = { showDialog.value = true },
                     ) {
-
                         Text(
-                            text = "Selected App Exceptions ${selectedApps.size}",
+                            text = "Select Focus App",
                             style = MaterialTheme.typography.labelMedium
                         )
                     }

@@ -13,10 +13,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import launcher.launcher.R
 import launcher.launcher.data.IntegrationId
-import launcher.launcher.data.IntegrationInfo
-import launcher.launcher.ui.navigation.Screen
+import launcher.launcher.data.IntegrationInformation
 import launcher.launcher.ui.navigation.SetupQuestScreen
 import launcher.launcher.ui.screens.quest.setup.components.Navigation
 
@@ -30,10 +28,12 @@ fun SetIntegration(navController: NavHostController) {
 
             Navigation(
                 onBackPressed = {
-
                 },
                 onNextPressed = {
-                    navController.navigate(SetupQuestScreen.DeepFocus.route)
+                    IntegrationInformation.setupRoutes[selectedIntegration.value.name]?.let {
+                        navController.navigate(
+                            it.first)
+                    }
                 },
                 backButtonText = "Exit",
                 isNextEnabled = mutableStateOf(true),
@@ -76,12 +76,7 @@ fun SetIntegration(navController: NavHostController) {
 fun IntegrationsList(
     selectedItem: MutableState<IntegrationId>
 ) {
-    val items = listOf(
-        IntegrationInfo(R.drawable.baseline_timer_24, "Deep Focus", "Block all apps except the essential ones for a set period, allowing you to stay focused on your work.", IntegrationId.DEEP_FOCUS),
-        IntegrationInfo(R.drawable.baseline_phone_android_24, "App", "Restrict access to a single app while blocking everything else.", IntegrationId.APP_FOCUS),
-        IntegrationInfo(R.drawable.baseline_directions_run_24, "Health Connect", "Earn coins by doing workout.", IntegrationId.HEALTH),
-        IntegrationInfo(R.drawable.baseline_extension_24, "Add", "Add more integrations")
-    )
+    val items = IntegrationInformation.allInfo
 
 
     LazyColumn(

@@ -1,11 +1,27 @@
 package launcher.launcher.data
 
-import kotlinx.serialization.Serializable
+import androidx.compose.runtime.Composable
+import launcher.launcher.R
+import launcher.launcher.data.quest.BaseQuest
+import launcher.launcher.ui.screens.quest.setup.app_focus.SetAppFocus
+import launcher.launcher.ui.screens.quest.setup.deep_focus.SetDeepFocus
+import launcher.launcher.ui.screens.quest.view.DeepFocusQuestView
+import kotlin.reflect.KFunction
 
-@Serializable
+/**
+ *
+ * @property icon
+ * @property label
+ * @property description
+ * @property id
+ * @property setupScreen
+ * @property viewScreen The screen that shows up when user presses an item from the quest list on home screen. basically the screen that shows when you go to do that a quest
+ */
 data class IntegrationInfo(
-    val icon: Int,
-    val label: String,
-    val description: String,
-    val id: IntegrationId = IntegrationId.APP_FOCUS
-)
+    val icon: Int = R.drawable.baseline_extension_24,
+    val label: String = "",
+    val description: String = "",
+    val id: IntegrationId = IntegrationId.DEEP_FOCUS,
+    val setupScreen: @Composable () -> Unit = { SetDeepFocus() },
+    val viewScreen: @Composable (BaseQuest) -> Unit = { baseQuest -> DeepFocusQuestView(baseQuest) },
+    )
