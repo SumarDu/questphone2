@@ -14,8 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import launcher.launcher.data.IntegrationId
-import launcher.launcher.data.IntegrationInformation
-import launcher.launcher.ui.navigation.SetupQuestScreen
+import launcher.launcher.config.Integration
 import launcher.launcher.ui.screens.quest.setup.components.Navigation
 
 @SuppressLint("UnrememberedMutableState")
@@ -30,7 +29,7 @@ fun SetIntegration(navController: NavHostController) {
                 onBackPressed = {
                 },
                 onNextPressed = {
-                    IntegrationInformation.setupRoutes[selectedIntegration.value.name]?.let {
+                    Integration.setupRoutes[selectedIntegration.value.name]?.let {
                         navController.navigate(
                             it.first)
                     }
@@ -76,7 +75,7 @@ fun SetIntegration(navController: NavHostController) {
 fun IntegrationsList(
     selectedItem: MutableState<IntegrationId>
 ) {
-    val items = IntegrationInformation.allInfo
+    val items = Integration.allInfo
 
 
     LazyColumn(

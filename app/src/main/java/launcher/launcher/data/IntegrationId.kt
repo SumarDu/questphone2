@@ -3,8 +3,7 @@ package launcher.launcher.data
 enum class IntegrationId {
     /**
      * Block all apps except a specific selected app.
-     * Used in scenarios wherein user wants to focus on a specific app lets say a language learning app
-     * Useful when user wants to use a specific app without any distraction. Lets say user has a habit of getting distracted to a different app while reading an ebook,
+     * Used in scenarios wherein user wants to focus on a specific app lets say a language learning app without any distraction.
      * this quest can be used in such scenarios
      */
     APP_FOCUS,
@@ -17,5 +16,9 @@ enum class IntegrationId {
     DEEP_FOCUS,
 
 
-    HEALTH
+    HEALTH,
+
+    HEALTH_API_RUNNING,
+    HEALTH_API_WORKOUT,
+    HEALTH_API_WATER_INTAKE
 }

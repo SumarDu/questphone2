@@ -1,13 +1,15 @@
-package launcher.launcher.data
+package launcher.launcher.config
 
 import launcher.launcher.R
+import launcher.launcher.data.IntegrationId
+import launcher.launcher.data.IntegrationInfo
 import launcher.launcher.ui.screens.quest.setup.app_focus.SetAppFocus
 import launcher.launcher.ui.screens.quest.setup.deep_focus.SetDeepFocus
 import launcher.launcher.ui.screens.quest.view.AppFocusQuestView
 import launcher.launcher.ui.screens.quest.view.DeepFocusQuestView
 
 
-class IntegrationInformation {
+class Integration {
     companion object {
         val allInfo = listOf(
             IntegrationInfo(

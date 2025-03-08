@@ -12,8 +12,7 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.serialization.json.Json
-import launcher.launcher.data.IntegrationInfo
-import launcher.launcher.data.IntegrationInformation
+import launcher.launcher.config.Integration
 import launcher.launcher.data.quest.BaseQuest
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
@@ -21,9 +20,7 @@ import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.HomeScreen
 import launcher.launcher.ui.screens.quest.ListAllQuests
 import launcher.launcher.ui.screens.quest.ViewQuest
-import launcher.launcher.ui.screens.quest.setup.deep_focus.SetDeepFocus
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
-import launcher.launcher.ui.screens.quest.setup.app_focus.SetAppFocus
 import launcher.launcher.ui.theme.LauncherTheme
 
 class MainActivity : ComponentActivity() {
@@ -69,7 +66,7 @@ class MainActivity : ComponentActivity() {
                                     navController
                                 )
                             }
-                            IntegrationInformation.setupRoutes.forEach{ integrationInfo ->
+                            Integration.setupRoutes.forEach{ integrationInfo ->
                                 composable(route=integrationInfo.value.first) {
                                     integrationInfo.value.second.invoke()
                                 }
