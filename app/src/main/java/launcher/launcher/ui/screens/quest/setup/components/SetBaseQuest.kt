@@ -8,7 +8,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import launcher.launcher.data.quest.BaseQuest
 import launcher.launcher.data.quest.BaseQuestState
 import launcher.launcher.utils.QuestHelper
 

@@ -9,24 +9,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import launcher.launcher.data.quest.BaseQuest
+import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.data.quest.focus.AppFocus
-import launcher.launcher.data.quest.focus.DeepFocus
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.getCurrentDate
 
 @Composable
 fun AppFocusQuestView(
-    baseQuest: BaseQuest
+    basicQuestInfo: BasicQuestInfo
 ) {
     val questHelper = QuestHelper(LocalContext.current)
-    val appFocus = questHelper.getQuestInfo<AppFocus>(baseQuest) ?: return
-    val duration = appFocus.nextFocusDuration
-    val isQuestComplete = questHelper.isQuestCompleted(baseQuest.title, getCurrentDate()) ?: false
+    val appFocus = questHelper.getQuestInfo<AppFocus>(basicQuestInfo) ?: return
+    val duration = appFocus.nextFocusDurationInMillis
+    val isQuestComplete = questHelper.isQuestCompleted(basicQuestInfo.title, getCurrentDate()) ?: false
 
     BaseQuestView(
-        isQuestComplete = isQuestComplete,
+        hideStartQuestBtn = isQuestComplete,
         onQuestStarted = {
 
         }) {
@@ -35,14 +34,14 @@ fun AppFocusQuestView(
         ) {
 
             Text(
-                text = baseQuest.title,
+                text = basicQuestInfo.title,
                 style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                 fontFamily = JetBrainsMonoFont,
                 modifier = Modifier.padding(top = 40.dp,)
             )
 
             Text(
-                text = "Reward: ${baseQuest.reward} coins",
+                text = "Reward: ${basicQuestInfo.reward} coins",
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
             )
 
@@ -68,7 +67,7 @@ fun AppFocusQuestView(
                 modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
             )
             Text(
-                text = baseQuest.instructions,
+                text = basicQuestInfo.instructions,
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(4.dp)
             )

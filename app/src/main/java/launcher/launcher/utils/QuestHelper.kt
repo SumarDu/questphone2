@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import launcher.launcher.data.quest.BaseQuest
+import launcher.launcher.data.quest.BasicQuestInfo
 
 /* How quests are stored:
 Each quest has a BasicQuestInfo object that contains essential details like the title. This basic data is required for all types of quests.
@@ -25,24 +25,24 @@ class QuestHelper(context: Context) {
         prettyPrint = true
     }
 
-    fun getQuestList(): List<BaseQuest> {
+    fun getQuestList(): List<BasicQuestInfo> {
         val serializedList = sharedPreferences.getString(ALL_QUESTS_LIST_KEY, null) ?: return emptyList()
 
         return try {
-            val wrappers = json.decodeFromString<List<BaseQuest>>(serializedList)
+            val wrappers = json.decodeFromString<List<BasicQuestInfo>>(serializedList)
             return wrappers
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
         }
     }
-    fun saveQuestList(list: List<BaseQuest>){
-        val listData = json.encodeToString<List<BaseQuest>>(list)
+    fun saveQuestList(list: List<BasicQuestInfo>){
+        val listData = json.encodeToString<List<BasicQuestInfo>>(list)
         sharedPreferences.edit().putString(ALL_QUESTS_LIST_KEY,listData).apply()
     }
 
 
-     inline fun <reified T : Any> appendToQuestList(baseData: BaseQuest, questInfo: T) {
+     inline fun <reified T : Any> appendToQuestList(baseData: BasicQuestInfo, questInfo: T) {
         val currentQuests = getQuestList().toMutableList()
         currentQuests.add(baseData)
         saveQuestList(currentQuests)
@@ -52,7 +52,7 @@ class QuestHelper(context: Context) {
     }
 
 
-    inline fun <reified T : Any> getQuestInfo(baseData: BaseQuest): T? {
+    inline fun <reified T : Any> getQuestInfo(baseData: BasicQuestInfo): T? {
         val questInfo = sharedPreferences.getString("quest_data_${baseData.title}", null) ?: return null
         return try {
             json.decodeFromString<T>(questInfo)
@@ -63,7 +63,7 @@ class QuestHelper(context: Context) {
     }
 
     inline fun <reified T : Any> updateQuestInfo(
-        baseData: BaseQuest,
+        baseData: BasicQuestInfo,
         updateAction: (T) -> T
     ) {
         val data = getQuestInfo<T>(baseData)
@@ -84,8 +84,16 @@ class QuestHelper(context: Context) {
         return lastPerformed == date
     }
 
-    fun markQuestAsComplete(title:String, date: String, isComplete: Boolean) {
+    fun markQuestAsComplete(title:String, date: String) {
         sharedPreferences.edit().putString(QUEST_LAST_PERFORMED_SUFFIX + title, date).apply()
+    }
+
+    fun isQuestRunning(title:String):Boolean{
+        return sharedPreferences.getBoolean(QUEST_IS_RUNNING_SUFFIX + title, false)
+    }
+
+    fun setQuestRunning(title: String,isRunning: Boolean){
+        sharedPreferences.edit().putBoolean(QUEST_IS_RUNNING_SUFFIX + title, isRunning).apply()
     }
 
     /**
@@ -94,7 +102,7 @@ class QuestHelper(context: Context) {
      * @param quests
      * @return
      */
-    fun filterQuestForToday(quests: List<BaseQuest>): List<BaseQuest> {
+    fun filterQuestForToday(quests: List<BasicQuestInfo>): List<BasicQuestInfo> {
         val today = getCurrentDay()
         Log.d("current day",today.name)
         Log.d("all quests ",quests.toString())
@@ -105,6 +113,7 @@ class QuestHelper(context: Context) {
         private const val PREF_NAME = "all_quest_preferences"
         private const val ALL_QUESTS_LIST_KEY = "quest_list"
         private const val QUEST_LAST_PERFORMED_SUFFIX = "date_wen_quest_lst_d_"
+        private const val QUEST_IS_RUNNING_SUFFIX = "quest_state_"
 
     }
 }

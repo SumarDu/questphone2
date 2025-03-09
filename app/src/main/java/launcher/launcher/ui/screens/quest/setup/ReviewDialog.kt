@@ -16,7 +16,7 @@ import kotlin.reflect.jvm.isAccessible
 // Define a custom annotation for excluding fields from review
 @Retention(AnnotationRetention.RUNTIME)
 @Target(AnnotationTarget.PROPERTY)
-annotation class ExcludeFromReview
+annotation class ExcludeFromReviewDialog
 
 @Composable
 fun ReviewDialog(
@@ -69,8 +69,8 @@ private fun RenderObject(item: Any, indentLevel: Int = 0) {
     val properties = item::class.memberProperties
 
     properties.forEach { prop ->
-        // Skip properties marked with @ExcludeFromReview
-        if (prop.findAnnotation<ExcludeFromReview>() == null) {
+        // Skip properties marked with @ExcludeFromReviewDialog
+        if (prop.findAnnotation<ExcludeFromReviewDialog>() == null) {
             prop.isAccessible = true
             val value = prop.getter.call(item)
 

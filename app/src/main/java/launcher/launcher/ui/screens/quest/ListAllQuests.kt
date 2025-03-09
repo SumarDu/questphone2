@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import launcher.launcher.data.quest.BaseQuest
+import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.utils.QuestHelper
 
@@ -65,12 +65,12 @@ fun ListAllQuests(navHostController: NavHostController) {
                         onQueryChanged = {}
                     )
                 }
-                items(questList){questBase: BaseQuest ->
+                items(questList){questBase: BasicQuestInfo ->
                     QuestItem(
                         title = questBase.title,
                         reward = questBase.reward,
                         onClick = {
-                            val data = Json.encodeToString<BaseQuest>(questBase)
+                            val data = Json.encodeToString<BasicQuestInfo>(questBase)
                             navHostController.navigate(Screen.ViewQuest.route + data)
                         }
                     )

@@ -1,5 +1,6 @@
 package launcher.launcher.ui.screens.launcher
 
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -15,8 +16,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.toRect
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
@@ -27,7 +33,7 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import launcher.launcher.data.quest.BaseQuest
+import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.components.LiveClock
 import launcher.launcher.ui.screens.launcher.components.ProgressBar
@@ -35,6 +41,14 @@ import launcher.launcher.utils.CoinHelper
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.getCurrentDate
 
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import kotlin.math.max
+import kotlin.math.min
 
 @Composable
 fun HomeScreen(navController: NavController) {
@@ -43,13 +57,18 @@ fun HomeScreen(navController: NavController) {
     val coinHelper = CoinHelper(LocalContext.current)
 
     val currentDate = getCurrentDate()
+    val completedQuests = remember { SnapshotStateList<String>() }
 
-    val completedQuests: MutableSet<String> = mutableSetOf()
-    questList.forEach{item ->
-        if(questHelper.isQuestCompleted(item.title,currentDate) == true){
-            completedQuests.add(item.title)
-        }
-    }
+    LaunchedEffect(completedQuests) {
+        questList.forEach{item ->
+            if(questHelper.isQuestCompleted(item.title, currentDate) == true){
+                completedQuests.add(item.title)
+            }
+            if(questHelper.isQuestRunning(item.title)){
+                viewQuest(item,navController)
+            }
+        } }
+
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
     Box(
@@ -141,8 +160,7 @@ fun HomeScreen(navController: NavController) {
                         text =  baseQuest.title,
                         isCompleted = completedQuests.contains(baseQuest.title),
                         modifier = Modifier.clickable {
-                            val data = Json.encodeToString<BaseQuest>(baseQuest )
-                            navController.navigate(Screen.ViewQuest.route + data)
+                            viewQuest(baseQuest,navController)
                     })
                 }
                 item {
@@ -170,6 +188,10 @@ fun HomeScreen(navController: NavController) {
     }}
 }
 
+fun viewQuest(baseQuest: BasicQuestInfo, navController: NavController) {
+    val data = Json.encodeToString<BasicQuestInfo>(baseQuest )
+    navController.navigate(Screen.ViewQuest.route + data)
+}
 @Composable
 fun QuestItem(
     text: String,
@@ -189,3 +211,5 @@ fun QuestItem(
         textAlign = TextAlign.Center
     )
 }
+
+

@@ -49,21 +49,20 @@ fun SetAppFocus() {
         )
     }
     if (isReviewDialogVisible.value) {
+        val baseQuest = baseQuestState.toBaseQuest()
+        val appFocus = AppFocus(
+            focusTimeConfig = focusTimeConfig.value,
+            selectedFocusApp = selectedApp.value,
+        nextFocusDurationInMillis = focusTimeConfig.value.initialTimeInMs
+        )
         ReviewDialog(
             items = listOf(
-                baseQuestState.toBaseQuest(), AppFocus(
-                    focusTimeConfig = focusTimeConfig.value,
-                    selectedFocusApp = selectedApp.value
-
-                )
+                baseQuest,appFocus
             ),
 
             onConfirm = {
                 sp.appendToQuestList(
-                    baseQuestState.toBaseQuest(), AppFocus(
-                        focusTimeConfig = focusTimeConfig.value,
-                        selectedFocusApp = selectedApp.value
-                    )
+                    baseQuest,appFocus
                 )
                 isReviewDialogVisible.value = false
             },

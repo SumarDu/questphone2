@@ -1,7 +1,7 @@
 package launcher.launcher.data.quest.focus
 
 import kotlinx.serialization.Serializable
-import launcher.launcher.ui.screens.quest.setup.ExcludeFromReview
+import launcher.launcher.ui.screens.quest.setup.ExcludeFromReviewDialog
 
 
 /**
@@ -9,13 +9,13 @@ import launcher.launcher.ui.screens.quest.setup.ExcludeFromReview
  *
  * @property focusTimeConfig
  * @property unrestrictedApps list of unrestricted apps during the focus session
- * @property nextFocusDuration
+ * @property nextFocusDurationInMillis
  */
 @Serializable
 data class DeepFocus(
     var focusTimeConfig: FocusTimeConfig = FocusTimeConfig(),
     var unrestrictedApps: Set<String> = emptySet(),
-    @ExcludeFromReview
-    var nextFocusDuration : Long = 0L
+    @ExcludeFromReviewDialog
+    var nextFocusDurationInMillis : Long = 0L
 )
 

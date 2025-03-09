@@ -2,11 +2,11 @@ package launcher.launcher.ui.screens.quest
 
 import androidx.compose.runtime.Composable
 import launcher.launcher.config.Integration
-import launcher.launcher.data.quest.BaseQuest
+import launcher.launcher.data.quest.BasicQuestInfo
 
 @Composable
 fun ViewQuest(
-    baseQuest: BaseQuest
+    basicQuestInfo: BasicQuestInfo
 ) {
-    Integration.viewScreens[baseQuest.integrationId.name]?.invoke(baseQuest)
+    Integration.viewScreens[basicQuestInfo.integrationId.name]?.invoke(basicQuestInfo)
 }

@@ -48,21 +48,21 @@ fun SetDeepFocus() {
         )
     }
     if (isReviewDialogVisible.value) {
+        val baseQuest =
+            baseQuestState.toBaseQuest()
+        val deepFocus = DeepFocus(
+            focusTimeConfig = focusTimeConfig.value,
+            unrestrictedApps = selectedApps.toSet(),
+            nextFocusDurationInMillis = focusTimeConfig.value.initialTimeInMs
+        )
         ReviewDialog(
             items = listOf(
-                baseQuestState.toBaseQuest(), DeepFocus(
-                    focusTimeConfig = focusTimeConfig.value,
-                    unrestrictedApps = selectedApps.toSet()
-
-                )
+                baseQuest,deepFocus
             ),
 
             onConfirm = {
                 sp.appendToQuestList(
-                    baseQuestState.toBaseQuest(), DeepFocus(
-                        focusTimeConfig = focusTimeConfig.value,
-                        unrestrictedApps = selectedApps.toSet()
-                    )
+                    baseQuest,deepFocus
                 )
                 isReviewDialogVisible.value = false
             },

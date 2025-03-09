@@ -13,7 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import kotlinx.serialization.json.Json
 import launcher.launcher.config.Integration
-import launcher.launcher.data.quest.BaseQuest
+import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
 import launcher.launcher.ui.screens.launcher.AppList
@@ -55,9 +55,9 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(navArgument("baseQuestInfo") { type = NavType.StringType })
                         ) { backStackEntry ->
                             val json = backStackEntry.arguments?.getString("baseQuestInfo")
-                            val baseQuest = json?.let { Json.decodeFromString<BaseQuest>(it) }
+                            val basicQuestInfo = json?.let { Json.decodeFromString<BasicQuestInfo>(it) }
 
-                            ViewQuest(baseQuest!!)
+                            ViewQuest(basicQuestInfo!!)
                         }
 
                         navigation(startDestination = SetupQuestScreen.Integration.route, route = Screen.AddNewQuest.route){

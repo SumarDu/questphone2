@@ -1,7 +1,7 @@
 package launcher.launcher.data.quest.focus
 
 import kotlinx.serialization.Serializable
-import launcher.launcher.ui.screens.quest.setup.ExcludeFromReview
+import launcher.launcher.ui.screens.quest.setup.ExcludeFromReviewDialog
 
 /**
  * Stores time related data for quests
@@ -23,11 +23,11 @@ data class FocusTimeConfig(
     var incrementUnit: String = "m"
 ) {
 
-    @ExcludeFromReview
+    @ExcludeFromReviewDialog
     val initialTimeInMs: Long get() = convertToMillis(initialTime, initialUnit)
-    @ExcludeFromReview
+    @ExcludeFromReviewDialog
     val finalTimeInMs: Long get() = convertToMillis(finalTime, finalUnit)
-    @ExcludeFromReview
+    @ExcludeFromReviewDialog
     val incrementTimeInMs: Long get() = convertToMillis(incrementTime, incrementUnit)
 
     private fun convertToMillis(time: String, unit: String): Long {

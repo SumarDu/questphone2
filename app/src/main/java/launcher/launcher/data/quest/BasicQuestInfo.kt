@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.serialization.Serializable
 import launcher.launcher.data.DayOfWeek
 import launcher.launcher.data.IntegrationId
+import launcher.launcher.ui.screens.quest.setup.ExcludeFromReviewDialog
 
 /**
  * Stores basic information about a quests
@@ -17,14 +18,15 @@ import launcher.launcher.data.IntegrationId
  * @property reward
  * @property integrationId
  * @property selectedDays
+ * @property currentQuestState
  */
 @Serializable
-data class BaseQuest(
+data class BasicQuestInfo(
     var title: String = "",
     var instructions: String = "",
     val reward: Int = 5,
     var integrationId : IntegrationId = IntegrationId.APP_FOCUS,
-    var selectedDays: Set<DayOfWeek> = emptySet()
+    var selectedDays: Set<DayOfWeek> = emptySet(),
 )
 
 
@@ -42,5 +44,5 @@ class BaseQuestState(
     var integrationId by mutableStateOf(initialIntegrationId)
     var selectedDays by mutableStateOf(initialSelectedDays)
 
-    fun toBaseQuest() = BaseQuest(title, instructions, reward, integrationId, selectedDays)
+    fun toBaseQuest() = BasicQuestInfo(title, instructions, reward, integrationId, selectedDays)
 }
