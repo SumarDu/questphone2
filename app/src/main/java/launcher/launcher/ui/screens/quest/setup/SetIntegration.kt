@@ -20,7 +20,7 @@ import launcher.launcher.ui.screens.quest.setup.components.Navigation
 @SuppressLint("UnrememberedMutableState")
 @Composable
 fun SetIntegration(navController: NavHostController) {
-    val selectedIntegration = remember { mutableStateOf(IntegrationId.APP_FOCUS) }
+    val selectedIntegration = remember { mutableStateOf(IntegrationId.DEEP_FOCUS) }
 
     Scaffold(
         floatingActionButton = {

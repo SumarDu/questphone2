@@ -16,9 +16,5 @@ enum class IntegrationId {
     DEEP_FOCUS,
 
 
-    HEALTH,
-
-    HEALTH_API_RUNNING,
-    HEALTH_API_WORKOUT,
-    HEALTH_API_WATER_INTAKE
+    HEALTH_CONNECT
 }

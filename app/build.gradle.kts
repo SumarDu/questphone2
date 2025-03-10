@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "launcher.launcher"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -65,4 +65,6 @@ dependencies {
 
     implementation(libs.androidx.navigation.compose)
     implementation(kotlin("reflect"))
+
+    implementation(libs.androidx.connect.client)
 }

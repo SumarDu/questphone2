@@ -3,9 +3,8 @@ package launcher.launcher.config
 import launcher.launcher.R
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.IntegrationInfo
-import launcher.launcher.ui.screens.quest.setup.app_focus.SetAppFocus
 import launcher.launcher.ui.screens.quest.setup.deep_focus.SetDeepFocus
-import launcher.launcher.ui.screens.quest.view.AppFocusQuestView
+import launcher.launcher.ui.screens.quest.setup.health_connect.SetHealthConnect
 import launcher.launcher.ui.screens.quest.view.DeepFocusQuestView
 
 
@@ -21,23 +20,11 @@ class Integration {
                 viewScreen = { baseQuest ->  DeepFocusQuestView(baseQuest) }
             ),
             IntegrationInfo(
-                icon = R.drawable.baseline_phone_android_24,
-                label = "App",
-                description = "Restrict access to a single app while blocking everything else.",
-                id = IntegrationId.APP_FOCUS,
-                setupScreen = { SetAppFocus() },
-                viewScreen = {baseQuest -> AppFocusQuestView(baseQuest) }
-            ),
-            IntegrationInfo(
                 icon = R.drawable.baseline_directions_run_24,
                 label = "Health Connect",
-                description = "Earn coins by doing workout.",
-                id = IntegrationId.HEALTH
-            ),
-            IntegrationInfo(
-                icon = R.drawable.baseline_extension_24,
-                label = "Add",
-                description = "Add more integrations"
+                description = "Earn coins for performing health related stuff like steps, water intake and more",
+                setupScreen = { SetHealthConnect() },
+                id = IntegrationId.HEALTH_CONNECT
             )
         )
 
