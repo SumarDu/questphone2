@@ -1,5 +1,6 @@
 package launcher.launcher.ui.screens.quest.view
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -32,6 +33,7 @@ import launcher.launcher.utils.HealthConnectPermissionManager
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.getCurrentDate
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
     val context = LocalContext.current
@@ -130,6 +132,11 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
 
+                Text(
+                    text = "Health Task Type: ${healthQuest.type}",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
+                )
+
                 if (isQuestComplete) {
                     Text(
                         text = "Next Goal: ${healthQuest.nextGoal} ${getUnitForType(healthQuest.type)}",
@@ -137,7 +144,7 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
                     )
                 } else {
                     Text(
-                        text = "Current Progress: ${currentHealthData.doubleValue} / ${healthQuest.nextGoal} ${
+                        text = "Current Progress: ${String.format("%.3f", currentHealthData.doubleValue)} / ${healthQuest.nextGoal} ${
                             getUnitForType(
                                 healthQuest.type
                             )

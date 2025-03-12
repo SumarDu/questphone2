@@ -4,7 +4,7 @@ package launcher.launcher.data.quest.health
 fun getUnitForType(type: HealthTaskType): String = when (type) {
     HealthTaskType.STEPS -> "steps"
     HealthTaskType.CALORIES -> "cal"
-    HealthTaskType.DISTANCE -> "km"
+    HealthTaskType.DISTANCE -> "m"
     HealthTaskType.SLEEP -> "hrs"
     HealthTaskType.WATER_INTAKE -> "l"
 }

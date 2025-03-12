@@ -83,8 +83,8 @@ class HealthConnectManager(private val context: Context) {
                 .sumOf { it.count.toDouble() }
             HealthTaskType.CALORIES -> readRecords<TotalCaloriesBurnedRecord>(timeRangeFilter)
                 .sumOf { it.energy.inKilocalories }
-            HealthTaskType.DISTANCE -> readRecords<DistanceRecord>(timeRangeFilter)
-                .sumOf { it.distance.inMeters }
+            HealthTaskType.DISTANCE -> (readRecords<DistanceRecord>(timeRangeFilter))
+                .sumOf { it.distance.inMeters  }
             HealthTaskType.SLEEP -> readRecords<SleepSessionRecord>(timeRangeFilter)
                 .sumOf { java.time.Duration.between(it.startTime, it.endTime).toMinutes().toDouble() }
             HealthTaskType.WATER_INTAKE -> readRecords<HydrationRecord>(timeRangeFilter)
