@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 
 @Serializable
-data class HealthGoal(
+data class HealthQuest(
     val type: HealthTaskType = HealthTaskType.STEPS,
     val healthGoalConfig: HealthGoalConfig = HealthGoalConfig(),
     val nextGoal: Int = healthGoalConfig.initial

@@ -16,8 +16,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.BaseQuestState
-import launcher.launcher.data.quest.health.HealthGoal
+import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.data.quest.health.HealthTaskType
+import launcher.launcher.data.quest.health.getUnitForType
 import launcher.launcher.ui.screens.quest.setup.ReviewDialog
 import launcher.launcher.ui.screens.quest.setup.components.SetBaseQuest
 import launcher.launcher.utils.QuestHelper
@@ -25,23 +26,22 @@ import launcher.launcher.utils.QuestHelper
 @SuppressLint("UnrememberedMutableState")
 @Composable
 fun SetHealthConnect() {
-    val context = LocalContext.current
     val scrollState = rememberScrollState()
     val sp = QuestHelper(LocalContext.current)
 
     val baseQuestState = remember { BaseQuestState(initialIntegrationId = IntegrationId.HEALTH_CONNECT) }
-    val healthGoal = remember { mutableStateOf(HealthGoal()) }
+    val healthQuest = remember { mutableStateOf(HealthQuest()) }
     val isReviewDialogVisible = remember { mutableStateOf(false) }
 
     if (isReviewDialogVisible.value) {
         val baseQuest = baseQuestState.toBaseQuest()
         ReviewDialog(
             items = listOf(
-                baseQuest, healthGoal.value
+                baseQuest, healthQuest.value
             ),
             onConfirm = {
                 sp.appendToQuestList(
-                    baseQuest, healthGoal.value
+                    baseQuest, healthQuest.value
                 )
                 isReviewDialogVisible.value = false
             },
@@ -85,45 +85,45 @@ fun SetHealthConnect() {
                             )
 
                             // Task Type Dropdown
-                            ElegantHealthTaskTypeSelector(
-                                selectedType = healthGoal.value.type,
-                                onTypeSelected = { healthGoal.value = healthGoal.value.copy(type = it) }
+                            HealthTaskTypeSelector(
+                                selectedType = healthQuest.value.type,
+                                onTypeSelected = { healthQuest.value = healthQuest.value.copy(type = it) }
                             )
 
                             // Goal Config Inputs
-                            ElegantGoalConfigInput(
+                            GoalConfigInput(
                                 label = "Initial Count",
-                                value = healthGoal.value.healthGoalConfig.initial.toString(),
+                                value = healthQuest.value.healthGoalConfig.initial.toString(),
                                 onValueChange = {
                                     val newValue = it.toIntOrNull() ?: 0
-                                    healthGoal.value = healthGoal.value.copy(
-                                        healthGoalConfig = healthGoal.value.healthGoalConfig.copy(initial = newValue)
+                                    healthQuest.value = healthQuest.value.copy(
+                                        healthGoalConfig = healthQuest.value.healthGoalConfig.copy(initial = newValue)
                                     )
                                 },
-                                unit = getUnitForType(healthGoal.value.type)
+                                unit = getUnitForType(healthQuest.value.type)
                             )
 
-                            ElegantGoalConfigInput(
+                            GoalConfigInput(
                                 label = "Increment Daily By",
-                                value = healthGoal.value.healthGoalConfig.increment.toString(),
+                                value = healthQuest.value.healthGoalConfig.increment.toString(),
                                 onValueChange = {
                                     val newValue = it.toIntOrNull() ?: 0
-                                    healthGoal.value = healthGoal.value.copy(
-                                        healthGoalConfig = healthGoal.value.healthGoalConfig.copy(increment = newValue)
+                                    healthQuest.value = healthQuest.value.copy(
+                                        healthGoalConfig = healthQuest.value.healthGoalConfig.copy(increment = newValue)
                                     )
                                 },
-                                unit = getUnitForType(healthGoal.value.type)
+                                unit = getUnitForType(healthQuest.value.type)
                             )
-                            ElegantGoalConfigInput(
+                            GoalConfigInput(
                                 label = "Final Count",
-                                value = healthGoal.value.healthGoalConfig.final.toString(),
+                                value = healthQuest.value.healthGoalConfig.final.toString(),
                                 onValueChange = {
                                     val newValue = it.toIntOrNull() ?: 0
-                                    healthGoal.value = healthGoal.value.copy(
-                                        healthGoalConfig = healthGoal.value.healthGoalConfig.copy(final = newValue)
+                                    healthQuest.value = healthQuest.value.copy(
+                                        healthGoalConfig = healthQuest.value.healthGoalConfig.copy(final = newValue)
                                     )
                                 },
-                                unit = getUnitForType(healthGoal.value.type)
+                                unit = getUnitForType(healthQuest.value.type)
                             )
 
                             }
@@ -154,7 +154,7 @@ fun SetHealthConnect() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ElegantHealthTaskTypeSelector(
+fun HealthTaskTypeSelector(
     selectedType: HealthTaskType,
     onTypeSelected: (HealthTaskType) -> Unit
 ) {
@@ -206,7 +206,7 @@ fun ElegantHealthTaskTypeSelector(
 }
 
 @Composable
-fun ElegantGoalConfigInput(
+fun GoalConfigInput(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
@@ -229,11 +229,3 @@ fun ElegantGoalConfigInput(
     )
 }
 
-// Unit mapping for display
-private fun getUnitForType(type: HealthTaskType): String = when (type) {
-    HealthTaskType.STEPS -> "steps"
-    HealthTaskType.CALORIES -> "cal"
-    HealthTaskType.DISTANCE -> "km"
-    HealthTaskType.SLEEP -> "hrs"
-    HealthTaskType.WATER_INTAKE -> "l"
-}

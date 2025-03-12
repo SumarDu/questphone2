@@ -6,6 +6,7 @@ import launcher.launcher.data.IntegrationInfo
 import launcher.launcher.ui.screens.quest.setup.deep_focus.SetDeepFocus
 import launcher.launcher.ui.screens.quest.setup.health_connect.SetHealthConnect
 import launcher.launcher.ui.screens.quest.view.DeepFocusQuestView
+import launcher.launcher.ui.screens.quest.view.HealthQuestView
 
 
 class Integration {
@@ -24,6 +25,7 @@ class Integration {
                 label = "Health Connect",
                 description = "Earn coins for performing health related stuff like steps, water intake and more",
                 setupScreen = { SetHealthConnect() },
+                viewScreen = { baseQuest -> HealthQuestView(baseQuest)},
                 id = IntegrationId.HEALTH_CONNECT
             )
         )

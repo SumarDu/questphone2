@@ -1,0 +1,134 @@
+package launcher.launcher.utils
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.util.Log
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.PermissionController
+import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.*
+import androidx.health.connect.client.request.ReadRecordsRequest
+import androidx.health.connect.client.time.TimeRangeFilter
+import launcher.launcher.data.quest.health.HealthTaskType
+import java.time.Instant
+import java.time.ZonedDateTime
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
+
+class HealthConnectManager(private val context: Context) {
+    private val healthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
+    private val permissionController by lazy { healthConnectClient.permissionController }
+
+    private val requiredPermissions = setOf(
+        HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
+        HealthPermission.getReadPermission(DistanceRecord::class),
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+        HealthPermission.getReadPermission(HydrationRecord::class)
+    )
+
+    suspend fun isAvailable(): Boolean = suspendCoroutine { continuation ->
+        try {
+            val providerPackageName = "com.google.android.apps.healthdata" // Define the provider package name
+            val availabilityStatus = HealthConnectClient.getSdkStatus(context, providerPackageName)
+
+            when (availabilityStatus) {
+                HealthConnectClient.SDK_AVAILABLE -> {
+                    continuation.resume(true)
+                }
+                HealthConnectClient.SDK_UNAVAILABLE -> {
+                    continuation.resume(false)
+                }
+                HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> {
+                    // Optionally redirect to package installer
+                    val uriString = "market://details?id=$providerPackageName&url=healthconnect%3A%2F%2Fonboarding"
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW).apply {
+                            setPackage("com.android.vending")
+                            data = Uri.parse(uriString)
+                            putExtra("overlay", true)
+                            putExtra("callerId", context.packageName)
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK // Add this since it's called from a suspend function
+                        }
+                    )
+                    continuation.resume(false)
+                }
+                else -> {
+                    continuation.resume(false)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("HealthConnect", "Error checking availability", e)
+            continuation.resume(false)
+        }
+    }
+    suspend fun hasAllPermissions(): Boolean =
+        permissionController.getGrantedPermissions().containsAll(requiredPermissions)
+
+    private fun getTodayTimeRange(): TimeRangeFilter {
+        val now = ZonedDateTime.now()
+        val startOfDay = now.toLocalDate().atStartOfDay(now.zone).toInstant()
+        return TimeRangeFilter.between(startOfDay, now.toInstant())
+    }
+
+    suspend fun getTodayHealthData(type: HealthTaskType): Double {
+        if (!hasAllPermissions()) {
+            throw SecurityException("Required Health Connect permissions not granted")
+        }
+
+        val timeRangeFilter = getTodayTimeRange()
+        return when (type) {
+            HealthTaskType.STEPS -> readRecords<StepsRecord>(timeRangeFilter)
+                .sumOf { it.count.toDouble() }
+            HealthTaskType.CALORIES -> readRecords<TotalCaloriesBurnedRecord>(timeRangeFilter)
+                .sumOf { it.energy.inKilocalories }
+            HealthTaskType.DISTANCE -> readRecords<DistanceRecord>(timeRangeFilter)
+                .sumOf { it.distance.inMeters }
+            HealthTaskType.SLEEP -> readRecords<SleepSessionRecord>(timeRangeFilter)
+                .sumOf { java.time.Duration.between(it.startTime, it.endTime).toMinutes().toDouble() }
+            HealthTaskType.WATER_INTAKE -> readRecords<HydrationRecord>(timeRangeFilter)
+                .sumOf { it.volume.inMilliliters }
+        }
+    }
+
+    private suspend inline fun <reified T : Record> readRecords(timeRangeFilter: TimeRangeFilter): List<T> {
+        val request = ReadRecordsRequest(recordType = T::class, timeRangeFilter = timeRangeFilter)
+        return healthConnectClient.readRecords(request).records
+    }
+}
+
+class HealthConnectPermissionManager(private val context: Context) {
+    private val healthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
+    private val permissionController by lazy { healthConnectClient.permissionController }
+
+    val permissions = setOf(
+        HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
+        HealthPermission.getReadPermission(DistanceRecord::class),
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+        HealthPermission.getReadPermission(HydrationRecord::class)
+    )
+
+    val requestPermissionContract = PermissionController.createRequestPermissionResultContract()
+
+    suspend fun isProviderInstalled(): Boolean = suspendCoroutine { continuation ->
+        try {
+            val status = HealthConnectClient.getSdkStatus(context)
+            continuation.resume(status != HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED)
+        } catch (e: Exception) {
+            Log.e("HealthConnect", "Error checking provider installation", e)
+            continuation.resume(false)
+        }
+    }
+
+    fun getInstallIntent(): Intent = Intent(Intent.ACTION_VIEW).apply {
+        data = Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata")
+    }
+
+    suspend fun hasAllPermissions(): Boolean =
+        permissionController.getGrantedPermissions().containsAll(permissions)
+
+    fun createPermissionRequestIntent(): Intent =
+        requestPermissionContract.createIntent(context, permissions)
+}
