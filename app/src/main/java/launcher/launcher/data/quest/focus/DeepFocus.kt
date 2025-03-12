@@ -17,5 +17,14 @@ data class DeepFocus(
     var unrestrictedApps: Set<String> = emptySet(),
     @ExcludeFromReviewDialog
     var nextFocusDurationInMillis : Long = 0L
-)
+){
+    fun incrementTime() {
+    if (nextFocusDurationInMillis < focusTimeConfig.finalTimeInMs) {
+        nextFocusDurationInMillis = minOf(
+            nextFocusDurationInMillis + focusTimeConfig.incrementTimeInMs,
+            focusTimeConfig.finalTimeInMs
+        )
+    }
+}
+}
 

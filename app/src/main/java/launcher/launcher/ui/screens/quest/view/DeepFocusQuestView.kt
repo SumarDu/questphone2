@@ -57,7 +57,9 @@ fun DeepFocusQuestView(
     val deepFocus = questHelper.getQuestInfo<DeepFocus>(basicQuestInfo) ?: return
     val duration = deepFocus.nextFocusDurationInMillis
 
-    createNotificationChannel(context)
+    LaunchedEffect(Unit) {
+        createNotificationChannel(context)
+    }
 
     var isQuestComplete by remember {
         mutableStateOf(questHelper.isQuestCompleted(basicQuestInfo.title, getCurrentDate()) ?: false)
@@ -159,6 +161,7 @@ fun DeepFocusQuestView(
                 if (progress >= 1f) {
                     questHelper.markQuestAsComplete(basicQuestInfo.title, getCurrentDate())
                     questHelper.setQuestRunning(basicQuestInfo.title, false)
+                    deepFocus.incrementTime()
                     questHelper.updateQuestInfo<DeepFocus>(basicQuestInfo,{deepFocus})
                     isQuestComplete = true
                     isQuestRunning = false
@@ -294,17 +297,15 @@ fun DeepFocusQuestView(
 }
 
 private fun createNotificationChannel(context: Context) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        val name = "Focus Timer"
-        val descriptionText = "Shows the remaining time for focus quests"
-        val importance = NotificationManager.IMPORTANCE_DEFAULT
-        val channel = NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance).apply {
-            description = descriptionText
-            setShowBadge(true)
-        }
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.createNotificationChannel(channel)
+    val name = "Focus Timer"
+    val descriptionText = "Shows the remaining time for focus quests"
+    val importance = NotificationManager.IMPORTANCE_DEFAULT
+    val channel = NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance).apply {
+        description = descriptionText
+        setShowBadge(true)
     }
+    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    notificationManager.createNotificationChannel(channel)
 }
 
 private fun updateTimerNotification(context: Context, questTitle: String, progress: Float, duration: Long) {

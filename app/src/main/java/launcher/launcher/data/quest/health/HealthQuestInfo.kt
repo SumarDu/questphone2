@@ -2,10 +2,25 @@ package launcher.launcher.data.quest.health
 
 import kotlinx.serialization.Serializable
 
-
+/**
+ * TODO
+ *
+ * @property type
+ * @property healthGoalConfig
+ * @property nextGoal stores the goal for the current date in case wherein the quest is not completed.or stores the next goal when complete
+ */
 @Serializable
 data class HealthQuest(
     val type: HealthTaskType = HealthTaskType.STEPS,
     val healthGoalConfig: HealthGoalConfig = HealthGoalConfig(),
-    val nextGoal: Int = healthGoalConfig.initial
-)
+    var nextGoal: Int = healthGoalConfig.initial
+){
+    fun incrementTime() {
+        if (nextGoal < healthGoalConfig.final) {
+            nextGoal = minOf(
+                nextGoal + healthGoalConfig.final,
+                healthGoalConfig.final
+            )
+        }
+    }
+}

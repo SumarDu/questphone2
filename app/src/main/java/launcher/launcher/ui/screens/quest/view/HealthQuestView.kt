@@ -25,10 +25,12 @@ import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.data.quest.health.HealthTaskType
 import launcher.launcher.data.quest.health.formatHealthData
+import launcher.launcher.data.quest.health.getUnitForType
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.HealthConnectManager
 import launcher.launcher.utils.HealthConnectPermissionManager
 import launcher.launcher.utils.QuestHelper
+import launcher.launcher.utils.getCurrentDate
 
 @Composable
 fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
@@ -40,9 +42,11 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
     val healthManager = HealthConnectManager(context)
     val permissionManager = HealthConnectPermissionManager(context)
 
+    var isQuestComplete =
+        questHelper.isQuestCompleted(baseQuestInfo.title, getCurrentDate()) ?: false
     val hasRequiredPermissions = remember { mutableStateOf(false) }
     val currentHealthData = remember { mutableDoubleStateOf(0.0) }
-    val progressState = remember { mutableFloatStateOf(0f) }
+    val progressState = remember { mutableFloatStateOf(if (isQuestComplete) 1f else 0f) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = permissionManager.requestPermissionContract,
@@ -53,7 +57,9 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
                     fetchHealthData(healthManager, healthQuest.type) { data ->
                         currentHealthData.doubleValue = data
                         // Update progress based on nextGoal
-                        progressState.floatValue = (data / healthQuest.nextGoal).toFloat().coerceIn(0f, 1f)
+                        progressState.floatValue =
+                            (data / healthQuest.nextGoal).toFloat().coerceIn(0f, 1f)
+
                     }
                 }
             }
@@ -71,16 +77,32 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
         if (!hasRequiredPermissions.value) {
             permissionLauncher.launch(permissionManager.permissions)
         } else {
-            fetchHealthData( healthManager, healthQuest.type) { data ->
-                currentHealthData.doubleValue = data
-                progressState.floatValue = (data / healthQuest.nextGoal).toFloat().coerceIn(0f, 1f)
+            if (!isQuestComplete) {
+
+                fetchHealthData(healthManager, healthQuest.type) { data ->
+                    currentHealthData.doubleValue = data
+                    progressState.floatValue =
+                        (data / healthQuest.nextGoal).toFloat().coerceIn(0f, 1f)
+
+                }
+
             }
         }
     }
 
+
+    if (progressState.floatValue == 1f) {
+        if (!isQuestComplete) {
+            questHelper.markQuestAsComplete(baseQuestInfo.title, getCurrentDate())
+            healthQuest.incrementTime()
+            questHelper.updateQuestInfo<HealthQuest>(baseQuestInfo, { healthQuest })
+            isQuestComplete = true
+        }
+    }
     BaseQuestView(
         hideStartQuestBtn = true,
         progress = progressState,
+        loadingAnimationDuration = 400,
         onQuestStarted = { /* No-op for now, health quests auto-track */ }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -107,15 +129,39 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
                     text = "Reward: ${baseQuestInfo.reward} coins",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
+
+                if (isQuestComplete) {
+                    Text(
+                        text = "Next Goal: ${healthQuest.nextGoal} ${getUnitForType(healthQuest.type)}",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                    )
+                } else {
+                    Text(
+                        text = "Current Progress: ${currentHealthData.doubleValue} / ${healthQuest.nextGoal} ${
+                            getUnitForType(
+                                healthQuest.type
+                            )
+                        }",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin),
+                    )
+                }
+
                 Text(
-                    text = "Current Progress: ${formatHealthData(healthQuest.type, currentHealthData.doubleValue)} / ${healthQuest.nextGoal}",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin),
-                    modifier = Modifier.padding(top = 32.dp)
+                    text = "Instructions",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
+                )
+                Text(
+                    text = baseQuestInfo.instructions,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(4.dp)
                 )
             }
         }
     }
+
 }
+
 
 private suspend fun fetchHealthData(
     healthManager: HealthConnectManager,
@@ -125,6 +171,7 @@ private suspend fun fetchHealthData(
     try {
         val data = healthManager.getTodayHealthData(taskType)
         Log.d("HealthConnect", "Fetched data for $taskType: $data")
+
         onDataReceived(data)
     } catch (e: Exception) {
         Log.e("HealthConnect", "Error fetching health data: ${e.message}", e)
