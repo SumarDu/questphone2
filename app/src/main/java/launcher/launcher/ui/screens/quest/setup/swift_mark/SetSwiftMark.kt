@@ -45,7 +45,8 @@ import launcher.launcher.utils.getCachedApps
 fun SetSwiftMark() {
 
     val baseQuestState =
-        remember { BaseQuestState(initialIntegrationId = IntegrationId.SWIFT_MARK) }
+        remember { BaseQuestState(initialIntegrationId = IntegrationId.SWIFT_MARK,
+            initialReward = 1) }
 
     val sp = QuestHelper(LocalContext.current)
     val scrollState = rememberScrollState()

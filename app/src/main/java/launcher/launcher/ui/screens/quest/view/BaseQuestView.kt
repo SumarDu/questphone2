@@ -45,7 +45,7 @@ import kotlinx.coroutines.delay
 import launcher.launcher.utils.CoinHelper
 
 @Composable
-fun BaseQuestView(hideStartQuestBtn: Boolean = false, onQuestStarted: () -> Unit, loadingAnimationDuration: Int = 3000, progress:MutableFloatState = mutableFloatStateOf(0f), questViewBody : @Composable () -> Unit) {
+fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: Boolean = false, onQuestStarted: () -> Unit, loadingAnimationDuration: Int = 3000, progress:MutableFloatState = mutableFloatStateOf(0f), questViewBody : @Composable () -> Unit) {
     val coinHelper = CoinHelper(LocalContext.current)
 
     val animatedProgress by animateFloatAsState(
@@ -73,7 +73,7 @@ fun BaseQuestView(hideStartQuestBtn: Boolean = false, onQuestStarted: () -> Unit
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.padding(bottom = 16.dp)
                     ) {
-                        Text(text = "Start Quest")
+                        Text(text = startButtonTitle)
                     }
                 }
             },

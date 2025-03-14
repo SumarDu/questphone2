@@ -45,7 +45,8 @@ fun SwiftMarkQuestView(
             questHelper.markQuestAsComplete(basicQuestInfo.title, getCurrentDate())
         },
         progress = progress,
-        loadingAnimationDuration = 400
+        loadingAnimationDuration = 400,
+        startButtonTitle = "Mark as complete"
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
