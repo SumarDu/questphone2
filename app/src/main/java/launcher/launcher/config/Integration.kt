@@ -5,8 +5,10 @@ import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.IntegrationInfo
 import launcher.launcher.ui.screens.quest.setup.deep_focus.SetDeepFocus
 import launcher.launcher.ui.screens.quest.setup.health_connect.SetHealthConnect
+import launcher.launcher.ui.screens.quest.setup.swift_mark.SetSwiftMark
 import launcher.launcher.ui.screens.quest.view.DeepFocusQuestView
 import launcher.launcher.ui.screens.quest.view.HealthQuestView
+import launcher.launcher.ui.screens.quest.view.SwiftMarkQuestView
 
 
 class Integration {
@@ -27,6 +29,14 @@ class Integration {
                 setupScreen = { SetHealthConnect() },
                 viewScreen = { baseQuest -> HealthQuestView(baseQuest)},
                 id = IntegrationId.HEALTH_CONNECT
+            ),
+            IntegrationInfo(
+                icon = R.drawable.baseline_bolt_24,
+                label = "Swift Mark",
+                description = "A quick and effortless quest! Just mark it as done and earn coins instantly. No verification needed—your honesty is the key!",
+                setupScreen = { SetSwiftMark() },
+                viewScreen = { baseQuest -> SwiftMarkQuestView(baseQuest) },
+                id = IntegrationId.SWIFT_MARK
             )
         )
 

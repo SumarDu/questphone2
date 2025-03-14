@@ -42,13 +42,19 @@ class QuestHelper(context: Context) {
     }
 
 
-     inline fun <reified T : Any> appendToQuestList(baseData: BasicQuestInfo, questInfo: T) {
+    inline fun <reified T : Any> appendToQuestList(baseData: BasicQuestInfo, questInfo: T) {
         val currentQuests = getQuestList().toMutableList()
         currentQuests.add(baseData)
         saveQuestList(currentQuests)
         sharedPreferences.edit()
             .putString("quest_data_${baseData.title}", json.encodeToString(questInfo))
             .apply()
+    }
+
+    fun appendToQuestList(baseData: BasicQuestInfo) {
+        val currentQuests = getQuestList().toMutableList()
+        currentQuests.add(baseData)
+        saveQuestList(currentQuests)
     }
 
 

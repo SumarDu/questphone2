@@ -1,0 +1,125 @@
+package launcher.launcher.ui.screens.quest.setup.swift_mark
+
+import android.annotation.SuppressLint
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import launcher.launcher.data.IntegrationId
+import launcher.launcher.data.quest.BaseQuestState
+import launcher.launcher.data.quest.focus.DeepFocus
+import launcher.launcher.data.quest.focus.FocusTimeConfig
+import launcher.launcher.ui.screens.quest.setup.ReviewDialog
+import launcher.launcher.ui.screens.quest.setup.components.SetBaseQuest
+import launcher.launcher.ui.screens.quest.setup.deep_focus.SelectAppsDialog
+import launcher.launcher.utils.QuestHelper
+import launcher.launcher.utils.getCachedApps
+
+
+@SuppressLint("UnrememberedMutableState")
+@Composable
+fun SetSwiftMark() {
+
+    val baseQuestState =
+        remember { BaseQuestState(initialIntegrationId = IntegrationId.SWIFT_MARK) }
+
+    val sp = QuestHelper(LocalContext.current)
+    val scrollState = rememberScrollState()
+
+    val isReviewDialogVisible = remember { mutableStateOf(false) }
+
+
+    if (isReviewDialogVisible.value) {
+        val baseQuest =
+            baseQuestState.toBaseQuest()
+        ReviewDialog(
+            items = listOf(
+                baseQuest
+            ),
+
+            onConfirm = {
+                sp.appendToQuestList(
+                    baseQuest
+                )
+                isReviewDialogVisible.value = false
+            },
+            onDismiss = {
+                isReviewDialogVisible.value = false
+            }
+        )
+    }
+    Scaffold()
+    { paddingValues ->
+
+        Box(Modifier.padding(paddingValues)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 16.dp)
+
+            ) {
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                    modifier = Modifier.padding(top = 32.dp)
+                ) {
+
+                    Text(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        text = "Swift Quest",
+                        style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                    )
+                    SetBaseQuest(baseQuestState)
+
+
+                    Button(
+                        onClick = {
+                            isReviewDialogVisible.value = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Done,
+                                contentDescription = "Done"
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Create Quest",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
+                    Spacer(Modifier.size(100.dp))
+                }
+            }
+        }
+    }
+}

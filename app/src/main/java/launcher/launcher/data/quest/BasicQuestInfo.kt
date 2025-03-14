@@ -25,7 +25,7 @@ data class BasicQuestInfo(
     var title: String = "",
     var instructions: String = "",
     val reward: Int = 5,
-    var integrationId : IntegrationId = IntegrationId.APP_FOCUS,
+    var integrationId : IntegrationId = IntegrationId.DEEP_FOCUS,
     var selectedDays: Set<DayOfWeek> = emptySet(),
 )
 
@@ -35,7 +35,7 @@ class BaseQuestState(
     initialTitle: String = "",
     initialInstructions: String = "",
     initialReward: Int = 5,
-    initialIntegrationId: IntegrationId = IntegrationId.APP_FOCUS,
+    initialIntegrationId: IntegrationId = IntegrationId.DEEP_FOCUS,
     initialSelectedDays: Set<DayOfWeek> = emptySet()
 ) {
     var title by mutableStateOf(initialTitle)
