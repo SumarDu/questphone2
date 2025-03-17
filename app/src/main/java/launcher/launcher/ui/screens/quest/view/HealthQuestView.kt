@@ -27,6 +27,7 @@ import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.data.quest.health.HealthTaskType
 import launcher.launcher.data.quest.health.formatHealthData
 import launcher.launcher.data.quest.health.getUnitForType
+import launcher.launcher.ui.screens.tutorial.HealthConnectScreen
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.HealthConnectManager
 import launcher.launcher.utils.HealthConnectPermissionManager
@@ -77,7 +78,7 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
 
         hasRequiredPermissions.value = healthManager.hasAllPermissions()
         if (!hasRequiredPermissions.value) {
-            permissionLauncher.launch(permissionManager.permissions)
+//            permissionLauncher.launch(permissionManager.permissions)
         } else {
             if (!isQuestComplete) {
 
@@ -101,26 +102,25 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
             isQuestComplete = true
         }
     }
-    BaseQuestView(
-        hideStartQuestBtn = true,
-        progress = progressState,
-        loadingAnimationDuration = 400,
-        onQuestStarted = { /* No-op for now, health quests auto-track */ }
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            if (!hasRequiredPermissions.value) {
-                Text(
-                    text = "Health Connect permissions required",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.error
-                )
-                Button(
-                    onClick = { permissionLauncher.launch(permissionManager.permissions) },
-                    modifier = Modifier.padding(top = 8.dp)
-                ) {
-                    Text("Grant Permissions")
-                }
-            } else {
+
+    if (!hasRequiredPermissions.value) {
+        HealthConnectScreen(
+            onGetStarted = {
+                permissionLauncher.launch(permissionManager.permissions)
+            },
+            onSkip = {
+
+            }
+        )
+    } else {
+
+        BaseQuestView(
+            hideStartQuestBtn = true,
+            progress = progressState,
+            loadingAnimationDuration = 400,
+            onQuestStarted = { /* No-op for now, health quests auto-track */ }
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
                 Text(
                     text = baseQuestInfo.title,
                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
@@ -144,7 +144,12 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
                     )
                 } else {
                     Text(
-                        text = "Current Progress: ${String.format("%.3f", currentHealthData.doubleValue)} / ${healthQuest.nextGoal} ${
+                        text = "Current Progress: ${
+                            String.format(
+                                "%.3f",
+                                currentHealthData.doubleValue
+                            )
+                        } / ${healthQuest.nextGoal} ${
                             getUnitForType(
                                 healthQuest.type
                             )
@@ -165,10 +170,9 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
                 )
             }
         }
+
     }
-
 }
-
 
 private suspend fun fetchHealthData(
     healthManager: HealthConnectManager,

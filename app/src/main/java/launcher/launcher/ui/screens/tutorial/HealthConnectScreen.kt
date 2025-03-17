@@ -1,0 +1,287 @@
+package launcher.launcher.ui.screens.tutorial
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import launcher.launcher.R
+
+@Composable
+fun HealthConnectScreen(onGetStarted: () -> Unit, onSkip: () -> Unit) {
+    val scrollState = rememberScrollState()
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Header section with more compact spacing
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(top = 40.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Reduced size icon
+                Image(
+                    painter = painterResource(id = launcher.launcher.R.drawable.health_connect),
+                    contentDescription = "Health Connect",
+                    modifier = Modifier
+                        .size(120.dp)
+                        .padding(vertical = 8.dp),
+                    contentScale = ContentScale.Fit
+                )
+
+                // Title with adjusted spacing
+                Text(
+                    text = "Enhance Your BlankPhone Experience",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                )
+
+                // Subtitle with less bottom padding
+                Text(
+                    text = "Connect with Health Connect",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
+
+            // Info cards with better spacing
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // What is Health Connect
+                InfoCard(
+                    title = "What is Health Connect?",
+                    description = "Health Connect is a secure hub that lets you manage and share health and fitness data between apps, with full control over what data is shared.",
+                    iconId = R.drawable.baseline_info_24
+                )
+
+                // How BlankPhone uses Health Connect
+                InfoCard(
+                    title = "How BlankPhone Uses Your Data",
+                    description = "BlankPhone transforms your health data into fun challenges and rewards. We'll track your progress and offer personalized achievements based on your activity.",
+                    iconId = R.drawable.baseline_gamepad_24
+                )
+
+                // Data points in a more compact card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Text(
+                            text = "Data We Access",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            DataAccessItem(
+                                title = "Step Count",
+                                description = "To track daily activity goals and award movement badges"
+                            )
+
+                            DataAccessItem(
+                                title = "Exercise Sessions",
+                                description = "To create personalized workout challenges and streaks"
+                            )
+
+                            DataAccessItem(
+                                title = "Sleep Data",
+                                description = "To provide rest recommendations and sleep quality rewards"
+                            )
+                        }
+                    }
+                }
+
+                // Privacy commitment with better spacing
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Your Privacy Promise",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "• Your data stays on your device\n• You control what data is shared\n• You can revoke access at any time\n• We never sell your personal information",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 20.sp
+                        )
+                    }
+                }
+            }
+
+            // Action buttons with better spacing
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Get Started button
+                Button(
+                    onClick = onGetStarted,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text(
+                        text = "Connect Health Data",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                // Skip for now option with less padding
+                TextButton(
+                    onClick = onSkip,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                ) {
+                    Text("Skip for now")
+                }
+
+                // Legal text with better spacing
+                Text(
+                    text = "By continuing, you agree to our Terms of Service and Privacy Policy regarding health data usage.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun InfoCard(title: String, description: String, iconId: Int) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(id = iconId),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(32.dp)
+                    .padding(end = 12.dp)
+            )
+
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DataAccessItem(title: String, description: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(22.dp)
+                .clip(RoundedCornerShape(11.dp))
+                .background(MaterialTheme.colorScheme.primary)
+                .padding(4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.baseline_check_24),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(14.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Column {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
