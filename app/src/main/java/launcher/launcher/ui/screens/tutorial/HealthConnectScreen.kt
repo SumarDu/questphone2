@@ -35,23 +35,20 @@ fun HealthConnectScreen(onGetStarted: () -> Unit, onSkip: () -> Unit) {
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header section with more compact spacing
             Column(
                 modifier = Modifier.fillMaxWidth()
                     .padding(top = 40.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Reduced size icon
                 Image(
                     painter = painterResource(id = launcher.launcher.R.drawable.health_connect),
                     contentDescription = "Health Connect",
                     modifier = Modifier
-                        .size(120.dp)
+                        .size(60.dp)
                         .padding(vertical = 8.dp),
                     contentScale = ContentScale.Fit
                 )
 
-                // Title with adjusted spacing
                 Text(
                     text = "Enhance Your BlankPhone Experience",
                     style = MaterialTheme.typography.titleLarge,
@@ -60,7 +57,6 @@ fun HealthConnectScreen(onGetStarted: () -> Unit, onSkip: () -> Unit) {
                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                 )
 
-                // Subtitle with less bottom padding
                 Text(
                     text = "Connect with Health Connect",
                     style = MaterialTheme.typography.titleMedium,
@@ -70,26 +66,22 @@ fun HealthConnectScreen(onGetStarted: () -> Unit, onSkip: () -> Unit) {
                 )
             }
 
-            // Info cards with better spacing
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // What is Health Connect
                 InfoCard(
                     title = "What is Health Connect?",
                     description = "Health Connect is a secure hub that lets you manage and share health and fitness data between apps, with full control over what data is shared.",
                     iconId = R.drawable.baseline_info_24
                 )
 
-                // How BlankPhone uses Health Connect
                 InfoCard(
                     title = "How BlankPhone Uses Your Data",
                     description = "BlankPhone transforms your health data into fun challenges and rewards. We'll track your progress and offer personalized achievements based on your activity.",
                     iconId = R.drawable.baseline_gamepad_24
                 )
 
-                // Data points in a more compact card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -128,7 +120,6 @@ fun HealthConnectScreen(onGetStarted: () -> Unit, onSkip: () -> Unit) {
                     }
                 }
 
-                // Privacy commitment with better spacing
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -159,14 +150,12 @@ fun HealthConnectScreen(onGetStarted: () -> Unit, onSkip: () -> Unit) {
                 }
             }
 
-            // Action buttons with better spacing
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Get Started button
                 Button(
                     onClick = onGetStarted,
                     modifier = Modifier
@@ -183,7 +172,6 @@ fun HealthConnectScreen(onGetStarted: () -> Unit, onSkip: () -> Unit) {
                     )
                 }
 
-                // Skip for now option with less padding
                 TextButton(
                     onClick = onSkip,
                     modifier = Modifier.padding(vertical = 4.dp)
@@ -191,7 +179,6 @@ fun HealthConnectScreen(onGetStarted: () -> Unit, onSkip: () -> Unit) {
                     Text("Skip for now")
                 }
 
-                // Legal text with better spacing
                 Text(
                     text = "By continuing, you agree to our Terms of Service and Privacy Policy regarding health data usage.",
                     style = MaterialTheme.typography.bodySmall,
