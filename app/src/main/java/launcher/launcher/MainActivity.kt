@@ -18,6 +18,7 @@ import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.HomeScreen
+import launcher.launcher.ui.screens.onboard.OnBoardScreen
 import launcher.launcher.ui.screens.quest.ListAllQuests
 import launcher.launcher.ui.screens.quest.ViewQuest
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
@@ -34,8 +35,12 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     NavHost(
                         navController = navController,
-                        startDestination = Screen.QuestTracker.route) {
+                        startDestination = Screen.OnBoard.route) {
 
+
+                        composable(Screen.OnBoard.route) {
+                            OnBoardScreen(navController)
+                        }
                         composable(Screen.QuestTracker.route) {
                             HomeScreen(navController)
                         }

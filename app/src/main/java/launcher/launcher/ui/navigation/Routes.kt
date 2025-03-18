@@ -11,6 +11,9 @@ sealed class Screen(val route: String) {
     data object ViewQuest : Screen("view_quest/")
     data object AddNewQuest : Screen("add_quest/")
     data object ListAllQuest : Screen("list_quest/")
+
+    data object OnBoard : Screen("onboard/")
+
 }
 
 /**

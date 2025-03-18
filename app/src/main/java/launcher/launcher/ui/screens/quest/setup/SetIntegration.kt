@@ -115,3 +115,48 @@ fun IntegrationsList(
     }
 }
 
+
+@Composable
+fun IntegrationsList(
+    onSelected: (IntegrationId)-> Unit
+) {
+    val items = Integration.allInfo
+
+
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+
+        items(items) { item ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelected(item.id) },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { onSelected(item.id) }) {
+                    Icon(
+                        painter = painterResource(id = item.icon),
+                        contentDescription = item.label,
+                        modifier = Modifier.size(50.dp),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Column(modifier = Modifier.padding(start = 8.dp)) {
+                    Text(
+                        text = item.label,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Normal
+                        )
+                    )
+                    Text(
+                        text = item.description,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+    }
+}
+
