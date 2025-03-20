@@ -21,6 +21,7 @@ import launcher.launcher.ui.screens.game.StoreScreen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.HomeScreen
 import launcher.launcher.ui.screens.onboard.OnBoardScreen
+import launcher.launcher.ui.screens.onboard.OnboardingScreen
 import launcher.launcher.ui.screens.quest.ListAllQuests
 import launcher.launcher.ui.screens.quest.ViewQuest
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
@@ -46,12 +47,16 @@ class MainActivity : ComponentActivity() {
 //                        startDestination = Screen.Store.route) {
                         startDestination = if(isUserOnboarded) Screen.HomeScreen.route else Screen.OnBoard.route) {
 
+                        composable(Screen.OnBoard.route) {
+                            OnBoardScreen(navController)
+                        }
+
+                        composable(Screen.HomeScreen.route) {
+                            HomeScreen(navController)
+                        }
 
                         composable(Screen.Store.route) {
                             StoreScreen(navController)
-                        }
-                        composable(Screen.HomeScreen.route) {
-                            HomeScreen(navController)
                         }
                         composable(Screen.AppList.route) {
                             AppList(

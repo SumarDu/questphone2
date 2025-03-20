@@ -11,5 +11,7 @@ enum class IntegrationId {
 
     HEALTH_CONNECT,
 
-    SWIFT_MARK
+    SWIFT_MARK,
+
+    AI_SNAP
 }

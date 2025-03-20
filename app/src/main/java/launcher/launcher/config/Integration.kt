@@ -3,6 +3,7 @@ package launcher.launcher.config
 import launcher.launcher.R
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.IntegrationInfo
+import launcher.launcher.ui.screens.quest.setup.ai_snap.SetAiSnap
 import launcher.launcher.ui.screens.quest.setup.deep_focus.SetDeepFocus
 import launcher.launcher.ui.screens.quest.setup.health_connect.SetHealthConnect
 import launcher.launcher.ui.screens.quest.setup.swift_mark.SetSwiftMark
@@ -33,10 +34,18 @@ class Integration {
             IntegrationInfo(
                 icon = R.drawable.baseline_bolt_24,
                 label = "Swift Mark",
-                description = "A quick and effortless quest! Just mark it as done and earn coins instantly. No verification needed—your honesty is the key!",
+                description = "Just mark it as done and earn coins instantly. No verification needed—your honesty is the key!",
                 setupScreen = { SetSwiftMark() },
                 viewScreen = { baseQuest -> SwiftMarkQuestView(baseQuest) },
                 id = IntegrationId.SWIFT_MARK
+            ),
+            IntegrationInfo(
+                icon = R.drawable.baseline_camera_24,
+                label = "AI verified Snap",
+                description = "Complete the task, snap a pic, and let AI verify your progress!",
+                setupScreen = { SetAiSnap() },
+                viewScreen = { baseQuest -> SwiftMarkQuestView(baseQuest) },
+                id = IntegrationId.AI_SNAP
             )
         )
 
