@@ -248,41 +248,7 @@ fun OnBoardScreen(navController: NavHostController) {
 
             },
             OnboardingContent.CustomPage {
-                Column(
-                    modifier = Modifier
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-
-                    Spacer(modifier = Modifier.height(80.dp))
-
-                    Text(
-                        text = "Add Quests",
-                        color = Color.White,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 24.dp)
-                    )
-
-                    Text(
-                        text = "Long press on any quest to view tutorial",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 24.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(32.dp))
-
-                    IntegrationsList{ it ->
-                        Integration.setupRoutes[it.name]?.let {
-                            navController.navigate(
-                                it.first)
-                    }
-                        }
-
-                }
+                AddQuestsScreen(navController)
 
             }
         )
