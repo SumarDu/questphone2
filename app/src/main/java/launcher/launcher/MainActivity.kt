@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -16,6 +17,7 @@ import launcher.launcher.config.Integration
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
+import launcher.launcher.ui.screens.game.StoreScreen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.HomeScreen
 import launcher.launcher.ui.screens.onboard.OnBoardScreen
@@ -29,19 +31,26 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        var isUserOnboarded = false
+
         setContent {
+            LaunchedEffect(Unit) {
+                val data = getSharedPreferences("launcher_onboard", MODE_PRIVATE)
+                isUserOnboarded = data.getBoolean("is_onboarded",false)
+            }
             LauncherTheme {
                 Surface {
                     val navController = rememberNavController()
                     NavHost(
                         navController = navController,
-                        startDestination = Screen.OnBoard.route) {
+//                        startDestination = Screen.Store.route) {
+                        startDestination = if(isUserOnboarded) Screen.HomeScreen.route else Screen.OnBoard.route) {
 
 
-                        composable(Screen.OnBoard.route) {
-                            OnBoardScreen(navController)
+                        composable(Screen.Store.route) {
+                            StoreScreen(navController)
                         }
-                        composable(Screen.QuestTracker.route) {
+                        composable(Screen.HomeScreen.route) {
                             HomeScreen(navController)
                         }
                         composable(Screen.AppList.route) {

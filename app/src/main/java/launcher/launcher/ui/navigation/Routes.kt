@@ -6,13 +6,14 @@ package launcher.launcher.ui.navigation
  * @property route
  */
 sealed class Screen(val route: String) {
-    data object QuestTracker : Screen("quest_tracker/")
+    data object HomeScreen : Screen("quest_tracker/")
     data object AppList : Screen("app_list/")
     data object ViewQuest : Screen("view_quest/")
     data object AddNewQuest : Screen("add_quest/")
     data object ListAllQuest : Screen("list_quest/")
 
     data object OnBoard : Screen("onboard/")
+    data object Store : Screen("store/")
 
 }
 

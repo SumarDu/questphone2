@@ -1,5 +1,6 @@
 package launcher.launcher.ui.screens.onboard
 
+import android.content.Context.MODE_PRIVATE
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -16,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -23,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import launcher.launcher.config.Integration
+import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.quest.setup.IntegrationsList
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
 
@@ -192,9 +195,8 @@ fun StandardPageContent(title: String, description: String) {
 // Usage example
 @Composable
 fun OnBoardScreen(navController: NavHostController) {
-    var showOnboarding by remember { mutableStateOf(true) }
 
-    if (showOnboarding) {
+    val context  = LocalContext.current
         // Create a mix of standard and custom pages
         val onboardingPages = listOf(
             OnboardingContent.StandardPage(
@@ -249,19 +251,17 @@ fun OnBoardScreen(navController: NavHostController) {
             },
             OnboardingContent.CustomPage {
                 AddQuestsScreen(navController)
-
             }
         )
 
         OnboardingScreen(
             onFinishOnboarding = {
-                showOnboarding = false
+                val data = context.getSharedPreferences("launcher_onboard", MODE_PRIVATE)
+                data.edit().putBoolean("is_onboarded",true).apply()
+                navController.navigate(Screen.HomeScreen.route)
+
                 // Navigate to main app screen
             },
             pages = onboardingPages
         )
-    } else {
-        // Your main app content
-        Text("Main App Content")
-    }
 }
