@@ -66,4 +66,10 @@ dependencies {
     implementation(kotlin("reflect"))
 
     implementation(libs.androidx.connect.client)
-}
+
+
+    implementation(libs.supabase.auth)
+    implementation(libs.supabase.storage)
+
+    implementation(libs.ktor.client.okhttp)
+ }

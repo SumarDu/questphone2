@@ -14,6 +14,9 @@ navigationCompose = "2.8.6"
 appcompat = "1.7.0"
 material = "1.12.0"
 activity = "1.10.0"
+supabase = "3.0.3"
+ktorClientOkhttp = "3.0.2"
+kotlinxCoroutinesGuava = "1.9.0"
 constraintlayout = "2.2.0"
 
 [libraries]
@@ -38,6 +41,10 @@ androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+supabase-storage = { module = "io.github.jan-tennert.supabase:storage-kt", version.ref = "supabase" }
+supabase-auth = { module = "io.github.jan-tennert.supabase:auth-kt", version.ref = "supabase" }
+kotlinx-coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version.ref = "kotlinxCoroutinesGuava" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktorClientOkhttp" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -33,7 +33,6 @@ enum class LoginStep {
 
 @Composable
 fun LoginScreen(navController: NavHostController) {
-    // States
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var verificationCode by remember { mutableStateOf("") }

@@ -28,6 +28,7 @@ import launcher.launcher.ui.screens.quest.ListAllQuests
 import launcher.launcher.ui.screens.quest.ViewQuest
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
 import launcher.launcher.ui.theme.LauncherTheme
+import launcher.launcher.utils.SupabaseManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,7 +52,8 @@ class MainActivity : ComponentActivity() {
 
                         composable(Screen.Login.route) {
                             LoginScreen(
-                                navController
+                                navController,
+
                             )
 
                         }
