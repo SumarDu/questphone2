@@ -3,6 +3,7 @@ package launcher.launcher.utils
 import android.content.Context
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.auth.ExternalAuthAction
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.createSupabaseClient
@@ -16,7 +17,12 @@ object Supabase {
     val supabase by lazy {
         createSupabaseClient(SUPABASE_URL, SUPABASE_KEY) {
             defaultSerializer = KotlinXSerializer()
-            install(Auth)
+            install(Auth) {
+                host = "signup"
+                scheme = "blankphone"
+
+                defaultExternalAuthAction = ExternalAuthAction.CustomTabs()
+            }
             install(Storage)
         }
     }

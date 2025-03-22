@@ -45,8 +45,10 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import io.github.jan.supabase.auth.auth
 import launcher.launcher.R
-
+import launcher.launcher.utils.Supabase
+import kotlinx.coroutines.runBlocking
 
 enum class ForgotPasswordStep {
     EMAIL,
@@ -85,6 +87,10 @@ fun ForgotPasswordScreen(navController: NavHostController) {
         } else {
             errorMessage = null
             isLoading = true
+
+            runBlocking {
+                Supabase.supabase.auth.resetPasswordForEmail(email)
+            }
 
             // Simulate API call for password reset request
             // In a real app, this would be a call to your authentication service

@@ -6,12 +6,17 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.handleDeeplinks
+import io.github.jan.supabase.auth.status.SessionStatus
+import kotlinx.coroutines.flow.collect
 import kotlinx.serialization.json.Json
 import launcher.launcher.config.Integration
 import launcher.launcher.data.quest.BasicQuestInfo
@@ -28,14 +33,16 @@ import launcher.launcher.ui.screens.quest.ListAllQuests
 import launcher.launcher.ui.screens.quest.ViewQuest
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
 import launcher.launcher.ui.theme.LauncherTheme
-import launcher.launcher.utils.SupabaseManager
+import launcher.launcher.utils.Supabase
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         enableEdgeToEdge()
 
         var isUserOnboarded = false
+        val isUserLoggedIn = Supabase.supabase.auth.currentUserOrNull().let { it != null }
 
         setContent {
             LaunchedEffect(Unit) {
@@ -47,8 +54,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     NavHost(
                         navController = navController,
-                        startDestination = Screen.Login.route) {
-//                        startDestination = if(isUserOnboarded) Screen.HomeScreen.route else Screen.OnBoard.route) {
+                        startDestination = if (isUserLoggedIn && isUserOnboarded) Screen.HomeScreen.route else Screen.Login.route) {
 
                         composable(Screen.Login.route) {
                             LoginScreen(

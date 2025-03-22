@@ -1,5 +1,6 @@
 package launcher.launcher.ui.screens.account
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -23,8 +24,18 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import io.github.jan.supabase.auth.OtpType
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.exception.AuthRestException
+import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.status.SessionStatus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import launcher.launcher.R
 import launcher.launcher.ui.navigation.Screen
+import launcher.launcher.utils.Supabase
 
 enum class LoginStep {
     EMAIL,
@@ -57,26 +68,46 @@ fun LoginScreen(navController: NavHostController) {
             errorMessage = null
             isLoading = true
 
+            runBlocking {
+                try {
+                    // Sign in with Supabase
+                    Supabase.supabase.auth.signInWith(Email) {
+                        this.email = email
+                        this.password = password
+                    }
+                } catch (e: AuthRestException) {
+                    errorMessage = e.message
+                }
+            }
+
             // Simulate API call for login
             // In a real app, this would be a call to your authentication service
             // For this demo, we'll just simulate sending a verification code
-            loginStep = LoginStep.VERIFICATION
-            isLoading = false
+            // loginStep = LoginStep.EMAIL
+            // isLoading = false
         }
     }
 
-    // Function to handle verification
-    val handleVerification = {
-        if (verificationCode.length != 6) {
-            errorMessage = "Verification code must be 6 digits"
-        } else {
-            errorMessage = null
-            isLoading = true
-
-            // Simulate verification
-            // In a real app, this would validate the code with your authentication service
-            isLoading = false
-            navController.navigate(Screen.HomeScreen.route)
+    CoroutineScope(Dispatchers.IO).launch {
+        Supabase.supabase.auth.sessionStatus.collect { authState ->
+            when (authState) {
+                is SessionStatus.Authenticated -> {
+                    // User is authenticated, navigate to home screen
+                    errorMessage = null
+                    isLoading = false
+                    launch(Dispatchers.Main) {
+                        navController.navigate(Screen.HomeScreen.route)
+                    }
+                }
+                is SessionStatus.RefreshFailure -> {
+                    // Refresh token failed, show error message
+                    errorMessage = "Session expired. Please log in again."
+                }
+                is SessionStatus.Initializing -> {
+                    Log.d("Signup", "Initializing session...")
+                }
+                else -> {}
+            }
         }
     }
 
@@ -234,7 +265,7 @@ fun LoginScreen(navController: NavHostController) {
                     // Verification step
                     LoginStep.VERIFICATION -> {
                         Text(
-                            text = "We've sent a verification code to",
+                            text = "We've sent a verification email to",
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center
                         )
@@ -249,62 +280,23 @@ fun LoginScreen(navController: NavHostController) {
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Verification code field
-                        OutlinedTextField(
-                            value = verificationCode,
-                            onValueChange = {
-                                if (it.length <= 6 && it.all { char -> char.isDigit() }) {
-                                    verificationCode = it
-                                    errorMessage = null
-                                }
-                            },
-                            label = { Text("6-digit code") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Number,
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onDone = {
-                                    focusManager.clearFocus()
-                                    handleVerification()
-                                }
-                            ),
-                            isError = errorMessage != null
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
                         // Resend code
                         TextButton(
-                            onClick = { /* Handle resend code */ },
+                            onClick = {
+                                // Simulate resend email
+                                isLoading = true
+                                errorMessage = null
+
+                                // something
+                                isLoading = false
+                            },
                             modifier = Modifier.align(Alignment.End)
                         ) {
-                            Text("Resend code")
+                            Text("Resend email")
                         }
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Verify button
-                        Button(
-                            onClick = handleVerification,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            enabled = !isLoading && verificationCode.length == 6
-                        ) {
-                            if (isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            } else {
-                                Text("Verify")
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
 
                         // Back button
                         TextButton(
