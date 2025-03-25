@@ -256,7 +256,7 @@ fun OnBoardScreen(navController: NavHostController) {
 
         OnboardingScreen(
             onFinishOnboarding = {
-                val data = context.getSharedPreferences("launcher_onboard", MODE_PRIVATE)
+                val data = context.getSharedPreferences("launcher_onboard ", MODE_PRIVATE)
                 data.edit().putBoolean("is_onboarded",true).apply()
                 navController.navigate(Screen.HomeScreen.route)
 

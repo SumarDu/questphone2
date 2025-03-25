@@ -45,7 +45,7 @@ class MainActivity : ComponentActivity() {
         val isUserLoggedIn = Supabase.supabase.auth.currentUserOrNull().let { it != null }
 
         setContent {
-            LaunchedEffect(Unit) {
+            LaunchedEffect(isUserLoggedIn) {
                 val data = getSharedPreferences("launcher_onboard", MODE_PRIVATE)
                 isUserOnboarded = data.getBoolean("is_onboarded",false)
             }

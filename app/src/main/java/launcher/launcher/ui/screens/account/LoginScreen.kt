@@ -31,76 +31,39 @@ import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import launcher.launcher.R
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.utils.Supabase
 
-enum class LoginStep {
-    EMAIL,
-    VERIFICATION
-}
 
 @Composable
 fun LoginScreen(navController: NavHostController) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var verificationCode by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var loginStep by remember { mutableStateOf(LoginStep.EMAIL) }
 
     val focusManager = LocalFocusManager.current
     val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
 
     // Email validation
     val isEmailValid = email.contains("@") && email.contains(".")
 
-    // Function to handle login attempt
-    val handleLogin = {
-        if (email.isBlank() || password.isBlank()) {
-            errorMessage = "Please fill in all fields"
-        } else if (!isEmailValid) {
-            errorMessage = "Please enter a valid email"
-        } else {
-            errorMessage = null
-            isLoading = true
 
-            runBlocking {
-                try {
-                    // Sign in with Supabase
-                    Supabase.supabase.auth.signInWith(Email) {
-                        this.email = email
-                        this.password = password
-                    }
-                } catch (e: AuthRestException) {
-                    errorMessage = e.message
-                }
-            }
-
-            // Simulate API call for login
-            // In a real app, this would be a call to your authentication service
-            // For this demo, we'll just simulate sending a verification code
-            // loginStep = LoginStep.EMAIL
-            // isLoading = false
-        }
-    }
-
-    CoroutineScope(Dispatchers.IO).launch {
-        Supabase.supabase.auth.sessionStatus.collect { authState ->
+    LaunchedEffect(Supabase.supabase.auth) {
+        Supabase.supabase.auth.sessionStatus.collectLatest { authState ->
             when (authState) {
                 is SessionStatus.Authenticated -> {
-                    // User is authenticated, navigate to home screen
                     errorMessage = null
                     isLoading = false
-                    launch(Dispatchers.Main) {
-                        navController.navigate(Screen.HomeScreen.route)
-                    }
+                    navController.navigate(Screen.HomeScreen.route) // Navigate only once
                 }
                 is SessionStatus.RefreshFailure -> {
-                    // Refresh token failed, show error message
                     errorMessage = "Session expired. Please log in again."
                 }
                 is SessionStatus.Initializing -> {
@@ -110,6 +73,8 @@ fun LoginScreen(navController: NavHostController) {
             }
         }
     }
+
+
 
     Scaffold { padding ->
         Box(
@@ -139,10 +104,7 @@ fun LoginScreen(navController: NavHostController) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = when (loginStep) {
-                        LoginStep.EMAIL -> "Sign in to continue"
-                        LoginStep.VERIFICATION -> "Verify your email"
-                    },
+                    text = "Sign in to continue",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -161,179 +123,152 @@ fun LoginScreen(navController: NavHostController) {
                         )
                     }
                 }
-
-                when (loginStep) {
-                    // Email & Password Step
-                    LoginStep.EMAIL -> {
-                        // Email field
-                        OutlinedTextField(
-                            value = email,
-                            onValueChange = { email = it; errorMessage = null },
-                            label = { Text("Email") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Email,
-                                    contentDescription = null
-                                )
-                            },
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Email,
-                                imeAction = ImeAction.Next
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                            ),
-                            isError = errorMessage != null && email.isBlank() || (email.isNotBlank() && !isEmailValid)
+                // Email field
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it; errorMessage = null },
+                    label = { Text("Email") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Email,
+                            contentDescription = null
                         )
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                    ),
+                    isError = errorMessage != null && email.isBlank() || (email.isNotBlank() && !isEmailValid)
+                )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                        // Password field
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it; errorMessage = null },
-                            label = { Text("Password") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            visualTransformation = if (isPasswordVisible)
-                                VisualTransformation.None
-                            else
-                                PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Password,
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onDone = {
-                                    focusManager.clearFocus()
-                                    handleLogin()
-                                }
-                            ),
-                            trailingIcon = {
-                                IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                                    Icon(
-                                        painter = if (isPasswordVisible)
-                                            painterResource(id = R.drawable.baseline_visibility_off_24)
-                                        else
-                                            painterResource(id = R.drawable.baseline_visibility_24),
-                                        contentDescription = if (isPasswordVisible)
-                                            "Hide password"
-                                        else
-                                            "Show password"
-                                    )
-                                }
-                            },
-                            isError = errorMessage != null && password.isBlank()
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Forgot password
-                        TextButton(
-                            onClick = {
-                                navController.navigate(Screen.ForgetPassword.route)
-
-                            },
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
-                            Text("Forgot password?")
+                // Password field
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it; errorMessage = null },
+                    label = { Text("Password") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = if (isPasswordVisible)
+                        VisualTransformation.None
+                    else
+                        PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            focusManager.clearFocus()
                         }
+                    ),
+                    trailingIcon = {
+                        IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                            Icon(
+                                painter = if (isPasswordVisible)
+                                    painterResource(id = R.drawable.baseline_visibility_off_24)
+                                else
+                                    painterResource(id = R.drawable.baseline_visibility_24),
+                                contentDescription = if (isPasswordVisible)
+                                    "Hide password"
+                                else
+                                    "Show password"
+                            )
+                        }
+                    },
+                    isError = errorMessage != null && password.isBlank()
+                )
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                        // Login button
-                        Button(
-                            onClick = handleLogin,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            enabled = !isLoading
-                        ) {
-                            if (isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            } else {
-                                Text("Continue")
+                // Forgot password
+                TextButton(
+                    onClick = {
+                        navController.navigate(Screen.ForgetPassword.route)
+
+                    },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Forgot password?")
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Login button
+                Button(
+                    onClick = {
+
+                        if (email.isBlank() || password.isBlank()) {
+                            errorMessage = "Please fill in all fields"
+                        } else if (!isEmailValid) {
+                            errorMessage = "Please enter a valid email"
+                        } else {
+
+                            isLoading = true
+                            errorMessage = null
+
+
+                            coroutineScope.launch(Dispatchers.IO) {
+                                try {
+                                    Supabase.supabase.auth.signInWith(Email) {
+                                        this.email = email
+                                        this.password = password
+                                    }
+                                } catch (e: AuthRestException) {
+                                    errorMessage = e.errorDescription
+                                    isLoading = false
+                                }
                             }
-                        }
-                    }
 
-                    // Verification step
-                    LoginStep.VERIFICATION -> {
-                        Text(
-                            text = "We've sent a verification email to",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    enabled = !isLoading
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
-
-                        Text(
-                            text = email,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            textAlign = TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // Resend code
-                        TextButton(
-                            onClick = {
-                                // Simulate resend email
-                                isLoading = true
-                                errorMessage = null
-
-                                // something
-                                isLoading = false
-                            },
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
-                            Text("Resend email")
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-
-                        // Back button
-                        TextButton(
-                            onClick = { loginStep = LoginStep.EMAIL },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Back to login")
-                        }
+                    } else {
+                        Text("Continue")
                     }
                 }
+
 
                 Spacer(modifier = Modifier.height(32.dp))
 
                 // Sign up option
-                if (loginStep == LoginStep.EMAIL) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Don't have an account?",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
 
-                        TextButton(onClick = {
-                            navController.navigate(Screen.SignUp.route)
-                        }) {
-                            Text("Sign up")
-                        }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Don't have an account?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    TextButton(onClick = {
+                        navController.navigate(Screen.SignUp.route)
+                    }) {
+                        Text("Sign up")
                     }
                 }
+
 
                 Spacer(modifier = Modifier.weight(1f))
             }
         }
     }
-}
 
+}
