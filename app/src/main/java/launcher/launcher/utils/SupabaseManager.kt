@@ -21,7 +21,7 @@ object Supabase {
                 host = "signup"
                 scheme = "blankphone"
 
-                defaultExternalAuthAction = ExternalAuthAction.CustomTabs()
+//                defaultExternalAuthAction = ExternalAuthAction.CustomTabs()
             }
             install(Storage)
         }

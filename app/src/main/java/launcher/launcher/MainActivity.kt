@@ -42,10 +42,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         var isUserOnboarded = false
-        val isUserLoggedIn = Supabase.supabase.auth.currentUserOrNull().let { it != null }
+        Supabase.supabase.handleDeeplinks(intent)
 
         setContent {
-            LaunchedEffect(isUserLoggedIn) {
+            LaunchedEffect(isUserOnboarded) {
                 val data = getSharedPreferences("launcher_onboard", MODE_PRIVATE)
                 isUserOnboarded = data.getBoolean("is_onboarded",false)
             }
@@ -54,7 +54,10 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     NavHost(
                         navController = navController,
-                        startDestination = if (isUserLoggedIn && isUserOnboarded) Screen.HomeScreen.route else Screen.Login.route) {
+                        startDestination =
+                            if (!isUserOnboarded) Screen.OnBoard.route
+                            else Screen.HomeScreen.route
+                    ) {
 
                         composable(Screen.Login.route) {
                             LoginScreen(

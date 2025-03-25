@@ -2,39 +2,16 @@ package launcher.launcher.ui.screens.account
 
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -47,17 +24,14 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.exception.AuthRestException
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.compose
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import launcher.launcher.R
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.utils.Supabase
@@ -67,11 +41,9 @@ enum class SignUpStep {
     VERIFICATION
 }
 
-
 @Composable
 fun SignUpScreen(navController: NavHostController) {
-    // States
-    var name by remember { mutableStateOf("") }
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -83,75 +55,34 @@ fun SignUpScreen(navController: NavHostController) {
 
     val focusManager = LocalFocusManager.current
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
 
-    // Email validation
+    // Email and password validation
     val isEmailValid = email.contains("@") && email.contains(".")
-
-    // Password validation
     val isPasswordValid = password.length >= 8
     val doPasswordsMatch = password == confirmPassword
 
-    // Function to handle sign up attempt
-    val handleSignUp = {
-        when {
-            name.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank() -> {
-                errorMessage = "Please fill in all fields"
-            }
-            !isEmailValid -> {
-                errorMessage = "Please enter a valid email"
-            }
-            !isPasswordValid -> {
-                errorMessage = "Password must be at least 8 characters"
-            }
-            !doPasswordsMatch -> {
-                errorMessage = "Passwords don't match"
-            }
-            else -> {
-                errorMessage = null
-                isLoading = true
+    // Supabase session status
+    val sessionStatus by Supabase.supabase.auth.sessionStatus.collectAsStateWithLifecycle(initialValue = SessionStatus.Initializing)
 
-                runBlocking {
-                    try {
-                        Supabase.supabase.auth.signUpWith(Email) {
-                            this.email = email
-                            this.password = password
-                        }
-                    } catch (e: AuthRestException) {
-                        errorMessage = e.message
-                    }
+    // Handle session status changes
+    LaunchedEffect(sessionStatus) {
+        when (sessionStatus) {
+            is SessionStatus.Authenticated -> {
+                navController.navigate(Screen.OnBoard.route) {
+                    popUpTo(Screen.SignUp.route) { inclusive = true } // Clear sign-up from stack
                 }
-
-                // Simulate API call for sign up
-                // In a real app, this would be a call to your authentication service
-                // For this demo, we'll just simulate sending a verification code
-                signUpStep = SignUpStep.VERIFICATION
-                isLoading = false
             }
+            is SessionStatus.RefreshFailure -> {
+                errorMessage = "Session expired. Please log in again."
+            }
+            is SessionStatus.Initializing -> {
+                Log.d("Signup", "Initializing session...")
+            }
+            else -> {}
         }
     }
 
-    CoroutineScope(Dispatchers.IO).launch {
-        Supabase.supabase.auth.sessionStatus.collect { authState ->
-            when (authState) {
-                is SessionStatus.Authenticated -> {
-                    // User is authenticated, navigate to home screen
-                    launch(Dispatchers.Main) {
-                        navController.navigate(Screen.OnBoard.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
-                        }
-                    }
-                }
-                is SessionStatus.RefreshFailure -> {
-                    // Refresh token failed, show error message
-                    errorMessage = "Session expired. Please log in again."
-                }
-                is SessionStatus.Initializing -> {
-                    Log.d("Signup", "Initializing session...")
-                }
-                else -> {}
-            }
-        }
-    }
 
     Scaffold { padding ->
         Box(
@@ -161,9 +92,7 @@ fun SignUpScreen(navController: NavHostController) {
         ) {
             // Back button
             IconButton(
-                onClick = {
-                    navController.popBackStack()
-                },
+                onClick = { navController.popBackStack() },
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(8.dp)
@@ -187,9 +116,7 @@ fun SignUpScreen(navController: NavHostController) {
                 // Logo or app name
                 Text(
                     text = "Quest",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
+                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.primary
                 )
 
@@ -220,31 +147,7 @@ fun SignUpScreen(navController: NavHostController) {
                 }
 
                 when (signUpStep) {
-                    // Sign up form
                     SignUpStep.FORM -> {
-                        // Name field
-                        OutlinedTextField(
-                            value = name,
-                            onValueChange = { name = it; errorMessage = null },
-                            label = { Text("Full Name") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Person,
-                                    contentDescription = null
-                                )
-                            },
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Text,
-                                imeAction = ImeAction.Next
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                            ),
-                            isError = errorMessage != null && name.isBlank()
-                        )
-
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // Email field
@@ -255,10 +158,7 @@ fun SignUpScreen(navController: NavHostController) {
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Email,
-                                    contentDescription = null
-                                )
+                                Icon(Icons.Outlined.Email, contentDescription = null)
                             },
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Email,
@@ -267,7 +167,7 @@ fun SignUpScreen(navController: NavHostController) {
                             keyboardActions = KeyboardActions(
                                 onNext = { focusManager.moveFocus(FocusDirection.Down) }
                             ),
-                            isError = errorMessage != null && email.isBlank() || (email.isNotBlank() && !isEmailValid)
+                            isError = errorMessage != null && (email.isBlank() || !isEmailValid)
                         )
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -279,10 +179,7 @@ fun SignUpScreen(navController: NavHostController) {
                             label = { Text("Password") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
-                            visualTransformation = if (isPasswordVisible)
-                                VisualTransformation.None
-                            else
-                                PasswordVisualTransformation(),
+                            visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Next
@@ -293,14 +190,11 @@ fun SignUpScreen(navController: NavHostController) {
                             trailingIcon = {
                                 IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
                                     Icon(
-                                        painter = if (isPasswordVisible)
-                                            painterResource(id = R.drawable.baseline_visibility_off_24)
-                                        else
-                                            painterResource(id = R.drawable.baseline_visibility_24),
-                                        contentDescription = if (isPasswordVisible)
-                                            "Hide password"
-                                        else
-                                            "Show password"
+                                        painter = painterResource(
+                                            if (isPasswordVisible) R.drawable.baseline_visibility_off_24
+                                            else R.drawable.baseline_visibility_24
+                                        ),
+                                        contentDescription = if (isPasswordVisible) "Hide password" else "Show password"
                                     )
                                 }
                             },
@@ -316,10 +210,7 @@ fun SignUpScreen(navController: NavHostController) {
                             label = { Text("Confirm Password") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
-                            visualTransformation = if (isConfirmPasswordVisible)
-                                VisualTransformation.None
-                            else
-                                PasswordVisualTransformation(),
+                            visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Done
@@ -327,20 +218,16 @@ fun SignUpScreen(navController: NavHostController) {
                             keyboardActions = KeyboardActions(
                                 onDone = {
                                     focusManager.clearFocus()
-                                    handleSignUp()
                                 }
                             ),
                             trailingIcon = {
                                 IconButton(onClick = { isConfirmPasswordVisible = !isConfirmPasswordVisible }) {
                                     Icon(
-                                        painter = if (isConfirmPasswordVisible)
-                                            painterResource(id = R.drawable.baseline_visibility_off_24)
-                                        else
-                                            painterResource(id = R.drawable.baseline_visibility_24),
-                                        contentDescription = if (isConfirmPasswordVisible)
-                                            "Hide password"
-                                        else
-                                            "Show password"
+                                        painter = painterResource(
+                                            if (isConfirmPasswordVisible) R.drawable.baseline_visibility_off_24
+                                            else R.drawable.baseline_visibility_24
+                                        ),
+                                        contentDescription = if (isConfirmPasswordVisible) "Hide password" else "Show password"
                                     )
                                 }
                             },
@@ -351,10 +238,42 @@ fun SignUpScreen(navController: NavHostController) {
 
                         // Sign up button
                         Button(
-                            onClick = handleSignUp,
+                            onClick = {
+                                when {
+                                    email.isBlank() || password.isBlank() || confirmPassword.isBlank() -> {
+                                        errorMessage = "Please fill in all fields"
+                                    }
+                                    !isEmailValid -> {
+                                        errorMessage = "Please enter a valid email"
+                                    }
+                                    !isPasswordValid -> {
+                                        errorMessage = "Password must be at least 8 characters"
+                                    }
+                                    !doPasswordsMatch -> {
+                                        errorMessage = "Passwords don't match"
+                                    }
+                                    else -> {
+                                        scope.launch {
+                                            isLoading = true
+                                            errorMessage = null
+                                            try {
+                                                Supabase.supabase.auth.signUpWith(Email) {
+                                                    this.email = email
+                                                    this.password = password
+                                                }
+                                                signUpStep = SignUpStep.VERIFICATION
+                                            } catch (e: AuthRestException) {
+                                                errorMessage = e.message ?: "Sign-up failed"
+                                            } finally {
+                                                isLoading = false
+                                            }
+                                        }
+                                    }
+                                }
+
+                            },
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
+                                .fillMaxWidth(),
                             enabled = !isLoading
                         ) {
                             if (isLoading) {
@@ -368,7 +287,6 @@ fun SignUpScreen(navController: NavHostController) {
                         }
                     }
 
-                    // Verification step
                     SignUpStep.VERIFICATION -> {
                         Text(
                             text = "We've sent a verification email to",
@@ -378,35 +296,36 @@ fun SignUpScreen(navController: NavHostController) {
 
                         Text(
                             text = email,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                             textAlign = TextAlign.Center
                         )
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Resend code
+                        // Resend email button
                         TextButton(
                             onClick = {
-                                // Resend verification code
-                                isLoading = true
-                                runBlocking {
-                                    Supabase.supabase.auth.resendEmail(
-                                        email = email,
-                                        type = OtpType.Email.SIGNUP
-                                    )
+                                scope.launch {
+                                    isLoading = true
+                                    try {
+                                        Supabase.supabase.auth.resendEmail(
+                                            email = email,
+                                            type = OtpType.Email.SIGNUP
+                                        )
+                                    } catch (e: Exception) {
+                                        errorMessage = "Failed to resend email: ${e.message}"
+                                    } finally {
+                                        isLoading = false
+                                    }
                                 }
-                                isLoading = false
                             },
-                            modifier = Modifier.align(Alignment.End)
+                            modifier = Modifier.align(Alignment.End),
+                            enabled = !isLoading
                         ) {
                             Text("Resend email")
                         }
 
                         Spacer(modifier = Modifier.height(24.dp))
-
-                        Spacer(modifier = Modifier.height(16.dp))
 
                         // Back button
                         TextButton(
@@ -432,12 +351,7 @@ fun SignUpScreen(navController: NavHostController) {
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-
-                        TextButton(onClick =
-                        {
-                            navController.navigate(Screen.Login.route)
-
-                        }) {
+                        TextButton(onClick = { navController.navigate(Screen.Login.route) }) {
                             Text("Login")
                         }
                     }

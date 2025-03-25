@@ -94,7 +94,7 @@ fun LoginScreen(navController: NavHostController) {
 
                 // Logo or app name
                 Text(
-                    text = "Quest",
+                    text = "Blank Phone",
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.Bold
                     ),
