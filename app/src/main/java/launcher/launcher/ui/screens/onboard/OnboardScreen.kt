@@ -1,7 +1,6 @@
 package launcher.launcher.ui.screens.onboard
 
 import android.content.Context.MODE_PRIVATE
-import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -25,10 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
-import launcher.launcher.config.Integration
 import launcher.launcher.ui.navigation.Screen
-import launcher.launcher.ui.screens.quest.setup.IntegrationsList
-import launcher.launcher.ui.screens.quest.setup.SetIntegration
 import androidx.core.content.edit
 
 // Sealed class to represent different types of onboarding pages
@@ -41,7 +37,7 @@ sealed class OnboardingContent {
 
     // Custom composable content
     data class CustomPage(
-        val content: @Composable () -> Unit
+        val content: @Composable (MutableState<Boolean>) -> Unit
     ) : OnboardingContent()
 }
 
@@ -60,6 +56,7 @@ fun OnboardingScreen(
     // Determine if we're on the first or last page
     val isFirstPage = pagerState.currentPage == 0
     val isLastPage = pagerState.currentPage == pages.size - 1
+    val isNextEnabled = remember  {mutableStateOf(true)}
 
     Column(
         modifier = Modifier
@@ -69,6 +66,7 @@ fun OnboardingScreen(
         // Horizontal Pager for swipeable pages
         HorizontalPager(
             state = pagerState,
+            userScrollEnabled = isNextEnabled.value,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -81,7 +79,7 @@ fun OnboardingScreen(
                     )
                 }
                 is OnboardingContent.CustomPage -> {
-                    page.content()
+                    page.content(isNextEnabled)
                 }
             }
         }
@@ -138,7 +136,11 @@ fun OnboardingScreen(
             if (isFirstPage) {
                 Spacer(modifier = Modifier.width(64.dp))
             }
-
+            AnimatedVisibility(
+                visible = isNextEnabled.value,
+                enter = fadeIn(animationSpec = tween(300)),
+                exit = fadeOut(animationSpec = tween(300))
+            ) {
             Button(
                 onClick = {
                     if (isLastPage) {
@@ -152,7 +154,8 @@ fun OnboardingScreen(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White,
                     contentColor = Color.Black
-                )
+                ),
+                enabled = isNextEnabled.value
             ) {
                 Text(
                     text = if (isLastPage) "Get Started" else "Next",
@@ -160,9 +163,11 @@ fun OnboardingScreen(
                     fontWeight = FontWeight.Bold
                 )
             }
+
         }
     }
 }
+    }
 
 @Composable
 fun StandardPageContent(title: String, description: String) {
@@ -217,41 +222,11 @@ fun OnBoardScreen(navController: NavHostController) {
                 "Quests",
                 "Real-life tasks are called Quests in BlankPhone. Completing a quest—like exercising, reading, or meditating—earns you Coins. These coins can be used to temporarily unlock the apps that distract you the most!"
             ),
-            OnboardingContent.CustomPage {
-                Column(
-                    modifier = Modifier
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-
-                    Spacer(modifier = Modifier.height(80.dp))
-
-                    Text(
-                        text = "Select Distractions",
-                        color = Color.White,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 24.dp)
-                    )
-
-                    Text(
-                        text = "This may be social media or games",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 24.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(32.dp))
-
-                    SelectApps()
-
-                }
+            OnboardingContent.CustomPage { isNextEnabled ->
+                SelectApps(isNextEnabled)
 
             },
-            OnboardingContent.CustomPage {
+            OnboardingContent.CustomPage { _ ->
                 AddQuestsScreen(navController)
             }
         )
