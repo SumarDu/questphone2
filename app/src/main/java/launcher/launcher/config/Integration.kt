@@ -10,6 +10,7 @@ import launcher.launcher.ui.screens.quest.setup.swift_mark.SetSwiftMark
 import launcher.launcher.ui.screens.quest.view.DeepFocusQuestView
 import launcher.launcher.ui.screens.quest.view.HealthQuestView
 import launcher.launcher.ui.screens.quest.view.SwiftMarkQuestView
+import launcher.launcher.ui.screens.quest.view.ai_snap.AiSnapQuestView
 
 
 class Integration {
@@ -44,7 +45,7 @@ class Integration {
                 label = "AI verified Snap",
                 description = "Complete the task, snap a pic, and let AI verify your progress!",
                 setupScreen = { SetAiSnap() },
-                viewScreen = { baseQuest -> SwiftMarkQuestView(baseQuest) },
+                viewScreen = { baseQuest -> AiSnapQuestView(baseQuest) },
                 id = IntegrationId.AI_SNAP
             )
         )
