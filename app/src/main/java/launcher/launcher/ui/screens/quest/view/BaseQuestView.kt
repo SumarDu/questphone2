@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +50,7 @@ import launcher.launcher.utils.CoinHelper
 fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: Boolean = false, onQuestStarted: () -> Unit, loadingAnimationDuration: Int = 3000, progress:MutableFloatState = mutableFloatStateOf(0f), questViewBody : @Composable () -> Unit) {
     val coinHelper = CoinHelper(LocalContext.current)
 
+    val scrollState = rememberScrollState()
     val animatedProgress by animateFloatAsState(
         targetValue = progress.floatValue,
         animationSpec = tween(durationMillis = loadingAnimationDuration, easing = LinearEasing)
@@ -83,6 +86,7 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(scrollState)
                     .padding(innerPadding),
                 horizontalAlignment = Alignment.Start,
 

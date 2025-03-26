@@ -3,9 +3,11 @@ package launcher.launcher.utils
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.quest.BasicQuestInfo
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import androidx.core.content.edit
 
 /* How quests are stored:
 Each quest has a BasicQuestInfo object that contains essential details like the title. This basic data is required for all types of quests.
@@ -19,6 +21,8 @@ class QuestHelper(context: Context) {
         PREF_NAME,
         Context.MODE_PRIVATE
     )
+
+    val instructionPref = context.getSharedPreferences(INSTRUCTION_NAME, Context.MODE_PRIVATE)
 
     val json = Json {
         ignoreUnknownKeys = true
@@ -81,6 +85,14 @@ class QuestHelper(context: Context) {
         }
     }
 
+    fun saveInstruction(title:String,instruction:String){
+        instructionPref.edit { putString(title, instruction) }
+    }
+    fun getInstruction(title:String):String{
+        return instructionPref.getString(title,"").toString()
+    }
+
+
 
 
     fun isQuestCompleted(title:String, date: String): Boolean? {
@@ -118,6 +130,7 @@ class QuestHelper(context: Context) {
     companion object {
         private const val PREF_NAME = "all_quest_preferences"
         private const val ALL_QUESTS_LIST_KEY = "quest_list"
+        private const val INSTRUCTION_NAME = "instruction_data"
         private const val QUEST_LAST_PERFORMED_SUFFIX = "date_wen_quest_lst_d_"
         private const val QUEST_IS_RUNNING_SUFFIX = "quest_state_"
 

@@ -65,6 +65,7 @@ fun SetAiSnap() {
         ReviewDialog(
             items = listOf(baseQuest, aiSnapQuest),
             onConfirm = {
+                sp.saveInstruction(baseQuest.title,taskDescription.value)
                 sp.appendToQuestList(baseQuest, aiSnapQuest)
                 isReviewDialogVisible.value = false
             },

@@ -1,12 +1,10 @@
 package launcher.launcher.ui.screens.quest.view
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,12 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.health.connect.client.HealthConnectClient
+import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.launch
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.data.quest.health.HealthTaskType
-import launcher.launcher.data.quest.health.formatHealthData
 import launcher.launcher.data.quest.health.getUnitForType
 import launcher.launcher.ui.screens.tutorial.HealthConnectScreen
 import launcher.launcher.ui.theme.JetBrainsMonoFont
@@ -51,6 +48,8 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
     val currentHealthData = remember { mutableDoubleStateOf(0.0) }
     val progressState = remember { mutableFloatStateOf(if (isQuestComplete) 1f else 0f) }
 
+    var instructions = ""
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = permissionManager.requestPermissionContract,
         onResult = { granted ->
@@ -69,6 +68,9 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
         }
     )
 
+    LaunchedEffect(instructions) {
+        instructions = questHelper.getInstruction(baseQuestInfo.title)
+    }
     LaunchedEffect(Unit) {
         val isHealthConnectAvailable = healthManager.isAvailable()
         if (!isHealthConnectAvailable) {
@@ -158,16 +160,11 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
                     )
                 }
 
-                Text(
-                    text = "Instructions",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                MarkdownText(
+                    markdown = instructions,
                     modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
                 )
-                Text(
-                    text = baseQuestInfo.instructions,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(4.dp)
-                )
+
             }
         }
 

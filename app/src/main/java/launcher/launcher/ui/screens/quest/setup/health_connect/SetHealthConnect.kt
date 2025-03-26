@@ -40,6 +40,7 @@ fun SetHealthConnect() {
                 baseQuest, healthQuest.value
             ),
             onConfirm = {
+                sp.saveInstruction(baseQuest.title,baseQuestState.instructions)
                 sp.appendToQuestList(
                     baseQuest, healthQuest.value
                 )

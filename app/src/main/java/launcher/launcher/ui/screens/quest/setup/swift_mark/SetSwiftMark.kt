@@ -29,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.ktor.util.reflect.instanceOf
+import kotlinx.coroutines.runBlocking
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.BaseQuestState
 import launcher.launcher.data.quest.focus.DeepFocus
@@ -63,6 +65,7 @@ fun SetSwiftMark() {
             ),
 
             onConfirm = {
+                sp.saveInstruction(baseQuest.title,baseQuestState.instructions)
                 sp.appendToQuestList(
                     baseQuest
                 )

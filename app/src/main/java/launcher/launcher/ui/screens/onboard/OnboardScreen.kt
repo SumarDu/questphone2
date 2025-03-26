@@ -1,6 +1,7 @@
 package launcher.launcher.ui.screens.onboard
 
 import android.content.Context.MODE_PRIVATE
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -28,6 +29,7 @@ import launcher.launcher.config.Integration
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.quest.setup.IntegrationsList
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
+import androidx.core.content.edit
 
 // Sealed class to represent different types of onboarding pages
 sealed class OnboardingContent {
@@ -256,8 +258,9 @@ fun OnBoardScreen(navController: NavHostController) {
 
         OnboardingScreen(
             onFinishOnboarding = {
-                val data = context.getSharedPreferences("launcher_onboard ", MODE_PRIVATE)
-                data.edit().putBoolean("is_onboarded",true).apply()
+
+                val data = context.getSharedPreferences("onboard ", MODE_PRIVATE)
+                data.edit { putBoolean("onboard", true) }
                 navController.navigate(Screen.HomeScreen.route)
 
                 // Navigate to main app screen

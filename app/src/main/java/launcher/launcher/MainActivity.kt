@@ -1,12 +1,15 @@
 package launcher.launcher
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -40,22 +43,22 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         enableEdgeToEdge()
-
-        var isUserOnboarded = false
+        val data = getSharedPreferences("onboard", MODE_PRIVATE)
         Supabase.supabase.handleDeeplinks(intent)
 
         setContent {
-            LaunchedEffect(isUserOnboarded) {
-                val data = getSharedPreferences("launcher_onboard", MODE_PRIVATE)
-                isUserOnboarded = data.getBoolean("is_onboarded",false)
-            }
             LauncherTheme {
+                var isUserOnboarded = remember {mutableStateOf(true)}
                 Surface {
+                    LaunchedEffect(isUserOnboarded) {
+                        isUserOnboarded.value = data.getBoolean("onboard",false)
+                        Log.d("onboard", isUserOnboarded.value.toString())
+                    }
                     val navController = rememberNavController()
                     NavHost(
                         navController = navController,
                         startDestination =
-                            if (!isUserOnboarded) Screen.OnBoard.route
+                            if (!isUserOnboarded.value) Screen.OnBoard.route
                             else Screen.HomeScreen.route
                     ) {
 
@@ -105,6 +108,9 @@ class MainActivity : ComponentActivity() {
                             route = "${Screen.ViewQuest.route}{baseQuestInfo}",
                             arguments = listOf(navArgument("baseQuestInfo") { type = NavType.StringType })
                         ) { backStackEntry ->
+                            Log.d("viewQuest",
+                                backStackEntry.arguments?.getString("baseQuestInfo").toString()
+                            )
                             val json = backStackEntry.arguments?.getString("baseQuestInfo")
                             val basicQuestInfo = json?.let { Json.decodeFromString<BasicQuestInfo>(it) }
 

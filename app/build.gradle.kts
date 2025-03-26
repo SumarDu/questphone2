@@ -72,4 +72,8 @@ dependencies {
     implementation(libs.supabase.storage)
 
     implementation(libs.ktor.client.okhttp)
+
+
+
+    implementation(libs.compose.markdown)
  }

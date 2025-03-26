@@ -4,10 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -20,7 +17,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +30,7 @@ import androidx.core.app.NotificationCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.delay
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.data.quest.focus.DeepFocus
@@ -57,6 +54,11 @@ fun DeepFocusQuestView(
     val deepFocus = questHelper.getQuestInfo<DeepFocus>(basicQuestInfo) ?: return
     val duration = deepFocus.nextFocusDurationInMillis
 
+    var instructions = ""
+
+    LaunchedEffect(instructions) {
+        instructions = questHelper.getInstruction(basicQuestInfo.title)
+    }
     LaunchedEffect(Unit) {
         createNotificationChannel(context)
     }
@@ -282,15 +284,9 @@ fun DeepFocusQuestView(
                 }
             }
 
-            Text(
-                text = "Instructions",
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+            MarkdownText(
+                markdown = instructions,
                 modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
-            )
-            Text(
-                text = basicQuestInfo.instructions,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(4.dp)
             )
         }
     }

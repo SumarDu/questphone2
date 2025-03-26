@@ -61,6 +61,7 @@ fun SetDeepFocus() {
             ),
 
             onConfirm = {
+                sp.saveInstruction(baseQuest.title,baseQuestState.instructions)
                 sp.appendToQuestList(
                     baseQuest,deepFocus
                 )

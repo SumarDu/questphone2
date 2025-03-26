@@ -3,6 +3,8 @@ package launcher.launcher.ui.screens.quest
 import androidx.compose.runtime.Composable
 import launcher.launcher.config.Integration
 import launcher.launcher.data.quest.BasicQuestInfo
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 @Composable
 fun ViewQuest(
