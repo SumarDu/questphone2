@@ -1,6 +1,7 @@
 package launcher.launcher.ui.screens.quest.view.ai_snap
 
 import android.widget.Toast
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.runtime.Composable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -23,6 +24,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -186,36 +189,33 @@ fun AiEvaluationScreen(
         }
     }
 }
-
 @Composable
 fun ScanningImageCard(
     photoFile: File,
     isScanning: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "scan")
-    val primary = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-    val scanAnimation = infiniteTransition.animateFloat(
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val primary = MaterialTheme.colorScheme.primary
+    val pulseAnimation = infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
         ),
-        label = "scanning"
+        label = "pulse"
     )
 
-    val scanBrush = remember(scanAnimation.value) {
-        Brush.linearGradient(
-            colors = listOf(
-                Color.Transparent,
-                primary,
-                Color.Transparent,
-            ),
-            start = Offset(0f, 0f),
-            end = Offset(100f, 100f)
-        )
-    }
+    val glowAnimation = infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glow"
+    )
 
     Box(
         modifier = modifier
@@ -239,32 +239,63 @@ fun ScanningImageCard(
             )
         }
 
-        // Scanning Animation Overlay
+        // Radial Pulse Animation Overlay
         if (isScanning) {
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(12.dp))
             ) {
-                // Calculate the position of the scanning line
-                val scanLineY = size.height * scanAnimation.value
+                val centerX = size.width / 2
+                val centerY = size.height / 2
+                val maxRadius = size.width * 0.8f
 
-                drawRect(
-                    brush = scanBrush,
-                    topLeft = Offset(0f, scanLineY - 100),
-                    size = Size(size.width, 200f)
+                // Pulsating circle
+                drawCircle(
+                    color = primary.copy(alpha = 0.3f * (1f - pulseAnimation.value)),
+                    radius = maxRadius * pulseAnimation.value,
+                    center = Offset(centerX, centerY),
+                    style = Stroke(width = 4.dp.toPx())
                 )
+
+                // Inner glow effect
+                drawCircle(
+                    color = primary.copy(alpha = glowAnimation.value),
+                    radius = maxRadius * 0.3f * pulseAnimation.value,
+                    center = Offset(centerX, centerY)
+                )
+
+                // Subtle grid lines (sci-fi effect)
+                val gridSpacing = 20.dp.toPx()
+                var x = 0f
+                while (x <= size.width) {
+                    drawLine(
+                        color = primary.copy(alpha = 0.1f),
+                        start = Offset(x, 0f),
+                        end = Offset(x, size.height),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                    x += gridSpacing
+                }
+                var y = 0f
+                while (y <= size.height) {
+                    drawLine(
+                        color = primary.copy(alpha = 0.1f),
+                        start = Offset(0f, y),
+                        end = Offset(size.width, y),
+                        strokeWidth = 1.dp.toPx()
+                    )
+                    y += gridSpacing
+                }
             }
 
-            // Add a subtle pulsating overlay
+            // Pulsating overlay
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(12.dp))
                     .background(
-                        MaterialTheme.colorScheme.primary.copy(
-                            alpha = 0.1f * (1f - scanAnimation.value)
-                        )
+                        primary.copy(alpha = 0.05f * (1f - pulseAnimation.value))
                     )
             )
         }

@@ -55,6 +55,7 @@ fun AiSnapQuestView(
                 isQuestComplete.value = true
                 progress.floatValue = 1f
                 questHelper.markQuestAsComplete(basicQuestInfo.title, getCurrentDate())
+                isCameraScreen.value = false
             }
 
         }
