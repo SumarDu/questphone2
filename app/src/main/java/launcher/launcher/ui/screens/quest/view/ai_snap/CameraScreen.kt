@@ -13,22 +13,15 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults.buttonColors
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.VectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import launcher.launcher.R
@@ -37,7 +30,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun CameraScreen() {
+fun CameraScreen(isAiEvaluating: MutableState<Boolean>) {
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
@@ -122,7 +115,7 @@ fun CameraScreen() {
             IconButton(
                 onClick = {
                     // Take picture
-                    takePicture(context, imageCapture)
+                    takePicture(context, imageCapture,isAiEvaluating)
                 },
                 modifier = Modifier
                     .size(64.dp)
@@ -155,12 +148,8 @@ fun CameraScreen() {
         }
     }
 }
-
-private fun takePicture(context: Context, imageCapture: ImageCapture) {
-    val photoFile = File(
-        context.getExternalFilesDir(null),
-        "IMG_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}.jpg"
-    )
+private fun takePicture(context: Context, imageCapture: ImageCapture, isAiEvaluating: MutableState<Boolean>) {
+    val photoFile = File(context.getExternalFilesDir(null), "ai_snap_captured_image.jpg") // Fixed file name
 
     val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
 
@@ -170,6 +159,7 @@ private fun takePicture(context: Context, imageCapture: ImageCapture) {
         object : ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                 Log.d("CameraScreen", "Photo saved: ${photoFile.absolutePath}")
+                isAiEvaluating.value = true
             }
 
             override fun onError(exception: ImageCaptureException) {

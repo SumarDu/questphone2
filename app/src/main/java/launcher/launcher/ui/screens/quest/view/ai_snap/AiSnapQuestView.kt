@@ -1,5 +1,6 @@
 package launcher.launcher.ui.screens.quest.view.ai_snap
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
@@ -15,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.ai.snap.AiSnap
 import launcher.launcher.ui.screens.quest.view.BaseQuestView
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
@@ -26,6 +28,7 @@ fun AiSnapQuestView(
 ) {
     val context = LocalContext.current
     val questHelper = QuestHelper(context)
+    val aiQuest = questHelper.getQuestInfo<AiSnap>(basicQuestInfo)
     val isQuestComplete = remember {
         mutableStateOf(
             questHelper.isQuestCompleted(
@@ -35,15 +38,30 @@ fun AiSnapQuestView(
         )
     }
     var isCameraScreen = remember { mutableStateOf(false) }
+    var isAiEvaluating = remember { mutableStateOf(false) }
+
     val progress = remember {
         mutableFloatStateOf(if (isQuestComplete.value) 1f else 0f)
     }
-    BackHandler(isCameraScreen.value) {
+
+    BackHandler(isCameraScreen.value || isAiEvaluating.value) {
         isCameraScreen.value = false
+        isAiEvaluating.value = false
     }
-    if (isCameraScreen.value) {
-        CameraScreen()
-    } else {
+    if(isAiEvaluating.value) {
+        Log.d("aiQuest",aiQuest.toString())
+        AiEvaluationScreen(isAiEvaluating,aiQuest?.taskDescription ?: "return error") { isComplete ->
+            if(isComplete) {
+                isQuestComplete.value = true
+                progress.floatValue = 1f
+                questHelper.markQuestAsComplete(basicQuestInfo.title, getCurrentDate())
+            }
+
+        }
+    } else if (isCameraScreen.value) {
+        CameraScreen(isAiEvaluating)
+    }
+    else {
         BaseQuestView(
             hideStartQuestBtn = isQuestComplete.value,
             onQuestStarted = {

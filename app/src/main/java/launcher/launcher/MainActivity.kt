@@ -57,9 +57,9 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     NavHost(
                         navController = navController,
-                        startDestination =
-                            if (!isUserOnboarded.value) Screen.OnBoard.route
-                            else Screen.HomeScreen.route
+                        startDestination = Screen.HomeScreen.route
+//                            if (!isUserOnboarded.value) Screen.OnBoard.route
+//                            else
                     ) {
 
                         composable(Screen.Login.route) {
