@@ -1,6 +1,7 @@
 package launcher.launcher.ui.screens.account
 
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -25,7 +26,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavHostController
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.exception.AuthRestException
@@ -33,7 +33,6 @@ import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.launch
 import launcher.launcher.R
-import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.utils.Supabase
 
 enum class SignUpStep {
@@ -42,7 +41,7 @@ enum class SignUpStep {
 }
 
 @Composable
-fun SignUpScreen(navController: NavHostController) {
+fun SignUpScreen(loginStep: MutableState<LoginStep>, onSignupSuccess: ()->Unit) {
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -63,302 +62,315 @@ fun SignUpScreen(navController: NavHostController) {
     val doPasswordsMatch = password == confirmPassword
 
     // Supabase session status
-    val sessionStatus by Supabase.supabase.auth.sessionStatus.collectAsStateWithLifecycle(initialValue = SessionStatus.Initializing)
+    val sessionStatus by Supabase.supabase.auth.sessionStatus.collectAsStateWithLifecycle(
+        initialValue = SessionStatus.Initializing
+    )
 
     // Handle session status changes
     LaunchedEffect(sessionStatus) {
         when (sessionStatus) {
             is SessionStatus.Authenticated -> {
-                navController.navigate(Screen.OnBoard.route) {
-                    popUpTo(Screen.SignUp.route) { inclusive = true } // Clear sign-up from stack
-                }
+                onSignupSuccess()
+                loginStep.value = LoginStep.COMPLETE
             }
+
             is SessionStatus.RefreshFailure -> {
                 errorMessage = "Session expired. Please log in again."
             }
+
             is SessionStatus.Initializing -> {
                 Log.d("Signup", "Initializing session...")
             }
+
             else -> {}
         }
     }
 
 
-    Scaffold { padding ->
-        Box(
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 32.dp)
+    ) {
+        // Back button
+        IconButton(
+            onClick = {
+                loginStep.value = LoginStep.LOGIN
+            },
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back to login"
+            )
+        }
+
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .verticalScroll(scrollState)
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            // Back button
-            IconButton(
-                onClick = { navController.popBackStack() },
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back to login"
-                )
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Logo or app name
+            Text(
+                text = "Blank Phone",
+                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = when (signUpStep) {
+                    SignUpStep.FORM -> "Create an account"
+                    SignUpStep.VERIFICATION -> "Verify your email"
+                },
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // Error message
+            AnimatedVisibility(visible = errorMessage != null) {
+                errorMessage?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Spacer(modifier = Modifier.weight(1f))
+            when (signUpStep) {
+                SignUpStep.FORM -> {
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                // Logo or app name
-                Text(
-                    text = "Quest",
-                    style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.primary
-                )
+                    // Email field
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = { email = it; errorMessage = null },
+                        label = { Text("Email") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Email, contentDescription = null)
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                        ),
+                        isError = errorMessage != null && (email.isBlank() || !isEmailValid)
+                    )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = when (signUpStep) {
-                        SignUpStep.FORM -> "Create an account"
-                        SignUpStep.VERIFICATION -> "Verify your email"
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
+                    // Password field
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it; errorMessage = null },
+                        label = { Text("Password") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                        ),
+                        trailingIcon = {
+                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                                Icon(
+                                    painter = painterResource(
+                                        if (isPasswordVisible) R.drawable.baseline_visibility_off_24
+                                        else R.drawable.baseline_visibility_24
+                                    ),
+                                    contentDescription = if (isPasswordVisible) "Hide password" else "Show password"
+                                )
+                            }
+                        },
+                        isError = errorMessage != null && (password.isBlank() || !isPasswordValid)
+                    )
 
-                Spacer(modifier = Modifier.height(48.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                // Error message
-                AnimatedVisibility(visible = errorMessage != null) {
-                    errorMessage?.let {
-                        Text(
-                            text = it,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-                    }
-                }
+                    // Confirm Password field
+                    OutlinedTextField(
+                        value = confirmPassword,
+                        onValueChange = { confirmPassword = it; errorMessage = null },
+                        label = { Text("Confirm Password") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                focusManager.clearFocus()
+                            }
+                        ),
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                isConfirmPasswordVisible = !isConfirmPasswordVisible
+                            }) {
+                                Icon(
+                                    painter = painterResource(
+                                        if (isConfirmPasswordVisible) R.drawable.baseline_visibility_off_24
+                                        else R.drawable.baseline_visibility_24
+                                    ),
+                                    contentDescription = if (isConfirmPasswordVisible) "Hide password" else "Show password"
+                                )
+                            }
+                        },
+                        isError = errorMessage != null && (confirmPassword.isBlank() || !doPasswordsMatch)
+                    )
 
-                when (signUpStep) {
-                    SignUpStep.FORM -> {
-                        Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                        // Email field
-                        OutlinedTextField(
-                            value = email,
-                            onValueChange = { email = it; errorMessage = null },
-                            label = { Text("Email") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = {
-                                Icon(Icons.Outlined.Email, contentDescription = null)
-                            },
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Email,
-                                imeAction = ImeAction.Next
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                            ),
-                            isError = errorMessage != null && (email.isBlank() || !isEmailValid)
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Password field
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it; errorMessage = null },
-                            label = { Text("Password") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Password,
-                                imeAction = ImeAction.Next
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                            ),
-                            trailingIcon = {
-                                IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                                    Icon(
-                                        painter = painterResource(
-                                            if (isPasswordVisible) R.drawable.baseline_visibility_off_24
-                                            else R.drawable.baseline_visibility_24
-                                        ),
-                                        contentDescription = if (isPasswordVisible) "Hide password" else "Show password"
-                                    )
+                    // Sign up button
+                    Button(
+                        onClick = {
+                            when {
+                                email.isBlank() || password.isBlank() || confirmPassword.isBlank() -> {
+                                    errorMessage = "Please fill in all fields"
                                 }
-                            },
-                            isError = errorMessage != null && (password.isBlank() || !isPasswordValid)
-                        )
 
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Confirm Password field
-                        OutlinedTextField(
-                            value = confirmPassword,
-                            onValueChange = { confirmPassword = it; errorMessage = null },
-                            label = { Text("Confirm Password") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            visualTransformation = if (isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Password,
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onDone = {
-                                    focusManager.clearFocus()
+                                !isEmailValid -> {
+                                    errorMessage = "Please enter a valid email"
                                 }
-                            ),
-                            trailingIcon = {
-                                IconButton(onClick = { isConfirmPasswordVisible = !isConfirmPasswordVisible }) {
-                                    Icon(
-                                        painter = painterResource(
-                                            if (isConfirmPasswordVisible) R.drawable.baseline_visibility_off_24
-                                            else R.drawable.baseline_visibility_24
-                                        ),
-                                        contentDescription = if (isConfirmPasswordVisible) "Hide password" else "Show password"
-                                    )
+
+                                !isPasswordValid -> {
+                                    errorMessage = "Password must be at least 8 characters"
                                 }
-                            },
-                            isError = errorMessage != null && (confirmPassword.isBlank() || !doPasswordsMatch)
-                        )
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                                !doPasswordsMatch -> {
+                                    errorMessage = "Passwords don't match"
+                                }
 
-                        // Sign up button
-                        Button(
-                            onClick = {
-                                when {
-                                    email.isBlank() || password.isBlank() || confirmPassword.isBlank() -> {
-                                        errorMessage = "Please fill in all fields"
-                                    }
-                                    !isEmailValid -> {
-                                        errorMessage = "Please enter a valid email"
-                                    }
-                                    !isPasswordValid -> {
-                                        errorMessage = "Password must be at least 8 characters"
-                                    }
-                                    !doPasswordsMatch -> {
-                                        errorMessage = "Passwords don't match"
-                                    }
-                                    else -> {
-                                        scope.launch {
-                                            isLoading = true
-                                            errorMessage = null
-                                            try {
-                                                Supabase.supabase.auth.signUpWith(Email) {
-                                                    this.email = email
-                                                    this.password = password
-                                                }
-                                                signUpStep = SignUpStep.VERIFICATION
-                                            } catch (e: AuthRestException) {
-                                                errorMessage = e.message ?: "Sign-up failed"
-                                            } finally {
-                                                isLoading = false
+                                else -> {
+                                    scope.launch {
+                                        isLoading = true
+                                        errorMessage = null
+                                        try {
+                                            Supabase.supabase.auth.signUpWith(Email) {
+                                                this.email = email
+                                                this.password = password
                                             }
+                                            signUpStep = SignUpStep.VERIFICATION
+                                        } catch (e: AuthRestException) {
+                                            errorMessage = e.message ?: "Sign-up failed"
+                                        } finally {
+                                            isLoading = false
                                         }
                                     }
                                 }
-
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth(),
-                            enabled = !isLoading
-                        ) {
-                            if (isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            } else {
-                                Text("Sign Up")
                             }
-                        }
-                    }
 
-                    SignUpStep.VERIFICATION -> {
-                        Text(
-                            text = "We've sent a verification email to",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center
-                        )
-
-                        Text(
-                            text = email,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                            textAlign = TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // Resend email button
-                        TextButton(
-                            onClick = {
-                                scope.launch {
-                                    isLoading = true
-                                    try {
-                                        Supabase.supabase.auth.resendEmail(
-                                            email = email,
-                                            type = OtpType.Email.SIGNUP
-                                        )
-                                    } catch (e: Exception) {
-                                        errorMessage = "Failed to resend email: ${e.message}"
-                                    } finally {
-                                        isLoading = false
-                                    }
-                                }
-                            },
-                            modifier = Modifier.align(Alignment.End),
-                            enabled = !isLoading
-                        ) {
-                            Text("Resend email")
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // Back button
-                        TextButton(
-                            onClick = { signUpStep = SignUpStep.FORM },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Back to sign up")
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Login option
-                if (signUpStep == SignUpStep.FORM) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        enabled = !isLoading
                     ) {
-                        Text(
-                            text = "Already have an account?",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        TextButton(onClick = { navController.navigate(Screen.Login.route) }) {
-                            Text("Login")
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Text("Sign Up")
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
+                SignUpStep.VERIFICATION -> {
+                    Text(
+                        text = "We've sent a verification email to",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Text(
+                        text = email,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Resend email button
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                isLoading = true
+                                try {
+                                    Supabase.supabase.auth.resendEmail(
+                                        email = email,
+                                        type = OtpType.Email.SIGNUP
+                                    )
+                                } catch (e: Exception) {
+                                    errorMessage = "Failed to resend email: ${e.message}"
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
+                        },
+                        modifier = Modifier.align(Alignment.End),
+                        enabled = !isLoading
+                    ) {
+                        Text("Resend email")
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Back button
+                    TextButton(
+                        onClick = { signUpStep = SignUpStep.FORM },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Back to sign up")
+                    }
+                }
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Login option
+            if (signUpStep == SignUpStep.FORM) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Already have an account?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = {
+                        loginStep.value = LoginStep.LOGIN
+
+                    }) {
+                        Text("Login")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
         }
     }
 }

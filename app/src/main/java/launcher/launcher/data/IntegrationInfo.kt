@@ -22,4 +22,5 @@ data class IntegrationInfo(
     val id: IntegrationId = IntegrationId.DEEP_FOCUS,
     val setupScreen: @Composable () -> Unit = { SetDeepFocus() },
     val viewScreen: @Composable (BasicQuestInfo) -> Unit = { baseQuest -> DeepFocusQuestView(baseQuest) },
+    val isLoginRequired: Boolean = false
     )

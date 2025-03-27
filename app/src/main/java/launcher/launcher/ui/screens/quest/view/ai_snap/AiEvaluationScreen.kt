@@ -31,6 +31,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
+import io.github.jan.supabase.auth.auth
+import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.ai.TaskValidationClient
 
 import java.io.File
@@ -43,6 +45,7 @@ fun AiEvaluationScreen(
     val context = LocalContext.current
     val client = remember { TaskValidationClient() }
     val photoFile = File(context.getExternalFilesDir(null), "ai_snap_captured_image.jpg")
+    var jwtoken = Supabase.supabase.auth.currentAccessTokenOrNull()
 
     // State variables
     var isLoading by remember { mutableStateOf(true) }
@@ -56,7 +59,7 @@ fun AiEvaluationScreen(
             isLoading = false
             return@LaunchedEffect
         }
-        client.validateTask(photoFile, description) { response ->
+        client.validateTask(photoFile, description, jwtoken.toString()) { response ->
             isLoading = false
             response.fold(
                 onSuccess = { validationResult ->

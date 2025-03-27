@@ -46,7 +46,8 @@ class Integration {
                 description = "Complete the task, snap a pic, and let AI verify your progress!",
                 setupScreen = { SetAiSnap() },
                 viewScreen = { baseQuest -> AiSnapQuestView(baseQuest) },
-                id = IntegrationId.AI_SNAP
+                id = IntegrationId.AI_SNAP,
+                isLoginRequired = true
             )
         )
 
@@ -70,5 +71,6 @@ class Integration {
          */
         val viewScreens = allInfo
             .associate {  it.id.name to it.viewScreen}
+
     }
 }

@@ -47,40 +47,21 @@ class MainActivity : ComponentActivity() {
         Supabase.supabase.handleDeeplinks(intent)
 
         setContent {
+
+            var isUserOnboarded = remember {mutableStateOf(true)}
+            LaunchedEffect(isUserOnboarded.value) {
+                isUserOnboarded.value = data.getBoolean("onboard",false)
+                Log.d("onboard", isUserOnboarded.value.toString())
+            }
             LauncherTheme {
-                var isUserOnboarded = remember {mutableStateOf(true)}
                 Surface {
-                    LaunchedEffect(isUserOnboarded) {
-                        isUserOnboarded.value = data.getBoolean("onboard",false)
-                        Log.d("onboard", isUserOnboarded.value.toString())
-                    }
+
                     val navController = rememberNavController()
                     NavHost(
                         navController = navController,
-                        startDestination = Screen.HomeScreen.route
-//                            if (!isUserOnboarded.value) Screen.OnBoard.route
-//                            else
+                        startDestination = if (!isUserOnboarded.value) Screen.OnBoard.route
+                                else Screen.HomeScreen.route,
                     ) {
-
-                        composable(Screen.Login.route) {
-                            LoginScreen(
-                                navController,
-
-                            )
-
-                        }
-                        composable(Screen.SignUp.route) {
-                            SignUpScreen(
-                                navController
-                            )
-
-                        }
-                        composable(Screen.ForgetPassword.route) {
-                            ForgotPasswordScreen(
-                                navController
-                            )
-
-                        }
 
                         composable(Screen.OnBoard.route) {
                             OnBoardScreen(navController)

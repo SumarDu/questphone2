@@ -204,8 +204,11 @@ fun StandardPageContent(title: String, description: String) {
 fun OnBoardScreen(navController: NavHostController) {
 
     val context  = LocalContext.current
-        // Create a mix of standard and custom pages
         val onboardingPages = listOf(
+            OnboardingContent.CustomPage{ isNextEnabled ->
+                LoginOnboard(isNextEnabled,navController)
+            },
+
             OnboardingContent.StandardPage(
                 "BlankPhone",
                 "Welcome to BlankPhone! Ever felt like your phone controls you instead of the other way around? BlankPhone helps you build mindful screen habits by turning screen time into a rewarding challenge."
@@ -234,7 +237,7 @@ fun OnBoardScreen(navController: NavHostController) {
         OnboardingScreen(
             onFinishOnboarding = {
 
-                val data = context.getSharedPreferences("onboard ", MODE_PRIVATE)
+                val data = context.getSharedPreferences("onboard", MODE_PRIVATE)
                 data.edit { putBoolean("onboard", true) }
                 navController.navigate(Screen.HomeScreen.route)
 

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -15,11 +16,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
+import io.github.jan.supabase.auth.auth
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.data.quest.ai.snap.AiSnap
+import launcher.launcher.ui.screens.account.LoginScreen
 import launcher.launcher.ui.screens.quest.view.BaseQuestView
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
+import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.getCurrentDate
 
 @Composable
@@ -40,6 +44,7 @@ fun AiSnapQuestView(
     var isCameraScreen = remember { mutableStateOf(false) }
     var isAiEvaluating = remember { mutableStateOf(false) }
 
+
     val progress = remember {
         mutableFloatStateOf(if (isQuestComplete.value) 1f else 0f)
     }
@@ -57,7 +62,6 @@ fun AiSnapQuestView(
                 questHelper.markQuestAsComplete(basicQuestInfo.title, getCurrentDate())
                 isCameraScreen.value = false
             }
-
         }
     } else if (isCameraScreen.value) {
         CameraScreen(isAiEvaluating)

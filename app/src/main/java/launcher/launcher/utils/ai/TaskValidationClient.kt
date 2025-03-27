@@ -30,12 +30,14 @@ class TaskValidationClient {
     fun validateTask(
         imageFile: File,
         description: String,
+        token: String,
         callback: (Result<ValidationResult>) -> Unit
     ) {
         // Create multipart form data
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("description", description)
+
             .addFormDataPart(
                 "image",
                 imageFile.name,
@@ -46,6 +48,7 @@ class TaskValidationClient {
         // Build the request
         val request = Request.Builder()
             .url("$BASE_URL/validate-task/")
+            .header("Authorization", "Bearer $token")
             .post(requestBody)
             .build()
 

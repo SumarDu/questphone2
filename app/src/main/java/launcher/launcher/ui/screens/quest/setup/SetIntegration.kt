@@ -13,9 +13,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import io.github.jan.supabase.auth.auth
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.config.Integration
 import launcher.launcher.ui.screens.quest.setup.components.Navigation
+import launcher.launcher.utils.Supabase
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
