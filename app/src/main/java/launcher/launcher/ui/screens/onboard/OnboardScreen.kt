@@ -77,6 +77,7 @@ fun OnboardingScreen(
                         title = page.title,
                         description = page.description
                     )
+                    isNextEnabled.value = true
                 }
                 is OnboardingContent.CustomPage -> {
                     page.content(isNextEnabled)

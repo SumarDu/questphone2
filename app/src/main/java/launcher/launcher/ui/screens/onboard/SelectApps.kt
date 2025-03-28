@@ -1,5 +1,6 @@
 package launcher.launcher.ui.screens.onboard
 
+import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.clickable
@@ -40,8 +41,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.window.Dialog
+import androidx.core.content.edit
+import launcher.launcher.services.AccessibilityService
+import launcher.launcher.utils.isAccessibilityServiceEnabled
+import launcher.launcher.utils.openAccessibilityServiceScreen
 
 @Composable
 fun SelectApps(isNextEnabled: MutableState<Boolean>) {
@@ -51,8 +57,13 @@ fun SelectApps(isNextEnabled: MutableState<Boolean>) {
     val appsState = remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     val selectedApps = remember { mutableStateListOf<String>() }
 
+    val sp = context.getSharedPreferences("distractions",Context.MODE_PRIVATE)
+
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
+            val apps = sp.getStringSet("distracting_apps",emptySet<String>())
+            selectedApps.addAll(apps!!)
+            if(selectedApps.isNotEmpty()) isNextEnabled.value = isAccessibilityServiceEnabled(context, AccessibilityService::class.java)
             reloadApps(context.packageManager, context)
                 .onSuccess { apps ->
                     appsState.value = apps
@@ -94,7 +105,7 @@ fun SelectApps(isNextEnabled: MutableState<Boolean>) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        if(selectedApps.isNotEmpty()){
+        if(selectedApps.isNotEmpty() && !isAccessibilityServiceEnabled(context, AccessibilityService::class.java)){
             AccessibilityPanel()
             isNextEnabled.value = false
         }else {
@@ -125,6 +136,7 @@ fun SelectApps(isNextEnabled: MutableState<Boolean>) {
                             if (it) selectedApps.add(packageName) else selectedApps.remove(
                                 packageName
                             )
+                            sp.edit { putStringSet("distracting_apps", selectedApps.toSet()) }
                         }
                     )
                     Text(
@@ -190,6 +202,7 @@ fun AccessibilityPanel() {
 
 @Composable
 fun AccessibilityDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -223,7 +236,9 @@ fun AccessibilityDialog(onDismiss: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 TextButton(
-                    onClick = onDismiss,
+                    onClick = {
+                        openAccessibilityServiceScreen(context, AccessibilityService::class.java)
+                    },
                     modifier = Modifier
                         .align(Alignment.End)
                 ) {
@@ -237,3 +252,4 @@ fun AccessibilityDialog(onDismiss: () -> Unit) {
         }
     }
 }
+

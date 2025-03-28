@@ -25,11 +25,11 @@ fun LoginOnboard(isNextEnabled: MutableState<Boolean>, navController: NavHostCon
     val data = context.getSharedPreferences("onboard", MODE_PRIVATE)
 
     val loginStep = remember { mutableStateOf(LoginStep.SIGNUP) }
-    isNextEnabled.value = false
+    isNextEnabled.value = Supabase.supabase.auth.currentUserOrNull().let { it != null }
 
     val isUserLoggedIn = remember { mutableStateOf(false) }
 
-    LaunchedEffect(isUserLoggedIn.value) {
+    LaunchedEffect(isUserLoggedIn.value,isNextEnabled.value ) {
         isUserLoggedIn.value = Supabase.supabase.auth.currentUserOrNull().let { it != null }
         if (isUserLoggedIn.value) {
             isNextEnabled.value = true
