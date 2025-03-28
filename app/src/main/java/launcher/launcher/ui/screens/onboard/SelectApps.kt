@@ -45,6 +45,9 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.edit
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import launcher.launcher.services.AccessibilityService
 import launcher.launcher.utils.isAccessibilityServiceEnabled
 import launcher.launcher.utils.openAccessibilityServiceScreen
@@ -59,11 +62,31 @@ fun SelectApps(isNextEnabled: MutableState<Boolean>) {
 
     val sp = context.getSharedPreferences("distractions",Context.MODE_PRIVATE)
 
+    var isAccessibilityServiceEnabled = remember { mutableStateOf(isAccessibilityServiceEnabled(context, AccessibilityService::class.java)) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            isAccessibilityServiceEnabled.value = isAccessibilityServiceEnabled(context, AccessibilityService::class.java)
+            isNextEnabled.value = isAccessibilityServiceEnabled.value
+        }
+    }
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            val apps = sp.getStringSet("distracting_apps", emptySet<String>()) ?: emptySet()
+            selectedApps.clear() // Clear to avoid duplicates
+            selectedApps.addAll(apps)
+            isNextEnabled.value = selectedApps.isNotEmpty() && isAccessibilityServiceEnabled.value
+        }
+    }
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.DESTROYED) {
+            sp.edit { putStringSet("distracting_apps", selectedApps.toSet()) }
+        }
+    }
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
-            val apps = sp.getStringSet("distracting_apps",emptySet<String>())
-            selectedApps.addAll(apps!!)
-            if(selectedApps.isNotEmpty()) isNextEnabled.value = isAccessibilityServiceEnabled(context, AccessibilityService::class.java)
             reloadApps(context.packageManager, context)
                 .onSuccess { apps ->
                     appsState.value = apps
@@ -105,8 +128,8 @@ fun SelectApps(isNextEnabled: MutableState<Boolean>) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        if(selectedApps.isNotEmpty() && !isAccessibilityServiceEnabled(context, AccessibilityService::class.java)){
-            AccessibilityPanel()
+        if(selectedApps.isNotEmpty() && !isAccessibilityServiceEnabled.value){
+            AccessibilityPanel(selectedApps)
             isNextEnabled.value = false
         }else {
             isNextEnabled.value = true
@@ -126,6 +149,8 @@ fun SelectApps(isNextEnabled: MutableState<Boolean>) {
                             } else {
                                 selectedApps.add(packageName)
                             }
+                            sp.edit { putStringSet("distracting_apps", selectedApps.toSet()) }
+
                         }
                         .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -137,6 +162,7 @@ fun SelectApps(isNextEnabled: MutableState<Boolean>) {
                                 packageName
                             )
                             sp.edit { putStringSet("distracting_apps", selectedApps.toSet()) }
+
                         }
                     )
                     Text(
@@ -149,7 +175,7 @@ fun SelectApps(isNextEnabled: MutableState<Boolean>) {
     }
 }
 @Composable
-fun AccessibilityPanel() {
+fun AccessibilityPanel(selectedApps: SnapshotStateList<String>) {
     var showDialog by remember { mutableStateOf(false) }
 
     // Panel
@@ -196,12 +222,12 @@ fun AccessibilityPanel() {
 
     // Dialog
     if (showDialog) {
-        AccessibilityDialog(onDismiss = { showDialog = false })
+        AccessibilityDialog(onDismiss = { showDialog = false },selectedApps)
     }
 }
 
 @Composable
-fun AccessibilityDialog(onDismiss: () -> Unit) {
+fun AccessibilityDialog(onDismiss: () -> Unit, selectedApps: SnapshotStateList<String>) {
     val context = LocalContext.current
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -248,8 +274,23 @@ fun AccessibilityDialog(onDismiss: () -> Unit) {
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
+                Spacer(modifier = Modifier.height(16.dp))
+                TextButton(
+                    onClick = {
+                        onDismiss()
+                        selectedApps.clear()
+
+                    },
+                    modifier = Modifier
+                        .align(Alignment.End)
+                ) {
+                    Text(
+                        text = "Reject",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
         }
     }
 }
-

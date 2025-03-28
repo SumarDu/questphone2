@@ -76,7 +76,7 @@ fun AddQuestsScreen(navController: NavController) {
         if(isUserAddingQuest.value) {
 
             Text(
-                text = "Long press on any quest to view tutorial",
+                text = "Long press on any integration to view tutorial",
                 color = Color.White,
                 fontSize = 16.sp,
                 textAlign = TextAlign.Center,

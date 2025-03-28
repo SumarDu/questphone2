@@ -39,3 +39,7 @@ fun openAccessibilityServiceScreen(context: Context,cls: Class<*>) {
         context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
     }
 }
+fun sendRefreshRequest(context: Context, action: String) {
+    val intent = Intent(action)
+    context.sendBroadcast(intent)
+}

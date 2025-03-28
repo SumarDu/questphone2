@@ -31,9 +31,6 @@ const val INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN =
 
 class AccessibilityService() : AccessibilityService() {
 
-
-
-
     private val handler = Handler(Looper.getMainLooper())
     private var updateRunnable: Runnable? = null
 
@@ -70,7 +67,7 @@ class AccessibilityService() : AccessibilityService() {
     }
 
     private fun pressHome() {
-
+        performGlobalAction(GLOBAL_ACTION_HOME)
     }
 
 
