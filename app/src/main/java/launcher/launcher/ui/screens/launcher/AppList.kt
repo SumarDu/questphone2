@@ -1,6 +1,7 @@
 package launcher.launcher.ui.screens.launcher
 
 import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,15 +23,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import launcher.launcher.blockers.AppBlocker
 import launcher.launcher.data.AppInfo
+import launcher.launcher.services.INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN
 import launcher.launcher.ui.screens.launcher.components.AppItem
 import launcher.launcher.ui.screens.launcher.components.CoinDialog
 import launcher.launcher.utils.CoinHelper
 import launcher.launcher.utils.getCachedApps
 import launcher.launcher.utils.reloadApps
+import launcher.launcher.utils.sendRefreshRequest
 
 data class AppGroup(val letter: Char, val apps: List<AppInfo>)
 
@@ -45,6 +52,16 @@ fun AppList(onNavigateToQuestTracker: () -> Unit) {
     val showCoinDialog = remember { mutableStateOf(false) }
     val selectedPackage = remember { mutableStateOf("") }
     val coinHelper = CoinHelper(context)
+
+    val sp = context.getSharedPreferences("distractions",Context.MODE_PRIVATE)
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    var distractions = emptySet<String>()
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            distractions = sp.getStringSet("distracting_apps", emptySet<String>()) ?: emptySet()
+        }
+    }
 
     LaunchedEffect(Unit) {
         loadInitialApps(appsState, isLoading, context)
@@ -69,8 +86,12 @@ fun AppList(onNavigateToQuestTracker: () -> Unit) {
             error = errorState.value,
             innerPadding = innerPadding,
             onAppClick = { packageName ->
-                showCoinDialog.value = true
-                selectedPackage.value = packageName
+                if(distractions.contains(packageName)){
+                    showCoinDialog.value = true
+                    selectedPackage.value = packageName
+                }else{
+                    launchApp(context,packageName)
+                }
             }
         )
 
@@ -79,10 +100,18 @@ fun AppList(onNavigateToQuestTracker: () -> Unit) {
                 coins = coinHelper.getCoinCount(),
                 onDismiss = { showCoinDialog.value = false },
                 onConfirm = {
-                    coinHelper.decrementCoinCount(1)
+                    val intent = Intent()
+                    intent.action = INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN
+                    intent.putExtra("selected_time",10 * 60_000)
+                    intent.putExtra("result_id",selectedPackage.value)
+                    context.sendBroadcast(intent)
+
+                    coinHelper.decrementCoinCount(5)
                     launchApp(context, selectedPackage.value)
                     showCoinDialog.value = false
-                }
+                },
+                appName = packageManager.getApplicationInfo(selectedPackage.value,0).loadLabel(packageManager)
+                    .toString()
             )
         }
     }

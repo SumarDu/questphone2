@@ -21,7 +21,8 @@ import launcher.launcher.utils.CoinHelper
 fun CoinDialog(
     coins: Int,
     onDismiss: () -> Unit,
-    onConfirm: () -> Unit
+    onConfirm: () -> Unit,
+    appName : String
 ) {
     Dialog(onDismissRequest = onDismiss) {
             Column(
@@ -35,13 +36,13 @@ fun CoinDialog(
                 )
 
                 Text(
-                    text = "Open Youtube?",
+                    text = "Open $appName?",
                     color = Color.White,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
                 Text(
-                    text = "Are you sure you want to spend 1 coin to use Youtube for 10 mins?",
+                    text = "Are you sure you want to spend 5 coins to use Youtube for 10 minutes?",
                     color = Color.White,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(bottom = 24.dp)
