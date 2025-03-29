@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import launcher.launcher.utils.VibrationHelper
 import kotlin.math.max
 import kotlin.math.min
 
@@ -97,6 +98,7 @@ fun HomeScreen(navController: NavController) {
                             // If the swipe exceeds the threshold, trigger navigation
                             if (dragAmount < -5) { // Swipe-up threshold
                                 navController.navigate(Screen.AppList.route)
+                                VibrationHelper.vibrate(50)
                                 break
                             }
                         } while (dragEvent.pressed)

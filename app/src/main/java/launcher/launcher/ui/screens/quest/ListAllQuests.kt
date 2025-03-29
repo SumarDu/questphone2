@@ -62,12 +62,12 @@ fun ListAllQuests(navHostController: NavHostController) {
                 .padding(16.dp),
             horizontalAlignment = Alignment.Start
             ) {
-            QuestList(navHostController,questList) {
+            QuestList(navHostController,questList, itemTop = {
                 SearchBar(
                     query = "",
                     onQueryChanged = {}
                 )
-            }
+            })
         }
     }
 

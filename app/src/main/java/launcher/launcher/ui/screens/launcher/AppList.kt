@@ -40,11 +40,9 @@ import androidx.core.content.edit
 import launcher.launcher.ui.screens.launcher.components.LowCoinsDialog
 
 data class AppGroup(val letter: Char, val apps: List<AppInfo>)
-private const val NOTIFICATION_CHANNEL_ID = "app_cooldown_channel"
-private const val NOTIFICATION_ID = 1002
 
 @Composable
-fun AppList(onNavigateToQuestTracker: () -> Unit) {
+fun AppList() {
     val context = LocalContext.current
     val packageManager = context.packageManager
     val appsState = remember { mutableStateOf<List<AppInfo>>(emptyList()) }
