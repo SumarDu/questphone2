@@ -98,7 +98,7 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
 
     if (progressState.floatValue == 1f) {
         if (!isQuestComplete) {
-            questHelper.markQuestAsComplete(baseQuestInfo.title, getCurrentDate())
+            questHelper.markQuestAsComplete(baseQuestInfo, getCurrentDate())
             healthQuest.incrementTime()
             questHelper.updateQuestInfo<HealthQuest>(baseQuestInfo, { healthQuest })
             isQuestComplete = true

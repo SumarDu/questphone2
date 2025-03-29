@@ -22,6 +22,7 @@ class QuestHelper(context: Context) {
         Context.MODE_PRIVATE
     )
 
+    val coinHelper = CoinHelper(context)
     val instructionPref = context.getSharedPreferences(INSTRUCTION_NAME, Context.MODE_PRIVATE)
 
     val json = Json {
@@ -42,7 +43,7 @@ class QuestHelper(context: Context) {
     }
     fun saveQuestList(list: List<BasicQuestInfo>){
         val listData = json.encodeToString<List<BasicQuestInfo>>(list)
-        sharedPreferences.edit().putString(ALL_QUESTS_LIST_KEY,listData).apply()
+        sharedPreferences.edit { putString(ALL_QUESTS_LIST_KEY, listData) }
     }
 
 
@@ -50,9 +51,9 @@ class QuestHelper(context: Context) {
         val currentQuests = getQuestList().toMutableList()
         currentQuests.add(baseData)
         saveQuestList(currentQuests)
-        sharedPreferences.edit()
-            .putString("quest_data_${baseData.title}", json.encodeToString(questInfo))
-            .apply()
+        sharedPreferences.edit {
+            putString("quest_data_${baseData.title}", json.encodeToString(questInfo))
+        }
     }
 
     fun appendToQuestList(baseData: BasicQuestInfo) {
@@ -79,9 +80,9 @@ class QuestHelper(context: Context) {
         val data = getQuestInfo<T>(baseData)
         if (data != null) {
             val updatedData = updateAction(data)
-            sharedPreferences.edit()
-                .putString("quest_data_${baseData.title}", json.encodeToString(updatedData))
-                .apply()
+            sharedPreferences.edit {
+                putString("quest_data_${baseData.title}", json.encodeToString(updatedData))
+            }
         }
     }
 
@@ -102,8 +103,9 @@ class QuestHelper(context: Context) {
         return lastPerformed == date
     }
 
-    fun markQuestAsComplete(title:String, date: String) {
-        sharedPreferences.edit().putString(QUEST_LAST_PERFORMED_SUFFIX + title, date).apply()
+    fun markQuestAsComplete(baseData: BasicQuestInfo, date: String) {
+        sharedPreferences.edit { putString(QUEST_LAST_PERFORMED_SUFFIX + baseData.title, date) }
+        coinHelper.incrementCoinCount(baseData.reward)
     }
 
     fun isQuestRunning(title:String):Boolean{
@@ -111,7 +113,7 @@ class QuestHelper(context: Context) {
     }
 
     fun setQuestRunning(title: String,isRunning: Boolean){
-        sharedPreferences.edit().putBoolean(QUEST_IS_RUNNING_SUFFIX + title, isRunning).apply()
+        sharedPreferences.edit { putBoolean(QUEST_IS_RUNNING_SUFFIX + title, isRunning) }
     }
 
     /**

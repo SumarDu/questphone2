@@ -2,6 +2,7 @@ package launcher.launcher.ui.screens.launcher
 
 import android.net.Uri
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -60,6 +61,7 @@ fun HomeScreen(navController: NavController) {
     val currentDate = getCurrentDate()
     val completedQuests = remember { SnapshotStateList<String>() }
 
+    BackHandler {  }
     LaunchedEffect(completedQuests) {
         questList.forEach{item ->
             if(questHelper.isQuestCompleted(item.title, currentDate) == true){
@@ -174,17 +176,6 @@ fun HomeScreen(navController: NavController) {
                 }
             }
 
-            // Core Apps button
-            Text(
-                text = "Core Apps >",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier
-                    .padding(top = 24.dp)
-                    .align(Alignment.CenterHorizontally)
-                    .clickable {
-                        navController.navigate(Screen.AppList.route)
-                    }
-            )
         }
     }}
 }

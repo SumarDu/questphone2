@@ -29,7 +29,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import launcher.launcher.blockers.AppBlocker
 import launcher.launcher.data.AppInfo
 import launcher.launcher.services.INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN
 import launcher.launcher.ui.screens.launcher.components.AppItem
@@ -37,9 +36,12 @@ import launcher.launcher.ui.screens.launcher.components.CoinDialog
 import launcher.launcher.utils.CoinHelper
 import launcher.launcher.utils.getCachedApps
 import launcher.launcher.utils.reloadApps
-import launcher.launcher.utils.sendRefreshRequest
+import androidx.core.content.edit
+import launcher.launcher.ui.screens.launcher.components.LowCoinsDialog
 
 data class AppGroup(val letter: Char, val apps: List<AppInfo>)
+private const val NOTIFICATION_CHANNEL_ID = "app_cooldown_channel"
+private const val NOTIFICATION_ID = 1002
 
 @Composable
 fun AppList(onNavigateToQuestTracker: () -> Unit) {
@@ -53,7 +55,7 @@ fun AppList(onNavigateToQuestTracker: () -> Unit) {
     val selectedPackage = remember { mutableStateOf("") }
     val coinHelper = CoinHelper(context)
 
-    val sp = context.getSharedPreferences("distractions",Context.MODE_PRIVATE)
+    val sp = context.getSharedPreferences("distractions", Context.MODE_PRIVATE)
     val lifecycleOwner = LocalLifecycleOwner.current
 
     var distractions = emptySet<String>()
@@ -86,33 +88,62 @@ fun AppList(onNavigateToQuestTracker: () -> Unit) {
             error = errorState.value,
             innerPadding = innerPadding,
             onAppClick = { packageName ->
-                if(distractions.contains(packageName)){
-                    showCoinDialog.value = true
-                    selectedPackage.value = packageName
-                }else{
-                    launchApp(context,packageName)
+                if (distractions.contains(packageName)) {
+                    val cooldownUntil = sp.getLong(packageName+"_time",-1L)
+
+                    if (cooldownUntil==-1L || System.currentTimeMillis() > cooldownUntil) {
+                        // Not under cooldown - show dialog
+                        showCoinDialog.value = true
+                        selectedPackage.value = packageName
+                        sp.edit { remove(packageName + "_time") }
+                    } else {
+                        launchApp(context, packageName)
+                    }
+                } else {
+                    // Not a distraction - launch directly
+                    launchApp(context, packageName)
                 }
             }
         )
 
         if (showCoinDialog.value) {
-            CoinDialog(
-                coins = coinHelper.getCoinCount(),
-                onDismiss = { showCoinDialog.value = false },
-                onConfirm = {
-                    val intent = Intent()
-                    intent.action = INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN
-                    intent.putExtra("selected_time",10 * 60_000)
-                    intent.putExtra("result_id",selectedPackage.value)
-                    context.sendBroadcast(intent)
+            if(coinHelper.canUserAffordPurchase(5)) {
+                CoinDialog(
+                    coins = coinHelper.getCoinCount(),
+                    onDismiss = { showCoinDialog.value = false },
+                    onConfirm = {
+                        // Set cooldown time (10 minutes = 10 * 60 * 1000 milliseconds)
+                        val cooldownTime = 10 * 60_000
+                        sp.edit {
+                            putLong(
+                                selectedPackage.value + "_time",
+                                System.currentTimeMillis() + cooldownTime
+                            )
+                        }
+                        val intent = Intent().apply {
+                            action = INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN
+                            putExtra("selected_time", cooldownTime)
+                            putExtra("result_id", selectedPackage.value)
+                        }
+                        context.sendBroadcast(intent)
 
-                    coinHelper.decrementCoinCount(5)
-                    launchApp(context, selectedPackage.value)
-                    showCoinDialog.value = false
-                },
-                appName = packageManager.getApplicationInfo(selectedPackage.value,0).loadLabel(packageManager)
-                    .toString()
-            )
+                        coinHelper.decrementCoinCount(5)
+                        launchApp(context, selectedPackage.value)
+                        showCoinDialog.value = false
+                    },
+                    appName = try {
+                        packageManager.getApplicationInfo(selectedPackage.value, 0)
+                            .loadLabel(packageManager).toString()
+                    } catch (_: Exception) {
+                        selectedPackage.value
+                    }
+                )
+            } else {
+                LowCoinsDialog(
+                    coins = coinHelper.getCoinCount(),
+                    onDismiss = { showCoinDialog.value = false }
+                )
+            }
         }
     }
 }

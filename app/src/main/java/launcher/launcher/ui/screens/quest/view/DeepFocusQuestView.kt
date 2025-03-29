@@ -161,7 +161,7 @@ fun DeepFocusQuestView(
 
                 // If completed, mark quest as done
                 if (progress >= 1f) {
-                    questHelper.markQuestAsComplete(basicQuestInfo.title, getCurrentDate())
+                    questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
                     questHelper.setQuestRunning(basicQuestInfo.title, false)
                     deepFocus.incrementTime()
                     questHelper.updateQuestInfo<DeepFocus>(basicQuestInfo,{deepFocus})
@@ -328,6 +328,7 @@ private fun updateTimerNotification(context: Context, questTitle: String, progre
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setOngoing(true) // Make it persistent
         .setContentIntent(pendingIntent)
+        .setSilent(true)
         .setAutoCancel(false)
         .build()
 

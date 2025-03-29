@@ -2,6 +2,7 @@ package launcher.launcher.utils
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 
 class CoinHelper(context: Context) {
 
@@ -14,11 +15,15 @@ class CoinHelper(context: Context) {
     }
 
     fun incrementCoinCount(value: Int){
-        sharedPreferences.edit().putInt(COIN_COUNT_KEY,getCoinCount()+value).apply()
+        sharedPreferences.edit { putInt(COIN_COUNT_KEY, getCoinCount() + value) }
     }
     fun decrementCoinCount(value: Int){
-        sharedPreferences.edit().putInt(COIN_COUNT_KEY,getCoinCount()-value).apply()
+        sharedPreferences.edit { putInt(COIN_COUNT_KEY, getCoinCount() - value) }
     }
+    fun canUserAffordPurchase(value:Int):Boolean{
+        return getCoinCount() + value >= 0
+    }
+
 
     companion object {
         private const val PREF_NAME = "coin_count"

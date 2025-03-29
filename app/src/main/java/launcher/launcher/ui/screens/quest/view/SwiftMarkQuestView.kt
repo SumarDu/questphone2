@@ -43,7 +43,7 @@ fun SwiftMarkQuestView(
         onQuestStarted = {
             isQuestComplete.value = true
             progress.floatValue = 1f
-            questHelper.markQuestAsComplete(basicQuestInfo.title, getCurrentDate())
+            questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
         },
         progress = progress,
         loadingAnimationDuration = 400,
