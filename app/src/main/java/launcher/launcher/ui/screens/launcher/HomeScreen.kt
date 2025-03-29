@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -60,6 +61,7 @@ fun HomeScreen(navController: NavController) {
 
     val currentDate = getCurrentDate()
     val completedQuests = remember { SnapshotStateList<String>() }
+    val progress = (completedQuests.size.toFloat() / questList.size.toFloat()).coerceIn(0f,1f)
 
     BackHandler {  }
     LaunchedEffect(completedQuests) {
@@ -149,9 +151,9 @@ fun HomeScreen(navController: NavController) {
                         .padding(bottom = 32.dp)
                         .align(Alignment.CenterHorizontally)
                 ) {
-                    ProgressBar(
+                    LinearProgressIndicator(
+                        progress = { progress },
                         modifier = Modifier.fillMaxSize(),
-                        progress = completedQuests.size / questList.size
                     )
                 }
             }

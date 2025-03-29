@@ -2,6 +2,8 @@ package launcher.launcher.ui.screens.launcher.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
