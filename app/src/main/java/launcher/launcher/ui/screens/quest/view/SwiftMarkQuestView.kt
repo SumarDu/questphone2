@@ -1,5 +1,6 @@
 package launcher.launcher.ui.screens.quest.view
 
+import android.os.Vibrator
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -15,8 +16,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.ui.screens.game.dialog.CoinWonDialog
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
+import launcher.launcher.utils.VibrationHelper
 import launcher.launcher.utils.getCurrentDate
 
 @Composable
@@ -38,12 +41,22 @@ fun SwiftMarkQuestView(
     val progress = remember {
         mutableFloatStateOf(if (isQuestComplete.value) 1f else 0f)
     }
+    val isQuestWonDialogVisible = remember {mutableStateOf(false) }
+    if(isQuestWonDialogVisible.value){
+        CoinWonDialog(
+            onDismiss = { isQuestWonDialogVisible.value = false },
+            reward = basicQuestInfo.reward
+        )
+
+    }
     BaseQuestView(
         hideStartQuestBtn = isQuestComplete.value,
         onQuestStarted = {
             isQuestComplete.value = true
             progress.floatValue = 1f
             questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
+            VibrationHelper.vibrate(100)
+            isQuestWonDialogVisible.value = true
         },
         progress = progress,
         loadingAnimationDuration = 400,
