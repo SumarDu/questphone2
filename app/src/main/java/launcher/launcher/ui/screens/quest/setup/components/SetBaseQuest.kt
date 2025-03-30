@@ -59,5 +59,7 @@ fun SetBaseQuest(baseQuestState: BaseQuestState,) {
         modifier = Modifier.fillMaxWidth()
             .height(200.dp)
     )
+    AutoDestruct()
+    SetTimeRange()
 
 }

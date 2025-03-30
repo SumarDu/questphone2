@@ -20,6 +20,7 @@ import kotlinx.serialization.json.Json
 import launcher.launcher.config.Integration
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.ui.navigation.Screen
+import launcher.launcher.ui.navigation.Screen.OverallStats
 import launcher.launcher.ui.navigation.SetupQuestScreen
 import launcher.launcher.ui.screens.game.StoreScreen
 import launcher.launcher.ui.screens.launcher.AppList

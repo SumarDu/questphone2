@@ -86,7 +86,10 @@ fun QuestList(navHostController: NavController, questList: List<BasicQuestInfo>,
                 reward = questBase.reward,
                 onClick = {
                     val data = Json.encodeToString<BasicQuestInfo>(questBase)
-                    navHostController.navigate(Screen.ViewQuest.route + data)
+//                    navHostController.navigate(Screen.ViewQuest.route + data)
+                    navHostController.navigate(Screen.OverallStats.route.toString()
+
+                    )
                 }
             )
         }
