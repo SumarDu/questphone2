@@ -29,23 +29,25 @@ import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.HealthConnectManager
 import launcher.launcher.utils.HealthConnectPermissionManager
 import launcher.launcher.utils.QuestHelper
+import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
 
 @SuppressLint("DefaultLocale")
 @Composable
-fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
+fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val questHelper = QuestHelper(context)
-    val healthQuest = questHelper.getQuestInfo<HealthQuest>(baseQuestInfo) ?: return
+    val healthQuest = questHelper.getQuestInfo<HealthQuest>(basicQuestInfo) ?: return
 
     val healthManager = HealthConnectManager(context)
     val permissionManager = HealthConnectPermissionManager(context)
 
     var isQuestComplete =
-        questHelper.isQuestCompleted(baseQuestInfo.title, getCurrentDate()) ?: false
+        questHelper.isQuestCompleted(basicQuestInfo.title, getCurrentDate()) ?: false
     val hasRequiredPermissions = remember { mutableStateOf(false) }
     val currentHealthData = remember { mutableDoubleStateOf(0.0) }
+    val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
     val progressState = remember { mutableFloatStateOf(if (isQuestComplete) 1f else 0f) }
 
     var instructions = ""
@@ -69,7 +71,7 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
     )
 
     LaunchedEffect(instructions) {
-        instructions = questHelper.getInstruction(baseQuestInfo.title)
+        instructions = questHelper.getInstruction(basicQuestInfo.title)
     }
     LaunchedEffect(Unit) {
         val isHealthConnectAvailable = healthManager.isAvailable()
@@ -98,9 +100,9 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
 
     if (progressState.floatValue == 1f) {
         if (!isQuestComplete) {
-            questHelper.markQuestAsComplete(baseQuestInfo, getCurrentDate())
+            questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
             healthQuest.incrementTime()
-            questHelper.updateQuestInfo<HealthQuest>(baseQuestInfo, { healthQuest })
+            questHelper.updateQuestInfo<HealthQuest>(basicQuestInfo) { healthQuest }
             isQuestComplete = true
         }
     }
@@ -124,16 +126,22 @@ fun HealthQuestView(baseQuestInfo: BasicQuestInfo) {
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = baseQuestInfo.title,
+                    text = basicQuestInfo.title,
                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                     fontFamily = JetBrainsMonoFont,
                     modifier = Modifier.padding(top = 40.dp)
                 )
                 Text(
-                    text = "Reward: ${baseQuestInfo.reward} coins",
+                    text = "Reward: ${basicQuestInfo.reward} coins",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
 
+                if(!isInTimeRange.value){
+                    Text(
+                        text = "Time: ${formatHour(basicQuestInfo.timeRange[0])} to ${formatHour(basicQuestInfo.timeRange[1])}",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
+                    )
+                }
                 Text(
                     text = "Health Task Type: ${healthQuest.type}",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)

@@ -20,6 +20,7 @@ import launcher.launcher.ui.screens.game.dialog.CoinWonDialog
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.VibrationHelper
+import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
 
 @Composable
@@ -36,12 +37,14 @@ fun SwiftMarkQuestView(
             ) ?: false
         )
     }
-    var instructions = ""
 
     val progress = remember {
         mutableFloatStateOf(if (isQuestComplete.value) 1f else 0f)
     }
     val isQuestWonDialogVisible = remember {mutableStateOf(false) }
+
+    val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
+
     if(isQuestWonDialogVisible.value){
         CoinWonDialog(
             onDismiss = { isQuestWonDialogVisible.value = false },
@@ -50,7 +53,7 @@ fun SwiftMarkQuestView(
 
     }
     BaseQuestView(
-        hideStartQuestBtn = isQuestComplete.value,
+        hideStartQuestBtn = isQuestComplete.value || !isInTimeRange.value,
         onQuestStarted = {
             isQuestComplete.value = true
             progress.floatValue = 1f
@@ -76,6 +79,12 @@ fun SwiftMarkQuestView(
                 text = "Reward: ${basicQuestInfo.reward} coins",
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
             )
+            if(!isInTimeRange.value){
+                Text(
+                    text = "Time: ${formatHour(basicQuestInfo.timeRange[0])} to ${formatHour(basicQuestInfo.timeRange[1])}",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
+                )
+            }
 
             MarkdownText(
                 markdown = questHelper.getInstruction(basicQuestInfo.title),

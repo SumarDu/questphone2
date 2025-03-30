@@ -1,7 +1,5 @@
 package launcher.launcher.ui.screens.launcher
 
-import android.net.Uri
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -23,9 +21,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.toRect
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
@@ -34,25 +29,16 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.coroutineScope
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.components.LiveClock
-import launcher.launcher.ui.screens.launcher.components.ProgressBar
 import launcher.launcher.utils.CoinHelper
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.getCurrentDate
 
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import launcher.launcher.utils.VibrationHelper
-import kotlin.math.max
-import kotlin.math.min
 
 @Composable
 fun HomeScreen(navController: NavController) {
@@ -164,7 +150,7 @@ fun HomeScreen(navController: NavController) {
                 items(questList.size){ index ->
                     val baseQuest = questList[index]
                     QuestItem(
-                        text =  baseQuest.title,
+                        text =  if(QuestHelper.isInTimeRange(baseQuest)) baseQuest.title else "UC: " + baseQuest.title,
                         isCompleted = completedQuests.contains(baseQuest.title),
                         modifier = Modifier.clickable {
                             viewQuest(baseQuest,navController)

@@ -1,20 +1,20 @@
 package launcher.launcher.ui.screens.quest.setup.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import launcher.launcher.data.quest.BaseQuestState
+import launcher.launcher.utils.formatHour
 
 @Composable
-fun SetTimeRange() {
+fun SetTimeRange(initialTimeRange: BaseQuestState) {
     var showDialog by remember { mutableStateOf(false) }
     var startHour by remember { mutableStateOf(0) }
     var endHour by remember { mutableStateOf(24) } // 24 represents midnight (12 AM next day)
@@ -34,6 +34,7 @@ fun SetTimeRange() {
                 startHour = newStart
                 endHour = if (newEnd == 0) 24 else newEnd // Midnight fix
                 showDialog = false
+                initialTimeRange.initialTimeRange = listOf(startHour,endHour)
             }
         )
     }
@@ -129,14 +130,5 @@ fun HourPicker(selectedHour: Int, availableHours: List<Int>, onHourSelected: (In
                 )
             }
         }
-    }
-}
-
-fun formatHour(hour: Int): String {
-    return when (hour) {
-        0, 24 -> "12 AM" // Midnight fix
-        12 -> "12 PM"
-        in 1..11 -> "$hour AM"
-        else -> "${hour - 12} PM"
     }
 }

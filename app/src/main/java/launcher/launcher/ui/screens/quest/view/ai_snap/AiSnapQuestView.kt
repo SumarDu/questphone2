@@ -24,6 +24,7 @@ import launcher.launcher.ui.screens.quest.view.BaseQuestView
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.Supabase
+import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
 
 @Composable
@@ -48,6 +49,7 @@ fun AiSnapQuestView(
     val progress = remember {
         mutableFloatStateOf(if (isQuestComplete.value) 1f else 0f)
     }
+    val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
 
     BackHandler(isCameraScreen.value || isAiEvaluating.value) {
         isCameraScreen.value = false
@@ -91,6 +93,12 @@ fun AiSnapQuestView(
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
 
+                if(!isInTimeRange.value){
+                    Text(
+                        text = "Time: ${formatHour(basicQuestInfo.timeRange[0])} to ${formatHour(basicQuestInfo.timeRange[1])}",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
+                    )
+                }
                 MarkdownText(
                     markdown = questHelper.getInstruction(basicQuestInfo.title),
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),

@@ -20,7 +20,6 @@ import kotlinx.serialization.json.Json
 import launcher.launcher.config.Integration
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.ui.navigation.Screen
-import launcher.launcher.ui.navigation.Screen.OverallStats
 import launcher.launcher.ui.navigation.SetupQuestScreen
 import launcher.launcher.ui.screens.game.StoreScreen
 import launcher.launcher.ui.screens.launcher.AppList
@@ -88,7 +87,7 @@ class MainActivity : ComponentActivity() {
                             val json = backStackEntry.arguments?.getString("baseQuestInfo")
                             val basicQuestInfo = json?.let { Json.decodeFromString<BasicQuestInfo>(it) }
 
-                            ViewQuest(basicQuestInfo!!)
+                            ViewQuest(navController,basicQuestInfo!!)
                         }
 
                         navigation(startDestination = SetupQuestScreen.Integration.route, route = Screen.AddNewQuest.route){

@@ -36,6 +36,7 @@ import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.data.quest.focus.DeepFocus
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
+import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
 
 private const val PREF_NAME = "deep_focus_prefs"
@@ -53,6 +54,7 @@ fun DeepFocusQuestView(
     val questHelper = QuestHelper(context)
     val deepFocus = questHelper.getQuestInfo<DeepFocus>(basicQuestInfo) ?: return
     val duration = deepFocus.nextFocusDurationInMillis
+    val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
 
     var instructions = ""
 
@@ -230,6 +232,12 @@ fun DeepFocusQuestView(
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
             )
 
+            if(!isInTimeRange.value){
+                Text(
+                    text = "Time: ${formatHour(basicQuestInfo.timeRange[0])} to ${formatHour(basicQuestInfo.timeRange[1])}",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
+                )
+            }
             // Show remaining time
             if (isQuestRunning && progress < 1f) {
                 val remainingSeconds = ((duration * (1 - progress)) / 1000).toInt()

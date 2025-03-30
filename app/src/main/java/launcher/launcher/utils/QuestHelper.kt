@@ -5,9 +5,8 @@ import android.content.SharedPreferences
 import android.util.Log
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.quest.BasicQuestInfo
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import androidx.core.content.edit
+import java.util.Calendar
 
 /* How quests are stored:
 Each quest has a BasicQuestInfo object that contains essential details like the title. This basic data is required for all types of quests.
@@ -24,6 +23,7 @@ class QuestHelper(context: Context) {
 
     val coinHelper = CoinHelper(context)
     val instructionPref = context.getSharedPreferences(INSTRUCTION_NAME, Context.MODE_PRIVATE)
+    val destructionPref = context.getSharedPreferences(DESTRUCTION_NAME, Context.MODE_PRIVATE)
 
     val json = Json {
         ignoreUnknownKeys = true
@@ -93,8 +93,12 @@ class QuestHelper(context: Context) {
         return instructionPref.getString(title,"").toString()
     }
 
-
-
+    fun markAsDestroyed(title:String){
+        destructionPref.edit { putBoolean(title, true) }
+    }
+    fun isDestroyed(title:String): Boolean{
+        return destructionPref.getBoolean(title,false)
+    }
 
     fun isQuestCompleted(title:String, date: String): Boolean? {
         val lastPerformed =
@@ -126,15 +130,33 @@ class QuestHelper(context: Context) {
         val today = getCurrentDay()
         Log.d("current day",today.name)
         Log.d("all quests ",quests.toString())
-        return quests.filter { it.selectedDays.contains(today) }
+
+        return quests.filter {
+            it.selectedDays.contains(today)
+            !isDestroyed(it.title)
+        }
     }
 
     companion object {
         private const val PREF_NAME = "all_quest_preferences"
         private const val ALL_QUESTS_LIST_KEY = "quest_list"
         private const val INSTRUCTION_NAME = "instruction_data"
+        private const val DESTRUCTION_NAME = "destruction_data"
         private const val QUEST_LAST_PERFORMED_SUFFIX = "date_wen_quest_lst_d_"
         private const val QUEST_IS_RUNNING_SUFFIX = "quest_state_"
+
+        fun isInTimeRange(baseData: BasicQuestInfo):Boolean {
+            val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            val timeRange = baseData.timeRange
+            return currentHour in timeRange[0]..timeRange[1]
+        }
+
+
+        fun isNeedAutoDestruction(baseData: BasicQuestInfo): Boolean {
+            val today = getCurrentDate()
+            val autoDestruct = baseData.autoDestruct
+            return today==autoDestruct
+        }
 
     }
 }
