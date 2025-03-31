@@ -6,13 +6,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import launcher.launcher.data.AppInfo
 
 @Composable
 fun SelectAppsDialog(
-    apps: List<Pair<String, String>>, // (appName, packageName) pairs
+    apps: MutableState<List<AppInfo>>, // (appName, packageName) pairs
     selectedApps: MutableList<String>, // State for selected package names
     onDismiss: () -> Unit
 ) {
@@ -25,7 +27,7 @@ fun SelectAppsDialog(
                     .fillMaxWidth()
                     .heightIn(max = 400.dp) // Limit height to avoid overflow
             ) {
-                items(apps) { (appName, packageName) ->
+                items(apps.value) { (appName, packageName) ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

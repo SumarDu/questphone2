@@ -26,6 +26,7 @@ import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import launcher.launcher.ui.navigation.Screen
 import androidx.core.content.edit
+import launcher.launcher.utils.VibrationHelper
 
 // Sealed class to represent different types of onboarding pages
 sealed class OnboardingContent {
@@ -120,6 +121,7 @@ fun OnboardingScreen(
             ) {
                 TextButton(
                     onClick = {
+                        VibrationHelper.vibrate(50)
                         scope.launch {
                             pagerState.animateScrollToPage(pagerState.currentPage - 1)
                         }
@@ -144,6 +146,7 @@ fun OnboardingScreen(
             ) {
             Button(
                 onClick = {
+                    VibrationHelper.vibrate(50)
                     if (isLastPage) {
                         onFinishOnboarding()
                     } else {
@@ -218,6 +221,10 @@ fun OnBoardScreen(navController: NavHostController) {
                 "How it Works?",
                 "Unlock screen time by completing real-life challenges! Whether it’s doing meditation, taking a walk, or studying, you decide how to earn your screen time. Stay productive while still enjoying your favorite apps!"
             ),
+
+            OnboardingContent.CustomPage{ isNextEnabled ->
+                SetLauncher(isNextEnabled)
+            },
             OnboardingContent.StandardPage(
                 "Stay Motivated",
                 "BlankPhone makes it fun! Earn XP, level up, and collect badges as you build healthier screen habits."

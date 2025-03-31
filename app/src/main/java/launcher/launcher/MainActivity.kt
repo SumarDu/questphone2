@@ -42,7 +42,6 @@ class MainActivity : ComponentActivity() {
         VibrationHelper.init(this)
 
         setContent {
-
             var isUserOnboarded = remember {mutableStateOf(true)}
             LaunchedEffect(isUserOnboarded.value) {
                 isUserOnboarded.value = data.getBoolean("onboard",false)
@@ -50,7 +49,6 @@ class MainActivity : ComponentActivity() {
             }
             LauncherTheme {
                 Surface {
-
                     val navController = rememberNavController()
                     NavHost(
                         navController = navController,
@@ -70,8 +68,7 @@ class MainActivity : ComponentActivity() {
                             StoreScreen(navController)
                         }
                         composable(Screen.AppList.route) {
-                            AppList(
-                            )
+                            AppList()
                         }
 
                         composable(Screen.ListAllQuest.route) {

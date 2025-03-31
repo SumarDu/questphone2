@@ -40,7 +40,6 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleInstance"
             android:taskAffinity=""
             android:excludeFromRecents="true"
             android:theme="@style/Theme.Launcher">

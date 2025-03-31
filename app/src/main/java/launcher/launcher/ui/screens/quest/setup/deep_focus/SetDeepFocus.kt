@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import launcher.launcher.data.AppInfo
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.focus.DeepFocus
 import launcher.launcher.data.quest.focus.FocusTimeConfig
@@ -23,12 +24,13 @@ import launcher.launcher.ui.screens.quest.setup.components.SetBaseQuest
 import launcher.launcher.ui.screens.quest.setup.components.SetFocusTimeUI
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.getCachedApps
+import launcher.launcher.utils.reloadApps
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
 fun SetDeepFocus(navController: NavHostController) {
     val context = LocalContext.current
-    val apps = remember { getCachedApps(context).map { it.name to it.packageName } }
+    val apps = remember { mutableStateOf(emptyList<AppInfo>()) }
 
     val showDialog = remember { mutableStateOf(false) }
     val selectedApps = remember { mutableStateListOf<String>() }
@@ -40,6 +42,10 @@ fun SetDeepFocus(navController: NavHostController) {
 
     val isReviewDialogVisible = remember { mutableStateOf(false) }
 
+
+    LaunchedEffect(apps) {
+        apps.value = reloadApps(context.packageManager,context).getOrNull() ?: emptyList()
+    }
 
     if (showDialog.value) {
         SelectAppsDialog(
