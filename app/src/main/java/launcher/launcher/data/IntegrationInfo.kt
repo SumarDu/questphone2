@@ -23,5 +23,6 @@ data class IntegrationInfo(
     val id: IntegrationId = IntegrationId.DEEP_FOCUS,
     val setupScreen: @Composable (NavHostController) -> Unit = { navController -> SetDeepFocus(navController) },
     val viewScreen: @Composable (BasicQuestInfo) -> Unit = { baseQuest -> DeepFocusQuestView(baseQuest) },
-    val isLoginRequired: Boolean = false
+    val isLoginRequired: Boolean = false,
+    val docLink : String = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/AiSnap.md"
     )

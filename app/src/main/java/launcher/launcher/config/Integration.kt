@@ -22,7 +22,8 @@ class Integration {
                 description = "Block all apps except the essential ones for a set period, allowing you to stay focused on your work.",
                 id = IntegrationId.DEEP_FOCUS,
                 setupScreen = {navController -> SetDeepFocus(navController) },
-                viewScreen = { baseQuest ->  DeepFocusQuestView(baseQuest) }
+                viewScreen = { baseQuest ->  DeepFocusQuestView(baseQuest) },
+                docLink = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/DeepFocus.md"
             ),
             IntegrationInfo(
                 icon = R.drawable.baseline_directions_run_24,
@@ -30,7 +31,8 @@ class Integration {
                 description = "Earn coins for performing health related stuff like steps, water intake and more",
                 setupScreen = { navController ->  SetHealthConnect(navController) },
                 viewScreen = { baseQuest -> HealthQuestView(baseQuest)},
-                id = IntegrationId.HEALTH_CONNECT
+                id = IntegrationId.HEALTH_CONNECT,
+                docLink = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/HealthConnect.md"
             ),
             IntegrationInfo(
                 icon = R.drawable.baseline_bolt_24,
@@ -38,7 +40,8 @@ class Integration {
                 description = "Just mark it as done and earn coins instantly. No verification needed—your honesty is the key!",
                 setupScreen = {navController -> SetSwiftMark(navController) },
                 viewScreen = { baseQuest -> SwiftMarkQuestView(baseQuest) },
-                id = IntegrationId.SWIFT_MARK
+                id = IntegrationId.SWIFT_MARK,
+                docLink = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/SwiftMark.md"
             ),
             IntegrationInfo(
                 icon = R.drawable.baseline_camera_24,
@@ -47,7 +50,8 @@ class Integration {
                 setupScreen = { navController -> SetAiSnap(navController) },
                 viewScreen = { baseQuest -> AiSnapQuestView(baseQuest) },
                 id = IntegrationId.AI_SNAP,
-                isLoginRequired = true
+                isLoginRequired = true,
+                docLink = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/AiSnap.md"
             )
         )
 

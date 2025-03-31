@@ -1,7 +1,9 @@
 package launcher.launcher.ui.screens.quest.setup
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,11 +15,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import io.github.jan.supabase.auth.auth
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.config.Integration
-import launcher.launcher.ui.screens.quest.setup.components.Navigation
-import launcher.launcher.utils.Supabase
+import launcher.launcher.ui.screens.tutorial.QuestTutorial
+import launcher.launcher.utils.VibrationHelper
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
@@ -59,44 +60,59 @@ fun SetIntegration(navController: NavHostController) {
 
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun IntegrationsList(
-    onSelected: (IntegrationId)-> Unit
+    onSelected: (IntegrationId)-> Unit,
 ) {
     val items = Integration.allInfo
+    val currentDocLink = remember { mutableStateOf<String?>(null) }
 
+    BackHandler(currentDocLink.value!=null) {
+        currentDocLink.value = null
+    }
+    if(currentDocLink.value !=null){
+        QuestTutorial(url = currentDocLink.value!!)
+    }else{
 
-    LazyColumn(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
 
-        items(items) { item ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onSelected(item.id) },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { onSelected(item.id) }) {
-                    Icon(
-                        painter = painterResource(id = item.icon),
-                        contentDescription = item.label,
-                        modifier = Modifier.size(50.dp),
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Column(modifier = Modifier.padding(start = 8.dp)) {
-                    Text(
-                        text = item.label,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Normal
+            items(items) { item ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .combinedClickable(
+                            onClick = {onSelected(item.id) },
+                            onLongClick = {
+                                VibrationHelper.vibrate(100)
+                                currentDocLink.value = item.docLink
+                            }
+                        ),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { onSelected(item.id) }) {
+                        Icon(
+                            painter = painterResource(id = item.icon),
+                            contentDescription = item.label,
+                            modifier = Modifier.size(50.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
-                    )
-                    Text(
-                        text = item.description,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    }
+                    Column(modifier = Modifier.padding(start = 8.dp)) {
+                        Text(
+                            text = item.label,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Normal
+                            )
+                        )
+                        Text(
+                            text = item.description,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
             }
         }

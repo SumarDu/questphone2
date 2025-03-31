@@ -231,7 +231,7 @@ fun OnBoardScreen(navController: NavHostController) {
             ),
             OnboardingContent.StandardPage(
                 "Quests",
-                "Real-life tasks are called Quests in BlankPhone. Completing a quest—like exercising, reading, or meditating—earns you Coins. These coins can be used to temporarily unlock the apps that distract you the most!"
+                "Real-life tasks are called Quests in BlankPhone. Completing a quest—like exercising, reading, or meditating—earns you Coins. These coins can be used to temporarily unlock the apps that distract you the most! 5 coins gives you 10 minutes to use a distracting app"
             ),
             OnboardingContent.CustomPage { isNextEnabled ->
                 SelectApps(isNextEnabled)
