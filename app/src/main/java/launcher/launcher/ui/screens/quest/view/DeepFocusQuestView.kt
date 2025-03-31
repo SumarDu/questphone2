@@ -34,10 +34,12 @@ import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.delay
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.data.quest.focus.DeepFocus
+import launcher.launcher.ui.screens.game.dialog.CoinWonDialog
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
+import androidx.core.content.edit
 
 private const val PREF_NAME = "deep_focus_prefs"
 private const val KEY_START_TIME = "start_time_"
@@ -66,7 +68,7 @@ fun DeepFocusQuestView(
     }
 
     var isQuestComplete by remember {
-        mutableStateOf(questHelper.isQuestCompleted(basicQuestInfo.title, getCurrentDate()) ?: false)
+        mutableStateOf(questHelper.isQuestCompleted(basicQuestInfo.title, getCurrentDate()) == true)
     }
     var isQuestRunning by remember {
         mutableStateOf(questHelper.isQuestRunning(basicQuestInfo.title))
@@ -74,15 +76,18 @@ fun DeepFocusQuestView(
 
     var timerActive by remember { mutableStateOf(false) }
 
-    var progress by remember {
-        mutableFloatStateOf(if(isQuestComplete) 1f else 0f)
-    }
-
     val questKey = basicQuestInfo.title.replace(" ", "_").lowercase()
 
     val lifecycleOwner = LocalLifecycleOwner.current
     var isAppInForeground by remember { mutableStateOf(true) }
 
+    val isQuestWonDialogVisible = remember {mutableStateOf(false) }
+    val isFailed = remember { mutableStateOf(QuestHelper.isOver(basicQuestInfo)) }
+
+
+    var progress by remember {
+        mutableFloatStateOf(if (isQuestComplete || isFailed.value ) 1f else 0f)
+    }
     // Observe app lifecycle for notification management
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -115,10 +120,10 @@ fun DeepFocusQuestView(
 
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         // Clear any existing data and set fresh start time
-        prefs.edit()
-            .putLong(KEY_START_TIME + questKey, System.currentTimeMillis())
-            .putLong(KEY_PAUSED_ELAPSED + questKey, 0L)
-            .apply()
+        prefs.edit {
+            putLong(KEY_START_TIME + questKey, System.currentTimeMillis())
+                .putLong(KEY_PAUSED_ELAPSED + questKey, 0L)
+        }
     }
 
     // Load initial state
@@ -143,7 +148,7 @@ fun DeepFocusQuestView(
             val startTime = if (savedStartTime == 0L) {
                 // First time starting the timer
                 val newStartTime = System.currentTimeMillis() - pausedElapsed
-                prefs.edit().putLong(startTimeKey, newStartTime).apply()
+                prefs.edit { putLong(startTimeKey, newStartTime) }
                 newStartTime
             } else {
                 // Resuming existing timer
@@ -166,16 +171,17 @@ fun DeepFocusQuestView(
                     questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
                     questHelper.setQuestRunning(basicQuestInfo.title, false)
                     deepFocus.incrementTime()
-                    questHelper.updateQuestInfo<DeepFocus>(basicQuestInfo,{deepFocus})
+                    questHelper.updateQuestInfo<DeepFocus>(basicQuestInfo) { deepFocus }
                     isQuestComplete = true
+                    isQuestWonDialogVisible.value = true
                     isQuestRunning = false
                     timerActive = false
 
                     // Clear saved times
-                    prefs.edit()
-                        .remove(startTimeKey)
-                        .remove(pausedElapsedKey)
-                        .apply()
+                    prefs.edit {
+                        remove(startTimeKey)
+                            .remove(pausedElapsedKey)
+                    }
 
                     // Cancel notification when complete
                     cancelTimerNotification(context)
@@ -197,7 +203,7 @@ fun DeepFocusQuestView(
                 if (savedStartTime > 0) {
                     val pausedElapsedKey = KEY_PAUSED_ELAPSED + questKey
                     val elapsedTime = System.currentTimeMillis() - savedStartTime
-                    prefs.edit().putLong(pausedElapsedKey, elapsedTime).apply()
+                    prefs.edit { putLong(pausedElapsedKey, elapsedTime) }
                 }
             }
         }
@@ -209,9 +215,18 @@ fun DeepFocusQuestView(
     // Convert progress state to MutableState<Float> for BaseQuestView
     val progressState = remember(progress) { mutableFloatStateOf(progress) }
 
+
+    if(isQuestWonDialogVisible.value){
+        CoinWonDialog(
+            onDismiss = { isQuestWonDialogVisible.value = false },
+            reward = basicQuestInfo.reward
+        )
+
+    }
     BaseQuestView(
-        hideStartQuestBtn = isQuestComplete || isQuestRunning,
+        hideStartQuestBtn = isQuestComplete || isQuestRunning || isFailed.value || !isInTimeRange.value,
         progress = progressState,
+        isFailed = isFailed,
         onQuestStarted = {
             // Start the quest immediately - this is called when button is pressed
             startQuest()
@@ -261,7 +276,7 @@ fun DeepFocusQuestView(
             val apps = deepFocus.unrestrictedApps.mapNotNull { packageName ->
                 try {
                     pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString() to packageName
-                } catch (e: PackageManager.NameNotFoundException) {
+                } catch (_: PackageManager.NameNotFoundException) {
                     null
                 }
             }

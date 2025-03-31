@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.BaseQuestState
 import launcher.launcher.data.quest.health.HealthQuest
@@ -25,7 +26,7 @@ import launcher.launcher.utils.QuestHelper
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
-fun SetHealthConnect() {
+fun SetHealthConnect(navController: NavHostController) {
     val scrollState = rememberScrollState()
     val sp = QuestHelper(LocalContext.current)
 
@@ -45,6 +46,7 @@ fun SetHealthConnect() {
                     baseQuest, healthQuest.value
                 )
                 isReviewDialogVisible.value = false
+                navController.popBackStack()
             },
             onDismiss = {
                 isReviewDialogVisible.value = false
@@ -72,7 +74,7 @@ fun SetHealthConnect() {
                         style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                     )
 
-                    SetBaseQuest(baseQuestState)
+                    SetBaseQuest(baseQuestState, isTimeRangeSupported = false)
 
                         Column(
                             modifier = Modifier

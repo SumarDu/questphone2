@@ -45,9 +45,10 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import launcher.launcher.utils.CoinHelper
+import launcher.launcher.utils.VibrationHelper
 
 @Composable
-fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: Boolean = false, onQuestStarted: () -> Unit, loadingAnimationDuration: Int = 3000, progress:MutableFloatState = mutableFloatStateOf(0f), questViewBody : @Composable () -> Unit) {
+fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: Boolean = false, onQuestStarted: () -> Unit, loadingAnimationDuration: Int = 3000,isFailed: MutableState<Boolean> = mutableStateOf(false), progress:MutableFloatState = mutableFloatStateOf(0f), questViewBody : @Composable () -> Unit) {
     val coinHelper = CoinHelper(LocalContext.current)
 
     val scrollState = rememberScrollState()
@@ -60,7 +61,7 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
     Box(Modifier.fillMaxSize()) {
         Canvas(Modifier.fillMaxSize()) {
             drawRect(
-                color = Color(0xFF006064),
+                color = if(!isFailed.value) Color(0xFF006064) else Color(0xFFB00023),
                 size = Size(size.width, animatedProgress * size.height),
             )
         }
@@ -71,6 +72,7 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
                 if(!hideStartQuestBtn) {
                     Button(
                         onClick = {
+                            VibrationHelper.vibrate(100)
                             onQuestStarted()
                         },
                         shape = RoundedCornerShape(8.dp),

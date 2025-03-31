@@ -34,36 +34,36 @@ fun SwiftMarkQuestView(
             questHelper.isQuestCompleted(
                 basicQuestInfo.title,
                 getCurrentDate()
-            ) ?: false
+            ) == true
         )
     }
 
-    val progress = remember {
-        mutableFloatStateOf(if (isQuestComplete.value) 1f else 0f)
-    }
-    val isQuestWonDialogVisible = remember {mutableStateOf(false) }
-
     val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
+    val isQuestWonDialogVisible = remember {mutableStateOf(false) }
+    val isFailed = remember { mutableStateOf(QuestHelper.isOver(basicQuestInfo)) }
+
+    val progress = remember {
+        mutableFloatStateOf(if (isQuestComplete.value || isFailed.value ) 1f else 0f)
+    }
 
     if(isQuestWonDialogVisible.value){
         CoinWonDialog(
             onDismiss = { isQuestWonDialogVisible.value = false },
             reward = basicQuestInfo.reward
         )
-
     }
     BaseQuestView(
-        hideStartQuestBtn = isQuestComplete.value || !isInTimeRange.value,
+        hideStartQuestBtn = isQuestComplete.value || !isInTimeRange.value || isFailed.value,
         onQuestStarted = {
             isQuestComplete.value = true
             progress.floatValue = 1f
             questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
-            VibrationHelper.vibrate(100)
             isQuestWonDialogVisible.value = true
         },
         progress = progress,
         loadingAnimationDuration = 400,
-        startButtonTitle = "Mark as complete"
+        startButtonTitle = "Mark as complete",
+        isFailed = isFailed
     ) {
         Column(
             modifier = Modifier.padding(16.dp)

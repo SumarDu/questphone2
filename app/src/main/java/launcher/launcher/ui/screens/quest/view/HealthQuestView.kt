@@ -24,6 +24,7 @@ import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.data.quest.health.HealthTaskType
 import launcher.launcher.data.quest.health.getUnitForType
+import launcher.launcher.ui.screens.game.dialog.CoinWonDialog
 import launcher.launcher.ui.screens.tutorial.HealthConnectScreen
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.HealthConnectManager
@@ -47,8 +48,8 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
         questHelper.isQuestCompleted(basicQuestInfo.title, getCurrentDate()) ?: false
     val hasRequiredPermissions = remember { mutableStateOf(false) }
     val currentHealthData = remember { mutableDoubleStateOf(0.0) }
-    val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
     val progressState = remember { mutableFloatStateOf(if (isQuestComplete) 1f else 0f) }
+    val isQuestWonDialogVisible = remember {mutableStateOf(false) }
 
     var instructions = ""
 
@@ -104,6 +105,7 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
             healthQuest.incrementTime()
             questHelper.updateQuestInfo<HealthQuest>(basicQuestInfo) { healthQuest }
             isQuestComplete = true
+            isQuestWonDialogVisible.value = true
         }
     }
 
@@ -118,6 +120,14 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
         )
     } else {
 
+
+        if(isQuestWonDialogVisible.value){
+            CoinWonDialog(
+                onDismiss = { isQuestWonDialogVisible.value = false },
+                reward = basicQuestInfo.reward
+            )
+
+        }
         BaseQuestView(
             hideStartQuestBtn = true,
             progress = progressState,
@@ -136,12 +146,6 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
 
-                if(!isInTimeRange.value){
-                    Text(
-                        text = "Time: ${formatHour(basicQuestInfo.timeRange[0])} to ${formatHour(basicQuestInfo.timeRange[1])}",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
-                    )
-                }
                 Text(
                     text = "Health Task Type: ${healthQuest.type}",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)

@@ -98,7 +98,7 @@ class MainActivity : ComponentActivity() {
                             }
                             Integration.setupRoutes.forEach{ integrationInfo ->
                                 composable(route=integrationInfo.value.first) {
-                                    integrationInfo.value.second.invoke()
+                                    integrationInfo.value.second.invoke(navController)
                                 }
                             }
                         }

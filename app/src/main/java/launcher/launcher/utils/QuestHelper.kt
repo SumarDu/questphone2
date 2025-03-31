@@ -6,6 +6,8 @@ import android.util.Log
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.quest.BasicQuestInfo
 import androidx.core.content.edit
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
 
 /* How quests are stored:
@@ -150,13 +152,18 @@ class QuestHelper(context: Context) {
             val timeRange = baseData.timeRange
             return currentHour in timeRange[0]..timeRange[1]
         }
-
-
-        fun isNeedAutoDestruction(baseData: BasicQuestInfo): Boolean {
-            val today = getCurrentDate()
-            val autoDestruct = baseData.autoDestruct
-            return today==autoDestruct
+        fun isOver(baseData: BasicQuestInfo): Boolean {
+            val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            return (currentHour>baseData.timeRange[1])
         }
 
+        fun isNeedAutoDestruction(baseData: BasicQuestInfo): Boolean {
+            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+
+            val today = LocalDate.now()
+            val autoDestruct = LocalDate.parse(baseData.autoDestruct, formatter)
+
+            return today >= autoDestruct
+        }
     }
 }

@@ -38,7 +38,9 @@ import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.getCurrentDate
 
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import launcher.launcher.utils.VibrationHelper
+import launcher.launcher.utils.formatHour
 
 @Composable
 fun HomeScreen(navController: NavController) {
@@ -59,7 +61,8 @@ fun HomeScreen(navController: NavController) {
             if(questHelper.isQuestRunning(item.title)){
                 viewQuest(item,navController)
             }
-        } }
+        }
+    }
 
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -149,9 +152,12 @@ fun HomeScreen(navController: NavController) {
             LazyColumn {
                 items(questList.size){ index ->
                     val baseQuest = questList[index]
+                    val timeRange = "${formatHour(baseQuest.timeRange[0])} - ${formatHour(baseQuest.timeRange[1])} : "
+                    val prefix = if(baseQuest.timeRange[0]==0&&baseQuest.timeRange[1]==24) "" else timeRange
                     QuestItem(
-                        text =  if(QuestHelper.isInTimeRange(baseQuest)) baseQuest.title else "UC: " + baseQuest.title,
+                        text =  if(QuestHelper.isInTimeRange(baseQuest) && QuestHelper.isOver(baseQuest)) baseQuest.title else  prefix +  baseQuest.title,
                         isCompleted = completedQuests.contains(baseQuest.title),
+                        isFailed = QuestHelper.isOver(baseQuest),
                         modifier = Modifier.clickable {
                             viewQuest(baseQuest,navController)
                     })
@@ -178,11 +184,12 @@ fun viewQuest(baseQuest: BasicQuestInfo, navController: NavController) {
 fun QuestItem(
     text: String,
     isCompleted: Boolean = false,
+    isFailed: Boolean = false,
     modifier: Modifier
 ) {
     Text(
         text = text,
-        style = if (isCompleted) {
+        style = if (isCompleted || isFailed) {
             MaterialTheme.typography.bodyLarge.copy(textDecoration = TextDecoration.LineThrough)
         } else {
             MaterialTheme.typography.bodyLarge
@@ -190,6 +197,7 @@ fun QuestItem(
         modifier = modifier
             .fillMaxWidth()
             .padding(8.dp),
+        color = if (isFailed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
         textAlign = TextAlign.Center
     )
 }

@@ -21,14 +21,14 @@ class Integration {
                 label = "Deep Focus",
                 description = "Block all apps except the essential ones for a set period, allowing you to stay focused on your work.",
                 id = IntegrationId.DEEP_FOCUS,
-                setupScreen = {SetDeepFocus()},
+                setupScreen = {navController -> SetDeepFocus(navController) },
                 viewScreen = { baseQuest ->  DeepFocusQuestView(baseQuest) }
             ),
             IntegrationInfo(
                 icon = R.drawable.baseline_directions_run_24,
                 label = "Health Connect",
                 description = "Earn coins for performing health related stuff like steps, water intake and more",
-                setupScreen = { SetHealthConnect() },
+                setupScreen = { navController ->  SetHealthConnect(navController) },
                 viewScreen = { baseQuest -> HealthQuestView(baseQuest)},
                 id = IntegrationId.HEALTH_CONNECT
             ),
@@ -36,7 +36,7 @@ class Integration {
                 icon = R.drawable.baseline_bolt_24,
                 label = "Swift Mark",
                 description = "Just mark it as done and earn coins instantly. No verification needed—your honesty is the key!",
-                setupScreen = { SetSwiftMark() },
+                setupScreen = {navController -> SetSwiftMark(navController) },
                 viewScreen = { baseQuest -> SwiftMarkQuestView(baseQuest) },
                 id = IntegrationId.SWIFT_MARK
             ),
@@ -44,7 +44,7 @@ class Integration {
                 icon = R.drawable.baseline_camera_24,
                 label = "AI verified Snap",
                 description = "Complete the task, snap a pic, and let AI verify your progress!",
-                setupScreen = { SetAiSnap() },
+                setupScreen = { navController -> SetAiSnap(navController) },
                 viewScreen = { baseQuest -> AiSnapQuestView(baseQuest) },
                 id = IntegrationId.AI_SNAP,
                 isLoginRequired = true

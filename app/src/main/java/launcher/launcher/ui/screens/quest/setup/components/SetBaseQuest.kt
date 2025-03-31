@@ -12,7 +12,7 @@ import launcher.launcher.data.quest.BaseQuestState
 import launcher.launcher.utils.QuestHelper
 
 @Composable
-fun SetBaseQuest(baseQuestState: BaseQuestState,) {
+fun SetBaseQuest(baseQuestState: BaseQuestState,isTimeRangeSupported: Boolean = true) {
 
 //        Text(
 //            text = "Set Info",
@@ -60,6 +60,9 @@ fun SetBaseQuest(baseQuestState: BaseQuestState,) {
             .height(200.dp)
     )
     AutoDestruct(baseQuestState)
-    SetTimeRange(baseQuestState)
+
+    if(isTimeRangeSupported){
+        SetTimeRange(baseQuestState)
+    }
 
 }

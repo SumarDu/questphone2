@@ -1,6 +1,7 @@
 package launcher.launcher.data
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
 import launcher.launcher.R
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.ui.screens.quest.setup.deep_focus.SetDeepFocus
@@ -20,7 +21,7 @@ data class IntegrationInfo(
     val label: String = "",
     val description: String = "",
     val id: IntegrationId = IntegrationId.DEEP_FOCUS,
-    val setupScreen: @Composable () -> Unit = { SetDeepFocus() },
+    val setupScreen: @Composable (NavHostController) -> Unit = { navController -> SetDeepFocus(navController) },
     val viewScreen: @Composable (BasicQuestInfo) -> Unit = { baseQuest -> DeepFocusQuestView(baseQuest) },
     val isLoginRequired: Boolean = false
     )

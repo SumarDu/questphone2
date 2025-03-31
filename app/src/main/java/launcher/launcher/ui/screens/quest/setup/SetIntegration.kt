@@ -22,27 +22,8 @@ import launcher.launcher.utils.Supabase
 @SuppressLint("UnrememberedMutableState")
 @Composable
 fun SetIntegration(navController: NavHostController) {
-    val selectedIntegration = remember { mutableStateOf(IntegrationId.DEEP_FOCUS) }
 
-    Scaffold(
-        floatingActionButton = {
-
-            Navigation(
-                onBackPressed = {
-                },
-                onNextPressed = {
-                    Integration.setupRoutes[selectedIntegration.value.name]?.let {
-                        navController.navigate(
-                            it.first)
-                    }
-                },
-                backButtonText = "Exit",
-                isNextEnabled = mutableStateOf(true),
-            )
-
-
-        }
-    )
+    Scaffold()
     { paddingValues ->
         Box(
             modifier = Modifier
@@ -64,59 +45,19 @@ fun SetIntegration(navController: NavHostController) {
                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                 )
 
-                IntegrationsList(selectedIntegration)
-            }
-        }
-
-    }
-
-}
-
-
-@Composable
-fun IntegrationsList(
-    selectedItem: MutableState<IntegrationId>
-) {
-    val items = Integration.allInfo
-
-
-    LazyColumn(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
-
-        items(items) { item ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { selectedItem.value = item.id },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { selectedItem.value = item.id }) {
-                    Icon(
-                        painter = painterResource(id = item.icon),
-                        contentDescription = item.label,
-                        modifier = Modifier.size(50.dp),
-                        tint = if (selectedItem.value == item.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Column(modifier = Modifier.padding(start = 8.dp)) {
-                    Text(
-                        text = item.label,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = if (selectedItem.value == item.id) FontWeight.Bold else FontWeight.Normal
+                IntegrationsList{
+                    Integration.setupRoutes[it.name]?.let {
+                        navController.navigate(
+                            it.first
                         )
-                    )
-                    Text(
-                        text = item.description,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    }
                 }
             }
         }
-    }
-}
 
+    }
+
+}
 
 @Composable
 fun IntegrationsList(
