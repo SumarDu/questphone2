@@ -21,7 +21,7 @@ class CoinHelper(context: Context) {
         sharedPreferences.edit { putInt(COIN_COUNT_KEY, getCoinCount() - value) }
     }
     fun canUserAffordPurchase(value:Int):Boolean{
-        return getCoinCount() + value >= 0
+        return getCoinCount() - value >= 0
     }
 
 

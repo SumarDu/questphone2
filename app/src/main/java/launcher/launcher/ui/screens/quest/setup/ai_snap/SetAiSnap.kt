@@ -1,9 +1,11 @@
 package launcher.launcher.ui.screens.quest.setup.ai_snap
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,16 +17,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.BaseQuestState
 import launcher.launcher.data.quest.ai.snap.AiSnap
 import launcher.launcher.ui.screens.quest.setup.ReviewDialog
 import launcher.launcher.ui.screens.quest.setup.components.SetBaseQuest
 import launcher.launcher.utils.QuestHelper
+import java.io.File
+import java.io.FileOutputStream
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
@@ -63,7 +70,9 @@ fun SetAiSnap(navController: NavHostController) {
                 sp.appendToQuestList(baseQuest, aiSnapQuest)
                 isReviewDialogVisible.value = false
                 navController.popBackStack()
-                
+                if(spatialImageUri.value !=null){
+                    aiSnapQuest.spatialImageUrl = saveImageToLocalFiles(context,spatialImageUri.value!!)?.absolutePath
+                }
             },
             onDismiss = {
                 isReviewDialogVisible.value = false
@@ -135,16 +144,16 @@ fun SetAiSnap(navController: NavHostController) {
                         ) {
                             if (spatialImageUri.value != null) {
                                 // Show selected image
-//                                    Image(
-//                                        painter = rememberAsyncImagePainter(
-//                                            ImageRequest.Builder(context)
-//                                                .data(spatialImageUri.value)
-//                                                .build()
-//                                        ),
-//                                        contentDescription = "Reference Image",
-//                                        modifier = Modifier.fillMaxSize(),
-//                                        contentScale = ContentScale.Crop
-//                                    )
+                                    Image(
+                                        painter = rememberAsyncImagePainter(
+                                            ImageRequest.Builder(context)
+                                                .data(spatialImageUri.value)
+                                                .build()
+                                        ),
+                                        contentDescription = "Reference Image",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
                             } else {
                                 // Show placeholder
                                 Column(
@@ -203,4 +212,23 @@ fun SetAiSnap(navController: NavHostController) {
             }
         }
     }
+}
+private fun saveImageToLocalFiles(context: Context, uri: Uri): File? {
+    try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        val directory = File(context.filesDir, "images")
+        if (!directory.exists()) directory.mkdirs()
+
+        val file = File(directory, "saved_image_${System.currentTimeMillis()}.jpg")
+        val outputStream = FileOutputStream(file)
+
+        inputStream.use { input -> outputStream.use { output ->
+            input.copyTo(output)
+        } }
+
+        return file // Returns the saved file
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+    return null
 }

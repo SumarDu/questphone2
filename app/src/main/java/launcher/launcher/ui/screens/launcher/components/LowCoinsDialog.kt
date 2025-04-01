@@ -36,6 +36,7 @@ fun LowCoinsDialog(
             Text(
                 text = "You're too broke to use this app right now. ",
                 color = Color.White,
+                textAlign = TextAlign.Center,
                 modifier = Modifier.padding(bottom = 16.dp)
                     .align(Alignment.CenterHorizontally)
             )
