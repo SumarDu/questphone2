@@ -19,7 +19,7 @@ class TaskValidationClient {
 
     companion object {
         private const val TAG = "TaskValidationClient"
-        private const val BASE_URL = "http://localhost:8000" // Use 10.0.2.2 for emulator localhost
+        private const val BASE_URL = "http://ec2-3-83-89-169.compute-1.amazonaws.com:8000" // Use 10.0.2.2 for emulator localhost
     }
 
     data class ValidationResult(

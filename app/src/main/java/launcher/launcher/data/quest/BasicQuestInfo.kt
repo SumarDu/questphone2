@@ -9,6 +9,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
 import launcher.launcher.data.DayOfWeek
 import launcher.launcher.data.IntegrationId
+import launcher.launcher.utils.getCurrentDate
 
 /**
  * Stores basic information about a quests
@@ -28,6 +29,7 @@ data class BasicQuestInfo(
     var selectedDays: Set<DayOfWeek> = emptySet(),
     var autoDestruct: String = "9999-12-31",
     var timeRange: List<Int> = listOf(0,24),
+    var createdOn : String = getCurrentDate()
 )
 
 

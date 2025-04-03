@@ -110,6 +110,7 @@ class QuestHelper(context: Context) {
     }
 
     fun markQuestAsComplete(baseData: BasicQuestInfo, date: String) {
+        VibrationHelper.vibrate(100)
         sharedPreferences.edit { putString(QUEST_LAST_PERFORMED_SUFFIX + baseData.title, date) }
         coinHelper.incrementCoinCount(baseData.reward)
     }
