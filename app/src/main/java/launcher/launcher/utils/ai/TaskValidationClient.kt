@@ -11,6 +11,7 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class TaskValidationClient {
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS) // Adjust timeout as needed
         .readTimeout(30, TimeUnit.SECONDS)

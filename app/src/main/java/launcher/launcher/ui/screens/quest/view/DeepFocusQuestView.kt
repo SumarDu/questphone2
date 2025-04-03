@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
@@ -40,6 +41,10 @@ import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
 import androidx.core.content.edit
+import launcher.launcher.services.AccessibilityService
+import launcher.launcher.services.INTENT_ACTION_START_DEEP_FOCUS
+import launcher.launcher.services.INTENT_ACTION_STOP_DEEP_FOCUS
+import launcher.launcher.utils.sendRefreshRequest
 
 private const val PREF_NAME = "deep_focus_prefs"
 private const val KEY_START_TIME = "start_time_"
@@ -124,6 +129,9 @@ fun DeepFocusQuestView(
             putLong(KEY_START_TIME + questKey, System.currentTimeMillis())
                 .putLong(KEY_PAUSED_ELAPSED + questKey, 0L)
         }
+        val intent = Intent(INTENT_ACTION_START_DEEP_FOCUS)
+        intent.putStringArrayListExtra("exception", deepFocus.unrestrictedApps.toCollection(ArrayList()))
+        context.sendBroadcast(intent)
     }
 
     // Load initial state
@@ -185,6 +193,8 @@ fun DeepFocusQuestView(
 
                     // Cancel notification when complete
                     cancelTimerNotification(context)
+                    sendRefreshRequest(context, INTENT_ACTION_STOP_DEEP_FOCUS)
+
                 }
 
                 delay(1000) // Update every second instead of 100ms to reduce battery usage

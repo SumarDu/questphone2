@@ -17,9 +17,12 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import androidx.core.app.NotificationCompat
 import launcher.launcher.blockers.AppBlocker
+import launcher.launcher.blockers.DeepFocus
 
 const val INTENT_ACTION_REFRESH_APP_BLOCKER = "launcher.launcher.refresh.appblocker"
 const val INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN = "launcher.launcher.refresh.appblocker.cooldown"
+const val INTENT_ACTION_START_DEEP_FOCUS = "launcher.launcher.start.deepfocus"
+const val INTENT_ACTION_STOP_DEEP_FOCUS = "launcher.launcher.stop.deepfocus"
 private const val NOTIFICATION_CHANNEL_ID = "app_cooldown_channel"
 private const val NOTIFICATION_ID = 1002
 
@@ -29,12 +32,13 @@ class AccessibilityService : AccessibilityService() {
     private var timerRunnable: Runnable? = null
     private var lastPackage = ""
     val appBlocker = AppBlocker()
+    val deepFocus = DeepFocus()
     private var isTimerRunning = false
     private var currentCooldownPackage = ""
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         // Only process TYPE_WINDOW_STATE_CHANGED events to detect app switches
-        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||event.packageName == packageName) {
             return
         }
 
@@ -46,6 +50,13 @@ class AccessibilityService : AccessibilityService() {
         lastPackage = packageName
         Log.d("AppBlockerService", "Switched to app $packageName")
         handleAppBlockerResult(appBlocker.doesAppNeedToBeBlocked(packageName), packageName)
+        handleDeepFocusResult(deepFocus.doesAppNeedToBeBlocked(packageName))
+    }
+
+    private fun handleDeepFocusResult(isBlocked: Boolean) {
+        if(isBlocked){
+            pressHome()
+        }
     }
 
     private fun handleAppBlockerResult(result: AppBlocker.AppBlockerResult, packageName: String) {
@@ -94,6 +105,14 @@ class AccessibilityService : AccessibilityService() {
             if (intent == null) return
             when (intent.action) {
                 INTENT_ACTION_REFRESH_APP_BLOCKER -> setupAppBlocker()
+                INTENT_ACTION_START_DEEP_FOCUS -> {
+                    deepFocus.exceptionApps = intent.getStringArrayListExtra("exception")?.toHashSet()!!
+                    deepFocus.isRunning = true
+                }
+                INTENT_ACTION_STOP_DEEP_FOCUS -> {
+                    deepFocus.isRunning = false
+                    deepFocus.exceptionApps = hashSetOf<String>()
+                }
                 INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN -> {
                     val interval = intent.getIntExtra("selected_time", 0).toLong()
                     val coolPackage = intent.getStringExtra("result_id") ?: ""
@@ -133,6 +152,8 @@ class AccessibilityService : AccessibilityService() {
         val filter = IntentFilter().apply {
             addAction(INTENT_ACTION_REFRESH_APP_BLOCKER)
             addAction(INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN)
+            addAction(INTENT_ACTION_START_DEEP_FOCUS)
+            addAction(INTENT_ACTION_STOP_DEEP_FOCUS)
         }
 
         try {
@@ -168,7 +189,6 @@ class AccessibilityService : AccessibilityService() {
                 val remainingMs = endTime - currentTime
 
                 // Convert to seconds for display and calculations
-                val elapsedSeconds = elapsedMs / 1000
                 val remainingSeconds = remainingMs / 1000
 
                 val progress = elapsedMs.toFloat() / durationMs.toFloat()
@@ -210,39 +230,36 @@ class AccessibilityService : AccessibilityService() {
     }
 
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "App Cooldown"
-            val descriptionText = "Shows remaining cooldown time for apps"
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance).apply {
-                description = descriptionText
-                setShowBadge(true)
-                enableVibration(false)
-                enableLights(false)
-            }
+        val name = "App Cooldown"
+        val descriptionText = "Shows remaining cooldown time for apps"
+        val importance = NotificationManager.IMPORTANCE_DEFAULT
+        val channel = NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance).apply {
+            description = descriptionText
+            setShowBadge(true)
+            enableVibration(false)
+            enableLights(false)
+        }
 
-            try {
-                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationManager.createNotificationChannel(channel)
-                Log.d("AppBlockerService", "Notification channel created: $NOTIFICATION_CHANNEL_ID")
-            } catch (e: Exception) {
-                Log.e("AppBlockerService", "Failed to create notification channel: ${e.message}")
-            }
+        try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+            Log.d("AppBlockerService", "Notification channel created: $NOTIFICATION_CHANNEL_ID")
+        } catch (e: Exception) {
+            Log.e("AppBlockerService", "Failed to create notification channel: ${e.message}")
         }
     }
 
+    @SuppressLint("DefaultLocale")
     private fun updateTimerNotification(packageName: String, progress: Float, remainingSeconds: Long) {
         try {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
             // Check if notifications are enabled
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                val channel = notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID)
-                if (channel != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    if (channel.importance == NotificationManager.IMPORTANCE_NONE) {
-                        Log.w("AppBlockerService", "Notification channel is disabled")
-                        return
-                    }
+            val channel = notificationManager.getNotificationChannel(NOTIFICATION_CHANNEL_ID)
+            if (channel != null) {
+                if (channel.importance == NotificationManager.IMPORTANCE_NONE) {
+                    Log.w("AppBlockerService", "Notification channel is disabled")
+                    return
                 }
             }
 
@@ -286,9 +303,7 @@ class AccessibilityService : AccessibilityService() {
                 .setSilent(true)
 
             // Set foreground if device is on Android 8.0 or higher
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                builder.setChannelId(NOTIFICATION_CHANNEL_ID)
-            }
+            builder.setChannelId(NOTIFICATION_CHANNEL_ID)
 
             val notification = builder.build()
 
