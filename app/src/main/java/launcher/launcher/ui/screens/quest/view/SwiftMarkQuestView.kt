@@ -10,13 +10,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import launcher.launcher.data.game.getUserInfo
+import launcher.launcher.data.game.xpToRewardForQuest
 import launcher.launcher.data.quest.BasicQuestInfo
-import launcher.launcher.ui.screens.game.dialog.CoinWonDialog
+import launcher.launcher.ui.screens.quest.RewardDialogMaker
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.VibrationHelper
@@ -47,23 +52,31 @@ fun SwiftMarkQuestView(
     }
 
     if(isQuestWonDialogVisible.value){
-        CoinWonDialog(
-            onDismiss = { isQuestWonDialogVisible.value = false },
-            reward = basicQuestInfo.reward
-        )
+        RewardDialogMaker(basicQuestInfo)
     }
+
+    val userInfo = getUserInfo(LocalContext.current)
+
+    fun onQuestCompleted(){
+        progress.floatValue = 1f
+        questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
+        isQuestWonDialogVisible.value = true
+        isQuestComplete.value = true
+    }
+
     BaseQuestView(
         hideStartQuestBtn = isQuestComplete.value || !isInTimeRange.value || isFailed.value,
         onQuestStarted = {
-            isQuestComplete.value = true
-            progress.floatValue = 1f
-            questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
-            isQuestWonDialogVisible.value = true
+            onQuestCompleted()
         },
         progress = progress,
         loadingAnimationDuration = 400,
         startButtonTitle = "Mark as complete",
-        isFailed = isFailed
+        isFailed = isFailed,
+        onQuestCompleted = {
+            onQuestCompleted()
+        },
+        isQuestCompleted = isQuestComplete
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -76,9 +89,11 @@ fun SwiftMarkQuestView(
             )
 
             Text(
-                text = "Reward: ${basicQuestInfo.reward} coins",
+                text = (if(isQuestComplete.value) "Reward" else "Next Reward") + "${basicQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
             )
+
+
             if(!isInTimeRange.value){
                 Text(
                     text = "Time: ${formatHour(basicQuestInfo.timeRange[0])} to ${formatHour(basicQuestInfo.timeRange[1])}",

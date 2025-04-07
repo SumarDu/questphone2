@@ -14,7 +14,7 @@ sealed class Screen(val route: String) {
 
     data object OnBoard : Screen("onboard/")
     data object Store : Screen("store/")
-    data object OverallStats : Screen("overall_stats/")
+    data object UserInfo : Screen("userInfo/")
 
 }
 
@@ -25,7 +25,5 @@ sealed class Screen(val route: String) {
  */
 sealed class SetupQuestScreen(val route: String) {
     data object Integration : SetupQuestScreen("set_quest_integration")
-    data object DeepFocus : SetupQuestScreen("set_deep_focus_integration")
-    data object AppFocus : SetupQuestScreen("set_app_focus_integration")
 }
 

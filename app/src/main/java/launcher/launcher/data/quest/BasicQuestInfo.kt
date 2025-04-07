@@ -29,7 +29,7 @@ data class BasicQuestInfo(
     var selectedDays: Set<DayOfWeek> = emptySet(),
     var autoDestruct: String = "9999-12-31",
     var timeRange: List<Int> = listOf(0,24),
-    var createdOn : String = getCurrentDate()
+    var createdOn : String = getCurrentDate(),
 )
 
 
@@ -41,7 +41,7 @@ class BaseQuestState(
     initialIntegrationId: IntegrationId = IntegrationId.DEEP_FOCUS,
     initialSelectedDays: Set<DayOfWeek> = emptySet(),
     initialAutoDestruct: String = "9999-12-31",
-    initialTimeRange: List<Int> = listOf(0,24)
+    initialTimeRange: List<Int> = listOf(0,24),
 ) {
     var title by mutableStateOf(initialTitle)
     var reward by mutableIntStateOf(initialReward)
@@ -50,6 +50,12 @@ class BaseQuestState(
     var instructions by mutableStateOf(initialInstructions)
     var initialAutoDestruct by mutableStateOf(initialAutoDestruct)
     var initialTimeRange by mutableStateOf(initialTimeRange)
-
-    fun toBaseQuest() = BasicQuestInfo(title, reward, integrationId, selectedDays,initialAutoDestruct,initialTimeRange)
+    fun toBaseQuest() = BasicQuestInfo(
+        title = title,
+        reward = reward,
+        integrationId = integrationId,
+        selectedDays = selectedDays,
+        autoDestruct = initialAutoDestruct,
+        timeRange = initialTimeRange,
+    )
 }

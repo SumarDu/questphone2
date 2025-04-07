@@ -17,6 +17,12 @@ Each quest has a BasicQuestInfo object that contains essential details like the 
 - Quest-specific data (such as selected apps, focus time settings, etc.) is stored separately under the key `"quest_data_$title"`.
 */
 
+
+val json = Json {
+    ignoreUnknownKeys = true
+    prettyPrint = true
+}
+
 class QuestHelper(context: Context) {
     val sharedPreferences: SharedPreferences = context.getSharedPreferences(
         PREF_NAME,
@@ -27,10 +33,6 @@ class QuestHelper(context: Context) {
     val instructionPref = context.getSharedPreferences(INSTRUCTION_NAME, Context.MODE_PRIVATE)
     val destructionPref = context.getSharedPreferences(DESTRUCTION_NAME, Context.MODE_PRIVATE)
 
-    val json = Json {
-        ignoreUnknownKeys = true
-        prettyPrint = true
-    }
 
     fun getQuestList(): List<BasicQuestInfo> {
         val serializedList = sharedPreferences.getString(ALL_QUESTS_LIST_KEY, null) ?: return emptyList()
@@ -135,8 +137,7 @@ class QuestHelper(context: Context) {
         Log.d("all quests ",quests.toString())
 
         return quests.filter {
-            it.selectedDays.contains(today)
-            !isDestroyed(it.title)
+            it.selectedDays.contains(today) && !isDestroyed(it.title)
         }
     }
 

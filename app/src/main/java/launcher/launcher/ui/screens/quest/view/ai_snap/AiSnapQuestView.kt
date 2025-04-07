@@ -13,16 +13,22 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import io.github.jan.supabase.auth.auth
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import launcher.launcher.data.game.getUserInfo
+import launcher.launcher.data.game.xpToRewardForQuest
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.data.quest.ai.snap.AiSnap
+import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.ui.screens.account.LoginScreen
-import launcher.launcher.ui.screens.game.dialog.CoinWonDialog
+import launcher.launcher.ui.screens.quest.RewardDialogMaker
 import launcher.launcher.ui.screens.quest.view.BaseQuestView
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
@@ -47,6 +53,7 @@ fun AiSnapQuestView(
     }
     var isCameraScreen = remember { mutableStateOf(false) }
     var isAiEvaluating = remember { mutableStateOf(false) }
+    val userInfo = getUserInfo(LocalContext.current)
 
 
     val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
@@ -61,22 +68,21 @@ fun AiSnapQuestView(
     }
 
     if(isQuestWonDialogVisible.value){
-        CoinWonDialog(
-            onDismiss = { isQuestWonDialogVisible.value = false },
-            reward = basicQuestInfo.reward
-        )
-
+        RewardDialogMaker(basicQuestInfo)
     }
+
+    fun onQuestComplete(){
+        progress.floatValue = 1f
+        questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
+        isCameraScreen.value = false
+        isQuestWonDialogVisible.value = true
+        isQuestComplete.value = true
+    }
+
     if(isAiEvaluating.value) {
         Log.d("aiQuest",aiQuest.toString())
         AiEvaluationScreen(isAiEvaluating,aiQuest?.taskDescription ?: "return error") { isComplete ->
-            if(isComplete) {
-                isQuestComplete.value = true
-                progress.floatValue = 1f
-                questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
-                isCameraScreen.value = false
-                isQuestWonDialogVisible.value = true
-            }
+            if(isComplete) onQuestComplete()
         }
     } else if (isCameraScreen.value) {
         CameraScreen(isAiEvaluating)
@@ -90,7 +96,9 @@ fun AiSnapQuestView(
             progress = progress,
             loadingAnimationDuration = 400,
             startButtonTitle = "Click Image",
-            isFailed = isFailed
+            isFailed = isFailed,
+            onQuestCompleted = {onQuestComplete()},
+            isQuestCompleted = isQuestComplete
         ) {
             Column(
                 modifier = Modifier.padding(16.dp)
@@ -103,7 +111,7 @@ fun AiSnapQuestView(
                 )
 
                 Text(
-                    text = "Reward: ${basicQuestInfo.reward} coins",
+                    text = (if(isQuestComplete.value) "Reward" else "Next Reward") + ": ${basicQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
 

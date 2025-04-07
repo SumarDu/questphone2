@@ -9,6 +9,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -18,10 +19,13 @@ import androidx.navigation.navArgument
 import io.github.jan.supabase.auth.handleDeeplinks
 import kotlinx.serialization.json.Json
 import launcher.launcher.config.Integration
+import launcher.launcher.data.game.UserInfo
+import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
 import launcher.launcher.ui.screens.game.StoreScreen
+import launcher.launcher.ui.screens.game.UserInfoScreen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.HomeScreen
 import launcher.launcher.ui.screens.onboard.OnBoardScreen
@@ -56,6 +60,9 @@ class MainActivity : ComponentActivity() {
                                 else Screen.HomeScreen.route,
                     ) {
 
+                        composable(Screen.UserInfo.route) {
+                            UserInfoScreen(getUserInfo(LocalContext.current))
+                        }
                         composable(Screen.OnBoard.route) {
                             OnBoardScreen(navController)
                         }
