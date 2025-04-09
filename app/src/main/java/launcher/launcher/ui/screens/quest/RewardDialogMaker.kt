@@ -46,8 +46,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import launcher.launcher.R
 import launcher.launcher.data.game.Rewards
+import launcher.launcher.data.game.User
+import launcher.launcher.data.game.User.userInfo
 import launcher.launcher.data.game.UserInfo
-import launcher.launcher.data.game.addXP
+import launcher.launcher.data.game.addItemsToInventory
+import launcher.launcher.data.game.addXp
 import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.saveUserInfo
 import launcher.launcher.data.game.xpToRewardForQuest
@@ -59,7 +62,6 @@ enum class DialogState { COINS, LEVEL_UP, NONE }
 @Composable
 fun RewardDialogMaker(baseQuest: BasicQuestInfo, onAllDialogsDismissed: () -> Unit = {}) {
     val context = LocalContext.current
-    var userInfo = remember {  getUserInfo(context) }
 
     // Calculate if user leveled up and the rewards
     val oldLevel = remember { userInfo.level }
@@ -68,8 +70,10 @@ fun RewardDialogMaker(baseQuest: BasicQuestInfo, onAllDialogsDismissed: () -> Un
 
     val coinsEarned = baseQuest.reward
 
-    LaunchedEffect(userInfo) {
-        userInfo = addXP(userInfo, xpToRewardForQuest(userInfo.level))
+    LaunchedEffect(Unit) {
+        val xp = xpToRewardForQuest(userInfo.level)
+        User.addXp(xp)
+        User.lastXpEarned = xp
         didUserLevelUp = oldLevel != userInfo.level
 
         if(didUserLevelUp){
@@ -80,10 +84,8 @@ fun RewardDialogMaker(baseQuest: BasicQuestInfo, onAllDialogsDismissed: () -> Un
             if(userInfo.level % 5==0){
                 levelUpRewards.put(Rewards.STREAK_FREEZER,1)
             }
-            levelUpRewards.forEach {
-                userInfo.inventory.put(it.key,it.value+userInfo.inventory.getOrDefault(it.key,0))
-            }
-            userInfo.inventory.putAll(levelUpRewards)
+
+            User.addItemsToInventory(levelUpRewards)
         }
     }
     // Track current dialog state
@@ -103,7 +105,6 @@ fun RewardDialogMaker(baseQuest: BasicQuestInfo, onAllDialogsDismissed: () -> Un
         DialogState.LEVEL_UP -> {
             LevelUpDialog(
                 oldLevel = oldLevel,
-                newLevel = userInfo.level,
                 lvUpRew = levelUpRewards,
                 onDismiss = {
                     currentDialog = DialogState.NONE
@@ -114,7 +115,6 @@ fun RewardDialogMaker(baseQuest: BasicQuestInfo, onAllDialogsDismissed: () -> Un
             // All dialogs have been dismissed
             LaunchedEffect(key1 = true) {
                 onAllDialogsDismissed()
-                saveUserInfo(userInfo, context)
             }
         }
     }
@@ -162,10 +162,8 @@ fun RewardDialog(reward: Int, onDismiss: () -> Unit) {
             ) {
                 Text(
                     text = "You won $reward ${if (reward > 1) "coins" else "coin"}!",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
             }
@@ -179,14 +177,14 @@ fun RewardDialog(reward: Int, onDismiss: () -> Unit) {
                 },
                 modifier = Modifier.fillMaxWidth(0.7f),
             ) {
-                Text("Collect", fontSize = 16.sp)
+                Text("Collect")
             }
         }
     }
 }
 
 @Composable
-fun LevelUpDialog(oldLevel: Int, newLevel: Int, onDismiss: () -> Unit,lvUpRew: HashMap<Rewards,Int> = hashMapOf()) {
+fun LevelUpDialog(oldLevel: Int,onDismiss: () -> Unit,lvUpRew: HashMap<Rewards,Int> = hashMapOf()) {
     Dialog(onDismissRequest = onDismiss) {
 
         Column(
@@ -216,19 +214,17 @@ fun LevelUpDialog(oldLevel: Int, newLevel: Int, onDismiss: () -> Unit,lvUpRew: H
 
             Text(
                 text = "Level Up!",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 16.dp)
             )
 
             Spacer(modifier = Modifier.size(8.dp))
 
             Text(
-                text = "You advanced from level $oldLevel to level $newLevel",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = "You advanced from level $oldLevel to level ${userInfo.level}",
                 textAlign = TextAlign.Center,
-                fontSize = 16.sp,
+                style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
@@ -244,10 +240,9 @@ fun LevelUpDialog(oldLevel: Int, newLevel: Int, onDismiss: () -> Unit,lvUpRew: H
                 )
                 lvUpRew.forEach {
                     Text(
-                        text = "${it.key.name} x ${it.value}",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = "${it.key.simpleName} x ${it.value}",
                         textAlign = TextAlign.Center,
-                        fontSize = 16.sp,
+                        modifier = Modifier.padding(vertical = 2.dp)
                     )
                 }
             }
@@ -260,7 +255,7 @@ fun LevelUpDialog(oldLevel: Int, newLevel: Int, onDismiss: () -> Unit,lvUpRew: H
                 },
                 modifier = Modifier.fillMaxWidth(0.7f),
             ) {
-                Text("Continue", fontSize = 16.sp)
+                Text("Continue")
             }
         }
     }

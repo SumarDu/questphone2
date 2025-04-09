@@ -59,7 +59,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import launcher.launcher.data.game.StreakCheckReturn
-import launcher.launcher.data.game.addXP
+import launcher.launcher.data.game.User
+import launcher.launcher.data.game.addXp
 import launcher.launcher.data.game.checkIfStreakFailed
 import launcher.launcher.data.game.continueStreak
 import launcher.launcher.data.game.getStreakInfo
@@ -90,31 +91,20 @@ fun HomeScreen(navController: NavController) {
     var streakInfo = remember {mutableStateOf(getStreakInfo(context))}
 
     val streakCompletedDialogVisible = remember { mutableStateOf(false) }
-    val streakFailedDialogVisible = remember { mutableStateOf(false) }
+    val streakDaysLost = remember { mutableIntStateOf(0) }
     val streakFreezersUsed = remember { mutableIntStateOf(0) }
 
-    var userInfo = remember { mutableStateOf( getUserInfo(context)) }
     BackHandler {  }
 
     fun streakFailResultHandler(streakCheckReturn: StreakCheckReturn?){
         if(streakCheckReturn!=null){
-            streakInfo.value = streakCheckReturn.streakData
-            userInfo.value = streakCheckReturn.userInfo
             if(streakCheckReturn.streakFreezersUsed!=null){
                 streakFreezersUsed.intValue = streakCheckReturn.streakFreezersUsed
                 streakCompletedDialogVisible.value = true
-
-                var streakSkipFirst = streakCheckReturn.streakData.currentStreak - streakFreezersUsed.intValue
-                while(streakSkipFirst != streakCheckReturn.streakData.currentStreak){
-                    userInfo.value = addXP(userInfo.value,xpFromStreak(streakSkipFirst))
-                    saveUserInfo(userInfo.value,context)
-                    streakSkipFirst++
-                }
             }
-            if(streakCheckReturn.isFailed){
-                streakFailedDialogVisible.value = true
+            if(streakCheckReturn.streakDaysLost!=null){
+                streakDaysLost.intValue = streakCheckReturn.streakDaysLost
             }
-
         }
     }
     LaunchedEffect(completedQuests,streakInfo) {
@@ -129,30 +119,26 @@ fun HomeScreen(navController: NavController) {
         }
         Log.d("streak data", streakInfo.toString())
         if (streakInfo.value.currentStreak != 0) {
-            streakFailResultHandler(checkIfStreakFailed(streakInfo.value, userInfo.value, context))
+            streakFailResultHandler(User.checkIfStreakFailed())
         }
         val data = context.getSharedPreferences("onboard", MODE_PRIVATE)
 
         if (completedQuests.size == questList.size && data.getBoolean("onboard",false)) {
-            val x = continueStreak(streakInfo.value, context)
-            if (x != null) {
-                streakInfo.value = x
+            if (User.continueStreak()) {
                 streakFreezersUsed.intValue = 0
                 streakCompletedDialogVisible.value = true
-                userInfo.value = addXP(userInfo.value, xpFromStreak(streakInfo.value.currentStreak))
-                saveUserInfo(userInfo.value, context)
             }
         }
     }
 
     if(streakCompletedDialogVisible.value){
-        StreakUpDialog(streakInfo.value.currentStreak, xpFromStreak(streakInfo.value.currentStreak),streakFreezersUsed.intValue) {
+        StreakUpDialog(streakFreezersUsed.intValue) {
             streakCompletedDialogVisible.value = false
         }
     }
-    if(streakFailedDialogVisible.value){
-        StreakFailedDialog {
-            streakFailedDialogVisible.value = false
+    if(streakDaysLost.intValue!=0){
+        StreakFailedDialog(streakDaysLost.intValue) {
+            streakDaysLost.intValue = 0
         }
     }
 

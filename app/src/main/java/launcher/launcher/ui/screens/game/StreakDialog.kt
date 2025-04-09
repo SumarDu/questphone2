@@ -29,10 +29,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import launcher.launcher.data.game.User
 import launcher.launcher.utils.VibrationHelper
 
 @Composable
-fun StreakUpDialog(streakCount:Int, xpReward: Int,streakFreezersUsed: Int = 0, onDismiss: () -> Unit,) {
+fun StreakUpDialog(streakFreezersUsed: Int = 0, onDismiss: () -> Unit,) {
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier.padding(24.dp),
@@ -70,12 +71,13 @@ fun StreakUpDialog(streakCount:Int, xpReward: Int,streakFreezersUsed: Int = 0, o
             Spacer(modifier = Modifier.size(8.dp))
 
             Text(
-                text = "New Streak: $streakCount days",
+                text = "New Streak: ${User.streakData.currentStreak} days",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 fontSize = 16.sp,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
+
             if(streakFreezersUsed==0){
                 Text(
                     text = "Rewards",
@@ -86,7 +88,7 @@ fun StreakUpDialog(streakCount:Int, xpReward: Int,streakFreezersUsed: Int = 0, o
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
                 Text(
-                    text = "XP: $xpReward",
+                    text = "XP: ${User.lastXpEarned}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     fontSize = 16.sp,
@@ -108,7 +110,7 @@ fun StreakUpDialog(streakCount:Int, xpReward: Int,streakFreezersUsed: Int = 0, o
     }
 }
 @Composable
-fun StreakFailedDialog( onDismiss: () -> Unit,) {
+fun StreakFailedDialog(streakDaysLost:Int, onDismiss: () -> Unit,) {
     Dialog(onDismissRequest = onDismiss) {
 
         Column(
@@ -119,7 +121,7 @@ fun StreakFailedDialog( onDismiss: () -> Unit,) {
             Spacer(modifier = Modifier.size(16.dp))
 
             Text(
-                text = "You lost your streak!!",
+                text = "You lost your $streakDaysLost day streak!!",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 fontSize = 28.sp,

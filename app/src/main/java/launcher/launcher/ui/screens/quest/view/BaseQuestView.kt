@@ -60,6 +60,7 @@ import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.delay
 import launcher.launcher.R
 import launcher.launcher.data.game.Rewards
+import launcher.launcher.data.game.User
 import launcher.launcher.data.game.UserInfo
 import launcher.launcher.data.game.getInventoryItemCount
 import launcher.launcher.data.game.getUserInfo
@@ -82,7 +83,6 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
 
     val isUseQuestSkipperDialogVisible = remember { mutableStateOf(false) }
 
-    var userInfo = getUserInfo(context)
 
     Box(Modifier.fillMaxSize()) {
         Canvas(Modifier.fillMaxSize()) {
@@ -98,7 +98,7 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
                     Row(
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        if(!isQuestCompleted.value && getInventoryItemCount(userInfo, Rewards.QUEST_SKIPPER) > 0){
+                        if(!isQuestCompleted.value && User.getInventoryItemCount(Rewards.QUEST_SKIPPER) > 0){
                             OutlinedButton(
                                 onClick = {
                                     VibrationHelper.vibrate(50)
@@ -150,7 +150,7 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
                             )
                             Spacer(modifier = Modifier.size(8.dp))
                             Text(
-                                text = "Available: ${getInventoryItemCount(userInfo, Rewards.QUEST_SKIPPER)}",
+                                text = "Available: ${User.getInventoryItemCount(Rewards.QUEST_SKIPPER)}",
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(bottom = 16.dp)
                             )
@@ -159,10 +159,9 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
                                 Button(
                                     onClick = {
                                         VibrationHelper.vibrate(200)
-                                        userInfo = useInventoryItem(userInfo,Rewards.QUEST_SKIPPER)
+                                        User.useInventoryItem(Rewards.QUEST_SKIPPER)
                                         onQuestCompleted()
                                         isUseQuestSkipperDialogVisible.value = false
-                                        saveUserInfo(userInfo,context)
                                     },
                                 ) {
                                     Text("Yes")

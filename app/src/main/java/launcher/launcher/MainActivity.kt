@@ -44,7 +44,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val data = getSharedPreferences("onboard", MODE_PRIVATE)
         Supabase.supabase.handleDeeplinks(intent)
-        VibrationHelper.init(this)
 
         setContent {
             var isUserOnboarded = remember {mutableStateOf(true)}

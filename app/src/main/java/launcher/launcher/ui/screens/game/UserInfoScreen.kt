@@ -1,34 +1,49 @@
 package launcher.launcher.ui.screens.game
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import launcher.launcher.data.game.Rewards
+import launcher.launcher.data.game.User
 import launcher.launcher.data.game.UserInfo
 import launcher.launcher.data.game.getStreakInfo
 import launcher.launcher.data.game.getUserInfo
+import launcher.launcher.data.game.isBoosterActive
 import launcher.launcher.data.game.xpToLevelUp
 import launcher.launcher.utils.CoinHelper
+import launcher.launcher.utils.formatRemainingTime
+import launcher.launcher.utils.getFullFormattedTime
 import java.text.SimpleDateFormat
 import java.util.Date
 
@@ -44,6 +59,13 @@ fun UserInfoScreen() {
     val xpProgress = (userInfo.xp - totalXpForCurrentLevel).toFloat() /
             (totalXpForNextLevel - totalXpForCurrentLevel)
 
+    val selectedInventoryItem = remember { mutableStateOf<Rewards?>(null) }
+
+    if(selectedInventoryItem.value!=null){
+        InventoryItemInfoDialog(selectedInventoryItem.value!!, onDismissRequest = {
+            selectedInventoryItem.value = null
+        })
+    }
 
     Scaffold { innerPadding ->
         Column(
@@ -121,32 +143,27 @@ fun UserInfoScreen() {
                 }
             }
 
-//            Spacer(modifier = Modifier.height(16.dp))
-//
-//            // Active Boosts Section (Uncommented and fixed)
-//            if (userInfo.activeBoosts != null) {
-//                Text(
-//                    "🚀 Active Boosts",
-//                    style = MaterialTheme.typography.titleMedium,
-//                    fontWeight = FontWeight.Bold
-//                )
-//                Card(
-//                    modifier = Modifier
-//                        .fillMaxWidth()
-//                        .padding(top = 8.dp),
-//                    elevation = CardDefaults.cardElevation(4.dp)
-//                ) {
-//                    Column(modifier = Modifier.padding(16.dp)) {
-//                        // Assuming activeBoosts has these properties
-//                        Text("XP Multiplier: x${userInfo.activeBoosts.xpMultiplier}")
-//                        if (userInfo.activeBoosts.xpBooster > 0) {
-//                            Text("Streak Freezer Active Until: ${formatTimestamp(userInfo.activeBoosts.streakProtectedUntil)}")
-//                        }
-//                        if (userInfo.activeBoosts.luckBoostUntil > 0) {
-//                            Text("Luck Boost Active Until: ${formatTimestamp(userInfo.activeBoosts.luckBoostUntil)}")
-//                        }
-//                    }
-//                }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (userInfo.activeBoosts.isNotEmpty()) {
+                Text(
+                    "🚀 Active Boosts",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    elevation = CardDefaults.cardElevation(4.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        userInfo.activeBoosts.forEach {
+                            Text(it.key.simpleName + ": " + formatRemainingTime(it.value))
+                        }
+                    }
+                    }
+                }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -168,11 +185,11 @@ fun UserInfoScreen() {
                     } else {
                         userInfo.inventory.forEach { (reward, count) ->
                             Text(
-                                "• ${reward.name} × $count",
+                                "• ${reward.simpleName} × $count",
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(vertical = 2.dp)
                                     .clickable{
-                                        
+                                        selectedInventoryItem.value = reward
                                     }
                             )
                         }
@@ -226,5 +243,61 @@ fun UserInfoScreen() {
             // Add some bottom padding
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+}
+
+@Composable
+fun InventoryItemInfoDialog(
+    reward: Rewards,
+    onDismissRequest: () -> Unit = {}
+) {
+    val context = LocalContext.current
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(dismissOnClickOutside = true)
+    ) {
+
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            tonalElevation = 8.dp,
+            modifier = Modifier
+                .padding(24.dp)
+                .wrapContentSize()
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = reward.simpleName,
+                    style = MaterialTheme.typography.headlineSmall
+                )
+
+                Text(
+                    text = reward.description,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismissRequest) {
+                        Text("Close")
+                    }
+                    if(reward.isUsableFromInventory && !User.isBoosterActive(Rewards.XP_BOOSTER)){
+                        Button(onClick = {
+                            reward.onUse()
+                            onDismissRequest()
+                        }) {
+                            Text("Use")
+                        }
+                    }
+                }
+            }
+        }
+
     }
 }
