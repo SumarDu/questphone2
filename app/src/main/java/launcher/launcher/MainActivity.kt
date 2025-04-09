@@ -36,6 +36,7 @@ import launcher.launcher.ui.theme.LauncherTheme
 import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.VibrationHelper
 
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,7 +62,7 @@ class MainActivity : ComponentActivity() {
                     ) {
 
                         composable(Screen.UserInfo.route) {
-                            UserInfoScreen(getUserInfo(LocalContext.current))
+                            UserInfoScreen()
                         }
                         composable(Screen.OnBoard.route) {
                             OnBoardScreen(navController)

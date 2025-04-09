@@ -89,7 +89,7 @@ fun SwiftMarkQuestView(
             )
 
             Text(
-                text = (if(isQuestComplete.value) "Reward" else "Next Reward") + "${basicQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
+                text = (if(isQuestComplete.value) "Next Reward" else "Reward") + ": ${basicQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
             )
 

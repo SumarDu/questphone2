@@ -15,8 +15,6 @@ data class UserInfo(
     var level : Int = 1,
     val inventory: HashMap<Rewards, Int> = hashMapOf(Pair(Rewards.STREAK_FREEZER,2)),
     val achievements: List<Achievements> = listOf(Achievements.THE_DISCIPLINED,Achievements.MONTH_STREAK),
-    val streak: Int = 1,
-    var coins : Int = 10,
     var activeBoosts: ActiveBoosts = ActiveBoosts()
 )
 
@@ -78,9 +76,9 @@ fun getInventoryItemCount(user: UserInfo,item: Rewards): Int{
     return user.inventory.getOrDefault(item,0)
 }
 
-fun useInventoryItem(user: UserInfo,item: Rewards): UserInfo{
+fun useInventoryItem(user: UserInfo,item: Rewards,count:Int = 1): UserInfo{
     if(user.inventory.getOrDefault(item,0) > 0){
-        user.inventory.put(item,user.inventory.getOrDefault(item,0)-1)
+        user.inventory.put(item,user.inventory.getOrDefault(item,0)-count)
         if(user.inventory.getOrDefault(item,0) == 0){
             user.inventory.remove(item)
         }

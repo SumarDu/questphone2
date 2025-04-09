@@ -6,11 +6,14 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-
+/**
+ * format: yyyy-MM-dd
+ */
 fun getCurrentDate(): String {
     val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     return sdf.format(Date())
 }
+
 fun getCurrentDay(): DayOfWeek {
     val calendar = Calendar.getInstance()
     return when (calendar.get(Calendar.DAY_OF_WEEK)) {

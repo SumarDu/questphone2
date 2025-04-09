@@ -69,6 +69,7 @@ fun RewardDialogMaker(baseQuest: BasicQuestInfo, onAllDialogsDismissed: () -> Un
     val coinsEarned = baseQuest.reward
 
     LaunchedEffect(userInfo) {
+        userInfo = addXP(userInfo, xpToRewardForQuest(userInfo.level))
         didUserLevelUp = oldLevel != userInfo.level
 
         if(didUserLevelUp){
@@ -103,6 +104,7 @@ fun RewardDialogMaker(baseQuest: BasicQuestInfo, onAllDialogsDismissed: () -> Un
             LevelUpDialog(
                 oldLevel = oldLevel,
                 newLevel = userInfo.level,
+                lvUpRew = levelUpRewards,
                 onDismiss = {
                     currentDialog = DialogState.NONE
                 }
@@ -250,6 +252,7 @@ fun LevelUpDialog(oldLevel: Int, newLevel: Int, onDismiss: () -> Unit,lvUpRew: H
                 }
             }
 
+            Spacer(Modifier.size(16.dp))
             Button(
                 onClick = {
                     VibrationHelper.vibrate(50)
@@ -262,9 +265,3 @@ fun LevelUpDialog(oldLevel: Int, newLevel: Int, onDismiss: () -> Unit,lvUpRew: H
         }
     }
 }
-
-//// Optional: Add more dialog types as needed
-//@Composable
-//fun AchievementUnlockedDialog(achievement: Achievement, onDismiss: () -> Unit) {
-//    // Implementation similar to the other dialogs
-//}

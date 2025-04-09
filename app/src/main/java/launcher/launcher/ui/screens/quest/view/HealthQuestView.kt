@@ -148,7 +148,7 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
                     modifier = Modifier.padding(top = 40.dp)
                 )
                 Text(
-                    text = (if(isQuestComplete.value) "Reward" else "Next Reward") + "${basicQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
+                    text = (if(isQuestComplete.value) "Reward" else "Next Reward") + ": ${basicQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
 

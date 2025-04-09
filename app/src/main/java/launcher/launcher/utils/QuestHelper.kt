@@ -21,6 +21,7 @@ Each quest has a BasicQuestInfo object that contains essential details like the 
 val json = Json {
     ignoreUnknownKeys = true
     prettyPrint = true
+    encodeDefaults = true
 }
 
 class QuestHelper(context: Context) {

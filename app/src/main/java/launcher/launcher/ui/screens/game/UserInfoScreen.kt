@@ -1,5 +1,6 @@
 package launcher.launcher.ui.screens.game
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -24,23 +25,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import launcher.launcher.data.game.UserInfo
+import launcher.launcher.data.game.getStreakInfo
+import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.xpToLevelUp
+import launcher.launcher.utils.CoinHelper
 import java.text.SimpleDateFormat
 import java.util.Date
 
 @Composable
-fun UserInfoScreen(userInfo: UserInfo) {
+fun UserInfoScreen() {
     val context = LocalContext.current
+    val userInfo = getUserInfo(context)
+    val coinHelper = CoinHelper(context)
+    val streakData = getStreakInfo(context)
+
     val totalXpForNextLevel = xpToLevelUp(userInfo.level + 1)
     val totalXpForCurrentLevel = xpToLevelUp(userInfo.level)
     val xpProgress = (userInfo.xp - totalXpForCurrentLevel).toFloat() /
             (totalXpForNextLevel - totalXpForCurrentLevel)
 
-    // Helper function to format timestamps
-    fun formatTimestamp(timestamp: Long): String {
-        val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm")
-        return dateFormat.format(Date(timestamp))
-    }
 
     Scaffold { innerPadding ->
         Column(
@@ -89,24 +92,30 @@ fun UserInfoScreen(userInfo: UserInfo) {
             Spacer(modifier = Modifier.height(16.dp))
 
             // Stats Section
+            Text(
+                "📊 Stats",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        "📊 Stats",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "💰 Coins: ${userInfo.coins}",
+                        "💰 Coins: ${coinHelper.getCoinCount()}",
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "🔥 Streak: ${userInfo.streak} days",
+                        "🔥 Current Streak: ${streakData.currentStreak} days",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "🔥 Longest Streak: ${streakData.longestStreak} days",
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }
@@ -162,6 +171,9 @@ fun UserInfoScreen(userInfo: UserInfo) {
                                 "• ${reward.name} × $count",
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(vertical = 2.dp)
+                                    .clickable{
+                                        
+                                    }
                             )
                         }
                     }
