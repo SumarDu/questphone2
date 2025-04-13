@@ -36,6 +36,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import launcher.launcher.data.game.Rewards
 import launcher.launcher.data.game.User
+import launcher.launcher.data.game.User.userInfo
 import launcher.launcher.data.game.UserInfo
 import launcher.launcher.data.game.getStreakInfo
 import launcher.launcher.data.game.getUserInfo
@@ -50,7 +51,6 @@ import java.util.Date
 @Composable
 fun UserInfoScreen() {
     val context = LocalContext.current
-    val userInfo = getUserInfo(context)
     val coinHelper = CoinHelper(context)
     val streakData = getStreakInfo(context)
 
@@ -280,6 +280,10 @@ fun InventoryItemInfoDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                if(User.isBoosterActive(Rewards.XP_BOOSTER)){
+                    Text("XP booster active until: "  + userInfo.activeBoosts.getOrDefault(
+                        Rewards.XP_BOOSTER,getFullFormattedTime()))
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End

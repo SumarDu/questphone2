@@ -80,8 +80,15 @@ fun User.removeInactiveBooster() {
     saveUserInfo()
 }
 
-fun User.isBoosterActive(reward: Rewards): Boolean{
-    return isTimeOver(userInfo.activeBoosts.getOrDefault(reward,""))
+fun User.isBoosterActive(reward: Rewards): Boolean {
+    if (userInfo.activeBoosts.contains(reward)) {
+        val isBoosterActive =
+            !isTimeOver(userInfo.activeBoosts.getOrDefault(reward, "9999-09-09-09-09"))
+        if (isBoosterActive) removeInactiveBooster()
+        return isBoosterActive
+    }
+    return false
+
 }
 
 fun User.addItemsToInventory(items: HashMap<Rewards, Int>){

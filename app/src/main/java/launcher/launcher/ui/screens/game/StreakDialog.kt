@@ -10,17 +10,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -35,76 +38,79 @@ import launcher.launcher.utils.VibrationHelper
 @Composable
 fun StreakUpDialog(streakFreezersUsed: Int = 0, onDismiss: () -> Unit,) {
     Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Animated level up icon
-            val rotationAnimation = remember { Animatable(0f) }
+        Surface(Modifier
+            .clip(RoundedCornerShape(11.dp))) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Animated level up icon
+                val rotationAnimation = remember { Animatable(0f) }
 
-            LaunchedEffect(key1 = true) {
-                rotationAnimation.animateTo(
-                    targetValue = 360f,
-                    animationSpec = tween(1000)
+                LaunchedEffect(key1 = true) {
+                    rotationAnimation.animateTo(
+                        targetValue = 360f,
+                        animationSpec = tween(1000)
+                    )
+                }
+
+                Icon(
+                    imageVector = Icons.Filled.Star,
+                    contentDescription = "Streak",
+                    tint = Color(0xFFFFC107), // Gold color
+                    modifier = Modifier
+                        .size(50.dp)
+                        .rotate(rotationAnimation.value)
                 )
-            }
 
-            Icon(
-                imageVector = Icons.Filled.Star,
-                contentDescription = "Streak",
-                tint = Color(0xFFFFC107), // Gold color
-                modifier = Modifier
-                    .size(50.dp)
-                    .rotate(rotationAnimation.value)
-            )
+                Spacer(modifier = Modifier.size(16.dp))
 
-            Spacer(modifier = Modifier.size(16.dp))
-
-            Text(
-                text = if(streakFreezersUsed==0)"All Quests Completed for today!" else "$streakFreezersUsed streak freezers were used to save your streak!",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.size(8.dp))
-
-            Text(
-                text = "New Streak: ${User.streakData.currentStreak} days",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                fontSize = 16.sp,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            if(streakFreezersUsed==0){
                 Text(
-                    text = "Rewards",
-                    color = MaterialTheme.colorScheme.primary,
+                    text = if (streakFreezersUsed == 0) "All Quests Completed for today!" else "$streakFreezersUsed streak freezers were used to save your streak!",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
                 )
+
+                Spacer(modifier = Modifier.size(8.dp))
+
                 Text(
-                    text = "XP: ${User.lastXpEarned}",
+                    text = "New Streak: ${User.streakData.currentStreak} days",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     fontSize = 16.sp,
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
-            }
 
-            Spacer(Modifier.size(16.dp))
+                if (streakFreezersUsed == 0) {
+                    Text(
+                        text = "Rewards",
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    Text(
+                        text = "XP: ${User.lastXpEarned}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        fontSize = 16.sp,
+                    )
+                }
 
-            Button(
-                onClick = {
-                    VibrationHelper.vibrate(50)
-                    onDismiss()
-                },
-                modifier = Modifier.fillMaxWidth(0.7f),
-            ) {
-                Text("Continue", fontSize = 16.sp)
+                Spacer(Modifier.size(16.dp))
+
+                Button(
+                    onClick = {
+                        VibrationHelper.vibrate(50)
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth(0.7f),
+                ) {
+                    Text("Continue", fontSize = 16.sp)
+                }
             }
         }
     }
@@ -112,42 +118,44 @@ fun StreakUpDialog(streakFreezersUsed: Int = 0, onDismiss: () -> Unit,) {
 @Composable
 fun StreakFailedDialog(streakDaysLost:Int, onDismiss: () -> Unit,) {
     Dialog(onDismissRequest = onDismiss) {
-
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-
-            Spacer(modifier = Modifier.size(16.dp))
-
-            Text(
-                text = "You lost your $streakDaysLost day streak!!",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.size(8.dp))
-
-            Text(
-                text = "Don't worry, you can rise again....",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                fontSize = 16.sp,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            Spacer(modifier = Modifier.size(8.dp))
-
-            Button(
-                onClick = {
-                    VibrationHelper.vibrate(50)
-                    onDismiss()
-                },
-                modifier = Modifier.fillMaxWidth(0.7f),
+        Surface(Modifier
+            .clip(RoundedCornerShape(11.dp))) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Continue", fontSize = 16.sp)
+
+                Spacer(modifier = Modifier.size(16.dp))
+
+                Text(
+                    text = "You lost your $streakDaysLost day streak!!",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.size(8.dp))
+
+                Text(
+                    text = "Don't worry, you can rise again....",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                Spacer(modifier = Modifier.size(8.dp))
+
+                Button(
+                    onClick = {
+                        VibrationHelper.vibrate(50)
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth(0.7f),
+                ) {
+                    Text("Continue", fontSize = 16.sp)
+                }
             }
         }
     }

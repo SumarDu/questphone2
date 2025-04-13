@@ -1,8 +1,10 @@
 package launcher.launcher.data.quest
 
-import launcher.launcher.ui.screens.launcher.components.getCurrentTime
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class QuestStats(
-    val streak:Int = 0,
-    val lastCompleted: String = getCurrentTime(),
+    val day: String,
+    val questsPerformed: Int,
+    val totalQuests : Int
 )

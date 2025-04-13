@@ -6,6 +6,7 @@ import android.util.Log
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.quest.BasicQuestInfo
 import androidx.core.content.edit
+import launcher.launcher.data.quest.QuestStats
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
@@ -116,6 +117,7 @@ class QuestHelper(context: Context) {
         VibrationHelper.vibrate(100)
         sharedPreferences.edit { putString(QUEST_LAST_PERFORMED_SUFFIX + baseData.title, date) }
         coinHelper.incrementCoinCount(baseData.reward)
+
     }
 
     fun isQuestRunning(title:String):Boolean{

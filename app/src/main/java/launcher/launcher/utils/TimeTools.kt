@@ -52,11 +52,12 @@ fun getFullTimeAfter(hoursToAdd: Long, minutesToAdd: Long): String {
 }
 
 /**
- * converts the time in format: yyyy-MM-dd-HH-mm to a better format
+ * converts the time in format: yyyy-dd-MM-HH-mm to a ux friendly string
+ * 
  */
 fun formatRemainingTime(timeString: String): String {
     return try {
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm")
+        val formatter = DateTimeFormatter.ofPattern("yyyy-dd-MM-HH-mm")
         val endTime = LocalDateTime.parse(timeString, formatter)
         val now = LocalDateTime.now()
 

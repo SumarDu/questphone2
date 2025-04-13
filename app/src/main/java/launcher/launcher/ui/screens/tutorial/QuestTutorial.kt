@@ -38,4 +38,4 @@ fun QuestTutorial(url: String){
             style = MaterialTheme.typography.bodyLarge,
         )
     }
-    }
+}

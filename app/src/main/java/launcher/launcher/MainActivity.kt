@@ -32,6 +32,7 @@ import launcher.launcher.ui.screens.onboard.OnBoardScreen
 import launcher.launcher.ui.screens.quest.ListAllQuests
 import launcher.launcher.ui.screens.quest.ViewQuest
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
+import launcher.launcher.ui.screens.quest.stats.QuestStatsView
 import launcher.launcher.ui.theme.LauncherTheme
 import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.VibrationHelper
@@ -105,6 +106,9 @@ class MainActivity : ComponentActivity() {
                                     integrationInfo.value.second.invoke(navController)
                                 }
                             }
+                        }
+                        composable(Screen.QuestStats.route) {
+                            QuestStatsView()
                         }
                     }
                 }
