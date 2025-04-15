@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,13 +51,11 @@ fun GitHubContributionChart(
     var selectedQuestStatUS by remember { mutableStateOf<QuestStatUS?>(null) }
 
     Column(modifier = modifier) {
-        // Scrollable content
         Column(
             modifier = Modifier
                 .horizontalScroll(horizontalScrollState)
                 .padding(end = 16.dp)
         ) {
-            // Month labels
             Row(
                 modifier = Modifier
                     .padding(start = 36.dp)
@@ -74,7 +74,6 @@ fun GitHubContributionChart(
             Spacer(modifier = Modifier.height(4.dp))
 
             Row(modifier = Modifier.fillMaxWidth()) {
-                // Day of week labels
                 Column(
                     modifier = Modifier.wrapContentWidth(),
                     horizontalAlignment = Alignment.Start,
@@ -94,7 +93,6 @@ fun GitHubContributionChart(
                     }
                 }
 
-                // Contribution grid
                 Box(
                     modifier = Modifier
                         .width(maxOf(weeks.size * 15, 300).dp)
@@ -102,7 +100,6 @@ fun GitHubContributionChart(
                 ) {
                     val allDays = mutableListOf<QuestStatUS>()
 
-                    // Fill in all days for proper grid layout
                     val startDate = weeks.keys.minOrNull() ?: LocalDate.now()
                     val endDate = weeks.keys.maxOrNull()?.plusDays(6) ?: LocalDate.now()
 
@@ -112,12 +109,11 @@ fun GitHubContributionChart(
                         if (existingDay != null) {
                             allDays.add(existingDay)
                         } else {
-                            allDays.add(QuestStatUS(currentDate, 0,0))
+                            allDays.add(QuestStatUS(currentDate, 0, 0))
                         }
                         currentDate = currentDate.plusDays(1)
                     }
 
-                    // Group by week for column layout
                     val daysByWeek = allDays.groupBy { it.date.with(DayOfWeek.MONDAY) }
 
                     Row(
@@ -130,34 +126,30 @@ fun GitHubContributionChart(
                                 modifier = Modifier.width(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
-                                // Sort by day of week (Monday to Sunday)
                                 val sortedDays = weekDays.sortedBy { it.date.dayOfWeek.value }
                                 sortedDays.forEach { day ->
-                                    ContributionCell(day,onClick = { clickedDay ->
+                                    ContributionCell(day, onClick = { clickedDay ->
                                         selectedQuestStatUS = clickedDay
                                     })
                                 }
                             }
                         }
                     }
-
                 }
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Show tooltip when a cell is selected
-        selectedQuestStatUS?.let { QuestStatUS ->
+        selectedQuestStatUS?.let { questStatUS ->
             Box(
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
-                QuestTooltip(QuestStatUS = QuestStatUS)
+                QuestTooltip(questStatUS = questStatUS)
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Legend
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
@@ -193,22 +185,22 @@ fun GitHubContributionChart(
 }
 
 @Composable
-fun ContributionCell(day: QuestStatUS,
-                     onClick: ((QuestStatUS) -> Unit)? = null) {
-// Calculate completion percentage
+fun ContributionCell(
+    day: QuestStatUS,
+    onClick: ((QuestStatUS) -> Unit)? = null
+) {
     val completionPercentage = if (day.totalQuests > 0) {
         day.completedQuests.toFloat() / day.totalQuests.toFloat()
     } else {
         0f
     }
 
-    // Determine level based on completion percentage
     val level = when {
-        day.completedQuests == 0 -> 0 // No activity
-        completionPercentage <= 0.25f -> 1 // Low activity
-        completionPercentage <= 0.5f -> 2 // Medium activity
-        completionPercentage <= 0.75f -> 3 // High activity
-        else -> 4 // Very high activity
+        day.completedQuests == 0 -> 0
+        completionPercentage <= 0.25f -> 1
+        completionPercentage <= 0.5f -> 2
+        completionPercentage <= 0.75f -> 3
+        else -> 4
     }
 
     Box(
@@ -225,16 +217,13 @@ fun ContributionCell(day: QuestStatUS,
                 }
             ),
         contentAlignment = Alignment.Center
-
-    ) {
-
-    }
+    ){}
 }
 
 @Composable
 fun getContributionColor(level: Int): Color {
     return when (level) {
-        0 -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        0 -> MaterialTheme.colorScheme.surfaceVariant // Grey for no activity
         1 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
         2 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
         3 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
@@ -243,28 +232,61 @@ fun getContributionColor(level: Int): Color {
 }
 
 @Composable
-fun QuestTooltip(QuestStatUS: QuestStatUS) {
-    Box(
+fun QuestTooltip(questStatUS: QuestStatUS) {
+    Card(
         modifier = Modifier
-            .background(Color(0xFF161B22), RoundedCornerShape(4.dp))
-            .padding(8.dp)
+            .padding(8.dp),
+        shape = RoundedCornerShape(8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
     ) {
-        val formatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy")
-        val dateText = QuestStatUS.date.format(formatter)
-        val percentage = if (QuestStatUS.totalQuests > 0) {
-            (QuestStatUS.completedQuests.toFloat() / QuestStatUS.totalQuests.toFloat() * 100).toInt()
-        } else 0
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val formatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy")
+            val dateText = questStatUS.date.format(formatter)
+            val percentage = if (questStatUS.totalQuests > 0) {
+                (questStatUS.completedQuests.toFloat() / questStatUS.totalQuests.toFloat() * 100).toInt()
+            } else 0
 
-        Column {
             Text(
                 text = dateText,
-                color = Color.White,
-                fontWeight = FontWeight.Medium
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "${questStatUS.completedQuests}/${questStatUS.totalQuests} Quests",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "($percentage%)",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (percentage > 50) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            // Optional: Add a status indicator
             Text(
-                text = "${QuestStatUS.completedQuests} of ${QuestStatUS.totalQuests} quests completed ($percentage%)",
-                color = Color.White.copy(alpha = 0.8f),
+                text = when {
+                    percentage == 0 -> "No activity"
+                    percentage == 100 -> "All quests completed!"
+                    percentage > 50 -> "Great progress"
+                    else -> "Keep going!"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
         }
     }

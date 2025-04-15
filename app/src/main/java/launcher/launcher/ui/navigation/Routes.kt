@@ -15,7 +15,7 @@ sealed class Screen(val route: String) {
     data object OnBoard : Screen("onboard/")
     data object Store : Screen("store/")
     data object UserInfo : Screen("userInfo/")
-    data object QuestStats : Screen("userInfo/")
+    data object QuestStats : Screen("questStats/")
 
 }
 

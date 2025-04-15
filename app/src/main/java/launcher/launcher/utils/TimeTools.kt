@@ -92,6 +92,18 @@ fun getCurrentDay(): DayOfWeek {
     }
 }
 
+fun java.time.DayOfWeek.convertToDayOfWeek(date: java.time.LocalDate): DayOfWeek{
+   return when (date.dayOfWeek) {
+        java.time.DayOfWeek.MONDAY -> DayOfWeek.MON
+        java.time.DayOfWeek.TUESDAY -> DayOfWeek.TUE
+        java.time.DayOfWeek.WEDNESDAY -> DayOfWeek.WED
+        java.time.DayOfWeek.THURSDAY -> DayOfWeek.THU
+        java.time.DayOfWeek.FRIDAY -> DayOfWeek.FRI
+        java.time.DayOfWeek.SATURDAY -> DayOfWeek.SAT
+        java.time.DayOfWeek.SUNDAY -> DayOfWeek.SUN
+    }
+}
+
 fun formatHour(hour: Int): String {
     return when (hour) {
         0, 24 -> "12 AM" // Midnight fix

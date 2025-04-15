@@ -2,6 +2,7 @@ package launcher.launcher.ui.screens.launcher
 
 import android.content.Context.MODE_PRIVATE
 import android.util.Log
+import launcher.launcher.R
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -55,6 +56,7 @@ import launcher.launcher.utils.getCurrentDate
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -186,6 +188,16 @@ fun HomeScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.weight(1f)) // Pushes the Icon to the right
 
+            Icon(
+                painter = painterResource(id = R.drawable.outline_progress_activity_24),
+                contentDescription = "user info and stats",
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(30.dp)
+                    .clickable {
+                        navController.navigate(Screen.QuestStats.route)
+                    }
+            )
             // Profile icon on the right
             Icon(
                 imageVector = Icons.Default.Person,

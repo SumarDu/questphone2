@@ -85,11 +85,11 @@ fun QuestList(navHostController: NavController, questList: List<BasicQuestInfo>,
                 title = questBase.title,
                 reward = questBase.reward,
                 onClick = {
-                    val data = Json.encodeToString<BasicQuestInfo>(questBase)
-//                    navHostController.navigate(Screen.ViewQuest.route + data)
-                    navHostController.navigate(Screen.QuestStats.route)
-
-//                    )
+//                    val data = Json.encodeToString<BasicQuestInfo>(questBase)
+////                    navHostController.navigate(Screen.ViewQuest.route + data)
+//                    navHostController.navigate(Screen.QuestStats.route)
+//
+////                    )
                 }
             )
         }
@@ -106,12 +106,6 @@ private fun QuestItem(
     onClick: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = { }) {
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "Delete"
-            )
-        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()

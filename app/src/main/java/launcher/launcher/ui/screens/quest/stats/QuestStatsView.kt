@@ -18,20 +18,28 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import launcher.launcher.utils.QuestHelper
+import launcher.launcher.R
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.res.painterResource
+import launcher.launcher.data.DayOfWeek
+import launcher.launcher.data.game.User
 import launcher.launcher.data.quest.QuestStatUS
 import launcher.launcher.ui.screens.quest.stats.components.GitHubContributionChart
-import kotlin.math.pow
 
 @Composable
 fun QuestStatsView() {
     val questHelper = QuestHelper(LocalContext.current)
     var contributions by remember { mutableStateOf(emptyList<QuestStatUS>()) }
 
+    var scrollState = rememberScrollState()
     LaunchedEffect (contributions) {
         contributions = questHelper.getOverallStats()
     }
@@ -42,7 +50,8 @@ fun QuestStatsView() {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 32.dp)
+                    .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
 
@@ -66,8 +75,9 @@ fun QuestStatsView() {
                 // Key Metrics
                 KeyMetricsSection(contributions)
 
-                // Performance Insights
-                PerformanceInsightsSection(contributions)
+                GeneralStats(contributions)
+
+                QuestPerformanceInsightsSection(contributions)
 
             }
         }
@@ -114,9 +124,8 @@ private fun KeyMetricsSection(contributions: List<QuestStatUS>) {
                     )
 
                     // Current Streak
-                    val currentStreak = calculateStreak(contributions)
                     StatItem(
-                        value = "$currentStreak",
+                        value = "${User.streakData.currentStreak}",
                         label = "Current Streak",
                         modifier = Modifier.weight(1f)
                     )
@@ -136,7 +145,7 @@ private fun KeyMetricsSection(contributions: List<QuestStatUS>) {
 }
 
 @Composable
-private fun PerformanceInsightsSection(contributions: List<QuestStatUS>) {
+private fun GeneralStats(contributions: List<QuestStatUS>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -149,7 +158,7 @@ private fun PerformanceInsightsSection(contributions: List<QuestStatUS>) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "Performance Insights",
+                text = "General Stats",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
             )
 
@@ -188,57 +197,6 @@ private fun PerformanceInsightsSection(contributions: List<QuestStatUS>) {
     }
 }
 
-@Composable
-private fun ConsistencyScoreSection(contributions: List<QuestStatUS>) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = "Consistency Score",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
-            )
-            val consistencyScore = calculateConsistencyScore(contributions)
-            StatRow(
-                label = "Daily Consistency (Last 30 Days)",
-                value = "${consistencyScore}/100",
-                valueColor = when {
-                    consistencyScore >= 80 -> MaterialTheme.colorScheme.primary
-                    consistencyScore >= 50 -> MaterialTheme.colorScheme.onSurface
-                    else -> MaterialTheme.colorScheme.error
-                }
-            )
-            Text(
-                text = "Lower variation in daily completions means a higher score. Aim for steady progress!",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-private fun calculateConsistencyScore(contributions: List<QuestStatUS>): Int {
-    val recentContributions = contributions
-        .filter { it.date >= LocalDate.now().minusDays(30) }
-        .map { it.completedQuests.toDouble() }
-    if (recentContributions.isEmpty()) return 0
-    val mean = recentContributions.average()
-    val standardDeviation = if (recentContributions.size > 1) {
-        Math.sqrt(recentContributions.map { (it - mean).pow(2) }.average())
-    } else 0.0
-    // Normalize to 0-100 scale; lower deviation = higher score
-    val maxDeviation = mean * 2 // Arbitrary cap for scaling
-    return if (maxDeviation == 0.0) 100 else {
-        ((1 - (standardDeviation / maxDeviation)) * 100).coerceIn(0.0, 100.0).toInt()
-    }
-}
 @Composable
 private fun StatItem(
     value: String,
@@ -314,4 +272,212 @@ private fun calculateTrend(contributions: List<QuestStatUS>): Float {
         .map { it.completedQuests }
         .average()
     return if (previous.isNaN() || recent.isNaN()) 0f else ((recent - previous) / previous * 100).toFloat()
+}
+
+
+@Composable
+private fun QuestPerformanceInsightsSection(contributions: List<QuestStatUS>) {
+    val questHelper = QuestHelper(LocalContext.current)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Quest Performance Insights (Last 30 days)",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
+            )
+
+            // Time Discipline Score
+            var showTimeTooltip by remember { mutableStateOf(false) }
+            StatRowWithTooltip(
+                label = "Time Discipline Score",
+                value = "${calculateTimeDisciplineScore(contributions, questHelper)}/100",
+                valueColor = when {
+                    calculateTimeDisciplineScore(contributions, questHelper) >= 80 -> MaterialTheme.colorScheme.primary
+                    calculateTimeDisciplineScore(contributions, questHelper) >= 50 -> MaterialTheme.colorScheme.onSurface
+                    else -> MaterialTheme.colorScheme.error
+                },
+                showTooltip = showTimeTooltip,
+                onTooltipToggle = { showTimeTooltip = !showTimeTooltip },
+                tooltipText = "How often you complete quests within their set time range. Higher means better schedule adherence."
+            )
+
+            // Day-of-Week Powerhouse
+            var showPowerhouseTooltip by remember { mutableStateOf(false) }
+            StatRowWithTooltip(
+                label = "Powerhouse Day",
+                value = calculatePowerhouseDay(contributions) ?: "Not enough data",
+                valueColor = MaterialTheme.colorScheme.onSurface,
+                showTooltip = showPowerhouseTooltip,
+                onTooltipToggle = { showPowerhouseTooltip = !showPowerhouseTooltip },
+                tooltipText = "The day of the week you complete the most quests on average."
+            )
+
+            // Failure Recovery Rate
+            var showFailureTooltip by remember { mutableStateOf(false) }
+            StatRowWithTooltip(
+                label = "Failure Recovery Rate",
+                value = "${calculateFailureRecoveryRate(contributions, questHelper)}%",
+                valueColor = when {
+                    calculateFailureRecoveryRate(contributions, questHelper) >= 70 -> MaterialTheme.colorScheme.primary
+                    calculateFailureRecoveryRate(contributions, questHelper) >= 40 -> MaterialTheme.colorScheme.onSurface
+                    else -> MaterialTheme.colorScheme.error
+                },
+                showTooltip = showFailureTooltip,
+                onTooltipToggle = { showFailureTooltip = !showFailureTooltip },
+                tooltipText = "How often you complete quests after failing them earlier. Higher means better resilience."
+            )
+
+            // Missed Reward Opportunity
+            var showMissedTooltip by remember { mutableStateOf(false) }
+            StatRowWithTooltip(
+                label = "Missed Rewards",
+                value = "${calculateMissedRewardOpportunity(contributions, questHelper)} points",
+                valueColor = if (calculateMissedRewardOpportunity(contributions, questHelper) > 100) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                showTooltip = showMissedTooltip,
+                onTooltipToggle = { showMissedTooltip = !showMissedTooltip },
+                tooltipText = "Total rewards lost from uncompleted quests. Complete more to earn these points!"
+            )
+
+            Text(
+                text = "Stick to schedules, repeat quests, and recover from misses to maximize rewards!",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatRowWithTooltip(
+    label: String,
+    value: String,
+    valueColor: Color,
+    showTooltip: Boolean,
+    onTooltipToggle: () -> Unit,
+    tooltipText: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Box {
+                Icon(
+                    painter = painterResource(id = R.drawable.outline_help_24),
+                    contentDescription = "Help",
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clickable { onTooltipToggle() },
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                DropdownMenu(
+                    expanded = showTooltip,
+                    onDismissRequest = { onTooltipToggle() },
+                    modifier = Modifier
+                        .background(
+                            MaterialTheme.colorScheme.surface,
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(8.dp)
+                ) {
+                    Text(
+                        text = tooltipText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.widthIn(max = 200.dp)
+                    )
+                }
+            }
+        }
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = valueColor
+        )
+    }
+}
+private fun calculateTimeDisciplineScore(contributions: List<QuestStatUS>, questHelper: QuestHelper): Int {
+    val completedQuests = contributions
+        .filter { it.date >= LocalDate.now().minusDays(30) }
+        .flatMap { day -> questHelper.getCompletedQuestsForDay(day.date) }
+    if (completedQuests.isEmpty()) return 0
+    // Assume completion is within timeRange (no completion time data; uses isInTimeRange logic)
+    val withinTimeRange = completedQuests.count { quest ->
+        quest.timeRange.let { range ->
+            range.getOrElse(0) { 0 } <= range.getOrElse(1) { 24 }
+        }
+    }
+    return (withinTimeRange.toFloat() / completedQuests.size * 100).toInt()
+}
+
+private fun calculatePowerhouseDay(contributions: List<QuestStatUS>): String? {
+    val recentContributions = contributions
+        .filter { it.date >= LocalDate.now().minusDays(30) }
+        .groupBy { contribution ->
+            when (contribution.date.dayOfWeek) {
+                java.time.DayOfWeek.MONDAY -> DayOfWeek.MON
+                java.time.DayOfWeek.TUESDAY -> DayOfWeek.TUE
+                java.time.DayOfWeek.WEDNESDAY -> DayOfWeek.WED
+                java.time.DayOfWeek.THURSDAY -> DayOfWeek.THU
+                java.time.DayOfWeek.FRIDAY -> DayOfWeek.FRI
+                java.time.DayOfWeek.SATURDAY -> DayOfWeek.SAT
+                java.time.DayOfWeek.SUNDAY -> DayOfWeek.SUN
+            }
+        }
+        .mapValues { entry ->
+            entry.value.map { it.completedQuests }.average()
+        }
+    if (recentContributions.isEmpty()) return null
+    return recentContributions.maxByOrNull { it.value }?.key?.name
+}
+
+private fun calculateFailureRecoveryRate(contributions: List<QuestStatUS>, questHelper: QuestHelper): Int {
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+    val failedQuests = contributions
+        .filter { it.date >= LocalDate.now().minusDays(30) }
+        .flatMap { day -> questHelper.getFailedQuestsForDay(day.date).map { it to day.date } }
+    if (failedQuests.isEmpty()) return 100
+    val recoveredQuests = failedQuests.count { (quest, failedDate) ->
+        val destructDate = LocalDate.parse(quest.autoDestruct, formatter)
+        contributions.any { contribution ->
+            contribution.date > failedDate &&
+                    contribution.date <= destructDate &&
+                    quest.selectedDays.contains(
+                        when (contribution.date.dayOfWeek) {
+                            java.time.DayOfWeek.MONDAY -> DayOfWeek.MON
+                            java.time.DayOfWeek.TUESDAY -> DayOfWeek.TUE
+                            java.time.DayOfWeek.WEDNESDAY -> DayOfWeek.WED
+                            java.time.DayOfWeek.THURSDAY -> DayOfWeek.THU
+                            java.time.DayOfWeek.FRIDAY -> DayOfWeek.FRI
+                            java.time.DayOfWeek.SATURDAY -> DayOfWeek.SAT
+                            java.time.DayOfWeek.SUNDAY -> DayOfWeek.SUN
+                        }
+                    ) &&
+                    questHelper.getCompletedQuestsForDay(contribution.date).any { it.title == quest.title }
+        }
+    }
+    return (recoveredQuests.toFloat() / failedQuests.size * 100).toInt()
+}
+
+private fun calculateMissedRewardOpportunity(contributions: List<QuestStatUS>, questHelper: QuestHelper): Int {
+    return contributions
+        .filter { it.date >= LocalDate.now().minusDays(30) }
+        .flatMap { day -> questHelper.getFailedQuestsForDay(day.date) }
+        .sumOf { it.reward }
 }
