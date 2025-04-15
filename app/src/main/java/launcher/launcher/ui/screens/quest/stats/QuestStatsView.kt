@@ -2,436 +2,316 @@ package launcher.launcher.ui.screens.quest.stats
 
 import androidx.compose.runtime.Composable
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import java.time.DayOfWeek
+import launcher.launcher.utils.QuestHelper
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
-import java.util.*
-import kotlin.random.Random
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.runtime.LaunchedEffect
+import launcher.launcher.data.quest.QuestStatUS
+import launcher.launcher.ui.screens.quest.stats.components.GitHubContributionChart
+import kotlin.math.pow
 
 @Composable
-fun QuestStatsView(){
-    Scaffold { innerPadding ->
-        Column(
-            modifier = Modifier.padding(innerPadding)
-                .padding(16.dp)
-        ) {
-            val today = LocalDate.now()
-            val startDate = today.minusDays(365)
+fun QuestStatsView() {
+    val questHelper = QuestHelper(LocalContext.current)
+    var contributions by remember { mutableStateOf(emptyList<QuestStatUS>()) }
 
-            val contributions = mutableListOf<QuestDay>()
-            var currentDate = startDate
+    LaunchedEffect (contributions) {
+        contributions = questHelper.getOverallStats()
+    }
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        content = { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
 
-            while (!currentDate.isAfter(today)) {
-                // Generate random contributions with some patterns
-                val count = when {
-                    currentDate.dayOfWeek == DayOfWeek.SATURDAY || currentDate.dayOfWeek == DayOfWeek.SUNDAY ->
-                        Random.nextInt(0, 3)
-                    currentDate.dayOfMonth % 7 == 0 ->
-                        Random.nextInt(5, 12)
-                    currentDate.dayOfMonth % 5 == 0 ->
-                        Random.nextInt(3, 8)
-                    else ->
-                        Random.nextInt(0, 5)
+                // Contribution Chart
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    GitHubContributionChart(
+                        contributions = contributions,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    )
                 }
 
-                contributions.add(QuestDay(currentDate, count))
-                currentDate = currentDate.plusDays(1)
+                // Key Metrics
+                KeyMetricsSection(contributions)
+
+                // Performance Insights
+                PerformanceInsightsSection(contributions)
+
             }
+        }
+    )
+}
 
-            Text("Statistics",
-                style = MaterialTheme.typography.headlineLarge
+@Composable
+private fun KeyMetricsSection(contributions: List<QuestStatUS>) {
+    AnimatedVisibility(
+        visible = contributions.isNotEmpty(),
+        enter = fadeIn()
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
             )
-            Spacer(modifier = Modifier.size(32.dp))
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Key Metrics",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
+                )
 
-            GitHubContributionChart(
-                contributions = contributions,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.size(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    // Average Completion Rate
+                    val completionRate = contributions
+                        .filter { it.totalQuests > 0 }
+                        .map { it.completedQuests.toFloat() / it.totalQuests }
+                        .average()
+                        .times(100)
+                        .toInt()
+                    StatItem(
+                        value = "$completionRate%",
+                        label = "Completion Rate",
+                        modifier = Modifier.weight(1f)
+                    )
 
-            Text("Best Day: 4th May",
-                style = MaterialTheme.typography.bodyLarge)
+                    // Current Streak
+                    val currentStreak = calculateStreak(contributions)
+                    StatItem(
+                        value = "$currentStreak",
+                        label = "Current Streak",
+                        modifier = Modifier.weight(1f)
+                    )
 
-            Text("Worst Day: 5th May",
-                style = MaterialTheme.typography.bodyLarge)
-
-            Text("Discipline Rating: 5/10",
-                style = MaterialTheme.typography.bodyLarge)
-
-//            Text("Discipline: 5/10",
-//                style = MaterialTheme.typography.bodyLarge)
-
+                    // Best Day
+                    val bestDay = contributions.maxByOrNull { it.completedQuests }
+                    val formattedBestDate = bestDay?.date?.format(DateTimeFormatter.ofPattern("MMM d")) ?: "N/A"
+                    StatItem(
+                        value = "${bestDay?.completedQuests ?: 0}",
+                        label = "Best Day\n($formattedBestDate)",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
         }
     }
 }
 
-data class QuestDay(
-    val date: LocalDate,
-    val questCount: Int
-)
+@Composable
+private fun PerformanceInsightsSection(contributions: List<QuestStatUS>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Performance Insights",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
+            )
+
+            // Weekly Average
+            val weeklyAvg = contributions
+                .filter { it.date >= LocalDate.now().minusWeeks(1) }
+                .map { it.completedQuests }
+                .average()
+                .toInt()
+            StatRow(label = "Weekly Avg", value = "$weeklyAvg quests")
+
+            // Monthly Average
+            val monthlyAvg = contributions
+                .filter { it.date >= LocalDate.now().minusMonths(1) }
+                .map { it.completedQuests }
+                .average()
+                .toInt()
+            StatRow(label = "Monthly Avg", value = "$monthlyAvg quests")
+
+            // Productivity Trend
+            val trend = calculateTrend(contributions)
+            StatRow(
+                label = "Trend (Last 30 Days)",
+                value = when {
+                    trend > 0 -> "Improving (+${trend.toInt()}%)"
+                    trend < 0 -> "Declining (${trend.toInt()}%)"
+                    else -> "Stable"
+                },
+                valueColor = when {
+                    trend > 0 -> MaterialTheme.colorScheme.primary
+                    trend < 0 -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurface
+                }
+            )
+        }
+    }
+}
 
 @Composable
-fun GitHubContributionChart(
-    contributions: List<QuestDay>,
+private fun ConsistencyScoreSection(contributions: List<QuestStatUS>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Consistency Score",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
+            )
+            val consistencyScore = calculateConsistencyScore(contributions)
+            StatRow(
+                label = "Daily Consistency (Last 30 Days)",
+                value = "${consistencyScore}/100",
+                valueColor = when {
+                    consistencyScore >= 80 -> MaterialTheme.colorScheme.primary
+                    consistencyScore >= 50 -> MaterialTheme.colorScheme.onSurface
+                    else -> MaterialTheme.colorScheme.error
+                }
+            )
+            Text(
+                text = "Lower variation in daily completions means a higher score. Aim for steady progress!",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+private fun calculateConsistencyScore(contributions: List<QuestStatUS>): Int {
+    val recentContributions = contributions
+        .filter { it.date >= LocalDate.now().minusDays(30) }
+        .map { it.completedQuests.toDouble() }
+    if (recentContributions.isEmpty()) return 0
+    val mean = recentContributions.average()
+    val standardDeviation = if (recentContributions.size > 1) {
+        Math.sqrt(recentContributions.map { (it - mean).pow(2) }.average())
+    } else 0.0
+    // Normalize to 0-100 scale; lower deviation = higher score
+    val maxDeviation = mean * 2 // Arbitrary cap for scaling
+    return if (maxDeviation == 0.0) 100 else {
+        ((1 - (standardDeviation / maxDeviation)) * 100).coerceIn(0.0, 100.0).toInt()
+    }
+}
+@Composable
+private fun StatItem(
+    value: String,
+    label: String,
     modifier: Modifier = Modifier
 ) {
-    val weeks = contributions.groupBy { it.date.with(DayOfWeek.MONDAY) }
-    val months = contributions.groupBy { it.date.month }
-    val horizontalScrollState = rememberScrollState()
-
-    Column(modifier = modifier) {
-        // Scrollable content
-        Column(
-            modifier = Modifier
-                .horizontalScroll(horizontalScrollState)
-                .padding(end = 16.dp)
-        ) {
-            // Month labels
-            Row(
-                modifier = Modifier
-                    .padding(start = 36.dp)
-                    .width(maxOf((weeks.size * 15 + 10).dp, 300.dp)),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                months.keys.distinct().forEach { month ->
-                    Text(
-                        text = month.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(modifier = Modifier.fillMaxWidth()) {
-                // Day of week labels
-                Column(
-                    modifier = Modifier.wrapContentWidth(),
-                    horizontalAlignment = Alignment.Start,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    DayOfWeek.entries.forEachIndexed { index, day ->
-                        if (index % 2 == 0 && day != DayOfWeek.SUNDAY) {
-                            Text(
-                                text = day.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                modifier = Modifier.padding(horizontal = 4.dp)
-                            )
-                        } else {
-                            Spacer(modifier = Modifier.height(18.dp))
-                        }
-                    }
-                }
-
-                // Contribution grid
-                Box(
-                    modifier = Modifier
-                        .width(maxOf(weeks.size * 15, 300).dp)
-                        .height((7 * 17).dp)
-                ) {
-                    val allDays = mutableListOf<QuestDay>()
-
-                    // Fill in all days for proper grid layout
-                    val startDate = weeks.keys.minOrNull() ?: LocalDate.now()
-                    val endDate = weeks.keys.maxOrNull()?.plusDays(6) ?: LocalDate.now()
-
-                    var currentDate = startDate
-                    while (!currentDate.isAfter(endDate)) {
-                        val existingDay = contributions.find { it.date == currentDate }
-                        if (existingDay != null) {
-                            allDays.add(existingDay)
-                        } else {
-                            allDays.add(QuestDay(currentDate, 0))
-                        }
-                        currentDate = currentDate.plusDays(1)
-                    }
-
-                    // Group by week for column layout
-                    val daysByWeek = allDays.groupBy { it.date.with(DayOfWeek.MONDAY) }
-
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        daysByWeek.keys.sorted().forEach { weekStart ->
-                            val weekDays = daysByWeek[weekStart] ?: emptyList()
-                            Column(
-                                modifier = Modifier.width(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(3.dp)
-                            ) {
-                                // Sort by day of week (Monday to Sunday)
-                                val sortedDays = weekDays.sortedBy { it.date.dayOfWeek.value }
-                                sortedDays.forEach { day ->
-                                    ContributionCell(day)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Legend
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Less",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            listOf(0, 1, 2, 3, 4).forEach { level ->
-                Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .clip(MaterialTheme.shapes.extraSmall)
-                        .background(getContributionColor(level))
-                        .padding(2.dp)
-                )
-
-                Spacer(modifier = Modifier.width(4.dp))
-            }
-
-            Text(
-                text = "More",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-        }
-    }
-}
-
-@Composable
-fun ContributionCell(day: QuestDay) {
-    val level = when (day.questCount) {
-        0 -> 0
-        in 1..3 -> 1
-        in 4..6 -> 2
-        in 7..9 -> 3
-        else -> 4
-    }
-
-    Box(
-        modifier = Modifier
-            .size(12.dp)
-            .clip(MaterialTheme.shapes.extraSmall)
-            .background(getContributionColor(level))
-            .padding(2.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        // Tooltip functionality would be added here in a real implementation
-    }
-}
-
-@Composable
-fun getContributionColor(level: Int): Color {
-    return when (level) {
-        0 -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        1 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-        2 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-        3 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-        else -> MaterialTheme.colorScheme.primary
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Preview
-@Composable
-fun GitHubContributionChartPreview() {
-    MaterialTheme {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("GitHub Contributions") },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimary
-                    )
-                )
-            }
-        ) { paddingValues ->
-            ContributionScreen(
-                modifier = Modifier
-                    .padding(paddingValues)
-                    .fillMaxSize()
-            )
-        }
-    }
-}
-
-@Composable
-fun ContributionScreen(modifier: Modifier = Modifier) {
-    val today = LocalDate.now()
-    val startDate = today.minusDays(365)
-
-    val contributions = mutableListOf<QuestDay>()
-    var currentDate = startDate
-
-    while (!currentDate.isAfter(today)) {
-        // Generate random contributions with some patterns
-        val count = when {
-            currentDate.dayOfWeek == DayOfWeek.SATURDAY || currentDate.dayOfWeek == DayOfWeek.SUNDAY ->
-                Random.nextInt(0, 3)
-            currentDate.dayOfMonth % 7 == 0 ->
-                Random.nextInt(5, 12)
-            currentDate.dayOfMonth % 5 == 0 ->
-                Random.nextInt(3, 8)
-            else ->
-                Random.nextInt(0, 5)
-        }
-
-        contributions.add(QuestDay(currentDate, count))
-        currentDate = currentDate.plusDays(1)
-    }
-
     Column(
-        modifier = modifier.padding(16.dp)
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(
-            text = "Sarah's Contribution Activity",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
+            text = value,
+            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.primary
         )
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                val totalContributions = contributions.sumOf { it.questCount }
-
-                Text(
-                    text = "$totalContributions contributions in the last year",
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                GitHubContributionChart(
-                    contributions = contributions,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Activity summary
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Contribution Summary",
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        val avgWeekday = contributions
-                            .filter { it.date.dayOfWeek !in listOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY) }
-                            .map { it.questCount }
-                            .average()
-                            .toInt()
-
-                        Text(
-                            text = "$avgWeekday",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "Avg on weekdays",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        val avgWeekend = contributions
-                            .filter { it.date.dayOfWeek in listOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY) }
-                            .map { it.questCount }
-                            .average()
-                            .toInt()
-
-                        Text(
-                            text = "$avgWeekend",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "Avg on weekends",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        val bestDay = contributions.maxByOrNull { it.questCount }
-                        val formattedDate = bestDay?.date?.format(DateTimeFormatter.ofPattern("MMM d")) ?: ""
-
-                        Text(
-                            text = "${bestDay?.questCount ?: 0}",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "Best day ($formattedDate)",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
-private fun max(a: androidx.compose.ui.unit.Dp, b: androidx.compose.ui.unit.Dp): androidx.compose.ui.unit.Dp {
-    return if (a > b) a else b
+@Composable
+private fun StatRow(
+    label: String,
+    value: String,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = valueColor
+        )
+    }
+}
+
+private fun calculateStreak(contributions: List<QuestStatUS>): Int {
+    if (contributions.isEmpty()) return 0
+    var streak = 0
+    var currentDate = LocalDate.now()
+    val sortedContributions = contributions.sortedByDescending { it.date }
+
+    for (day in sortedContributions) {
+        if (day.date == currentDate && day.completedQuests > 0) {
+            streak++
+            currentDate = currentDate.minusDays(1)
+        } else if (day.date < currentDate) {
+            break
+        }
+    }
+    return streak
+}
+
+private fun calculateTrend(contributions: List<QuestStatUS>): Float {
+    if (contributions.size < 14) return 0f
+    val recent = contributions
+        .filter { it.date >= LocalDate.now().minusDays(14) }
+        .map { it.completedQuests }
+        .average()
+    val previous = contributions
+        .filter { it.date in LocalDate.now().minusDays(28)..LocalDate.now().minusDays(15) }
+        .map { it.completedQuests }
+        .average()
+    return if (previous.isNaN() || recent.isNaN()) 0f else ((recent - previous) / previous * 100).toFloat()
 }

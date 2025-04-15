@@ -4,6 +4,7 @@ import android.content.Context
 import kotlinx.serialization.Serializable
 import launcher.launcher.utils.json
 import androidx.core.content.edit
+import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.isTimeOver
 
 
@@ -31,6 +32,7 @@ object User {
     lateinit var appContext: Context
     lateinit var userInfo: UserInfo
     lateinit var streakData: StreakData
+
     var lastXpEarned: Int? = null
     var lastRewards: List<Rewards>? = null
 

@@ -15,11 +15,11 @@ import launcher.launcher.utils.getCurrentDate
  * Stores basic information about a quests
  *
  * @property title this should be unique as it also acts as a primary key
- * @property reward
- * @property integrationId
- * @property selectedDays
+ * @property reward the coins rewarded for that quest
+ * @property integrationId id
+ * @property selectedDays the days on which it can be performed
  * @property autoDestruct format yyyy-mm-dd
- * @property timeRange format startHour,endHour
+ * @property timeRange format startHour,endHour, says when between what time range the quest is to be completed
  */
 @Serializable
 data class BasicQuestInfo(

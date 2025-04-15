@@ -6,7 +6,11 @@ import android.util.Log
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.quest.BasicQuestInfo
 import androidx.core.content.edit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import launcher.launcher.data.quest.QuestStatUS
 import launcher.launcher.data.quest.QuestStats
+import launcher.launcher.ui.screens.quest.stats.QuestStatUS
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
@@ -25,15 +29,16 @@ val json = Json {
     encodeDefaults = true
 }
 
-class QuestHelper(context: Context) {
+class QuestHelper(val context: Context) {
     val sharedPreferences: SharedPreferences = context.getSharedPreferences(
         PREF_NAME,
         Context.MODE_PRIVATE
     )
 
+
     val coinHelper = CoinHelper(context)
-    val instructionPref = context.getSharedPreferences(INSTRUCTION_NAME, Context.MODE_PRIVATE)
-    val destructionPref = context.getSharedPreferences(DESTRUCTION_NAME, Context.MODE_PRIVATE)
+    val instructionPref: SharedPreferences = context.getSharedPreferences(INSTRUCTION_NAME, Context.MODE_PRIVATE)
+    val destructionPref : SharedPreferences = context.getSharedPreferences(DESTRUCTION_NAME, Context.MODE_PRIVATE)
 
 
     fun getQuestList(): List<BasicQuestInfo> {
@@ -47,6 +52,7 @@ class QuestHelper(context: Context) {
             emptyList()
         }
     }
+
     fun saveQuestList(list: List<BasicQuestInfo>){
         val listData = json.encodeToString<List<BasicQuestInfo>>(list)
         sharedPreferences.edit { putString(ALL_QUESTS_LIST_KEY, listData) }
@@ -67,7 +73,6 @@ class QuestHelper(context: Context) {
         currentQuests.add(baseData)
         saveQuestList(currentQuests)
     }
-
 
     inline fun <reified T : Any> getQuestInfo(baseData: BasicQuestInfo): T? {
         val questInfo = sharedPreferences.getString("quest_data_${baseData.title}", null) ?: return null
@@ -118,7 +123,43 @@ class QuestHelper(context: Context) {
         sharedPreferences.edit { putString(QUEST_LAST_PERFORMED_SUFFIX + baseData.title, date) }
         coinHelper.incrementCoinCount(baseData.reward)
 
+        val totalQuests = filterQuestForToday()
+        val completedQuest = totalQuests.filter { data -> isQuestCompleted(data.title, getCurrentDate()) == true }
+        val questStats = QuestStats(
+            completedQuest.size,
+            totalQuests.size
+        )
+        saveStatsForDate(getCurrentDate(),questStats)
     }
+
+    fun saveStatsForDate(date: String,questStats: QuestStats){
+        val sharedPreferences = context.getSharedPreferences("questStats", Context.MODE_PRIVATE)
+        sharedPreferences.edit {
+            putString(
+                date, json.encodeToString(questStats)
+            )
+        }
+    }
+
+    fun getOverallStats(): List<QuestStatUS>{
+        val statList : MutableList<QuestStatUS> = mutableListOf()
+        val sp = context.getSharedPreferences("questStats", Context.MODE_PRIVATE)
+        val allKeys = sp.all.keys
+
+        allKeys.forEach { key ->
+            val str = sp.getString(key, null)
+            Log.d("stats str", str.toString())
+            if (str != null) {
+                val value = json.decodeFromString<QuestStats>(str)
+                statList.add(QuestStatUS(LocalDate.parse(key, DateTimeFormatter.ofPattern("yyyy-MM-dd")),value.questsPerformed,value.totalQuests))
+            }
+        }
+        Log.d("stats",statList.toString())
+        return statList
+    }
+
+
+
 
     fun isQuestRunning(title:String):Boolean{
         return sharedPreferences.getBoolean(QUEST_IS_RUNNING_SUFFIX + title, false)
@@ -134,7 +175,7 @@ class QuestHelper(context: Context) {
      * @param quests
      * @return
      */
-    fun filterQuestForToday(quests: List<BasicQuestInfo>): List<BasicQuestInfo> {
+    fun filterQuestForToday(quests: List<BasicQuestInfo> = getQuestList()): List<BasicQuestInfo> {
         val today = getCurrentDay()
         Log.d("current day",today.name)
         Log.d("all quests ",quests.toString())
