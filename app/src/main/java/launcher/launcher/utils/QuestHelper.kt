@@ -217,15 +217,7 @@ class QuestHelper(val context: Context) {
      */
     fun getQuestsForDay(date: LocalDate): List<BasicQuestInfo> {
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-        val dayOfWeek = when (date.dayOfWeek) {
-            java.time.DayOfWeek.MONDAY -> DayOfWeek.MON
-            java.time.DayOfWeek.TUESDAY -> DayOfWeek.TUE
-            java.time.DayOfWeek.WEDNESDAY -> DayOfWeek.WED
-            java.time.DayOfWeek.THURSDAY -> DayOfWeek.THU
-            java.time.DayOfWeek.FRIDAY -> DayOfWeek.FRI
-            java.time.DayOfWeek.SATURDAY -> DayOfWeek.SAT
-            java.time.DayOfWeek.SUNDAY -> DayOfWeek.SUN
-        }
+        val dayOfWeek = date.dayOfWeek.convertToDayOfWeek()
         return getQuestList().filter {
             it.selectedDays.contains(dayOfWeek) &&
                     !isDestroyed(it.title) &&
@@ -266,8 +258,11 @@ class QuestHelper(val context: Context) {
         val allDates = getAllDatesBetween(lastPerformedDate, yesterday)
 
         for (date in allDates) {
-            val dayEnum = getDayOfWeekEnum(date)
-            if (dayEnum in baseData.selectedDays) {
+
+            val calendar = Calendar.getInstance()
+            calendar.time = date
+            val day = calendar.convertToDayOfWeek()
+            if (day in baseData.selectedDays) {
                 val formattedDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date)
                 val alreadySaved = getQuestStats(formattedDate, baseData.title)
                 if (alreadySaved == null) {

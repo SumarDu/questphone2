@@ -33,6 +33,7 @@ import launcher.launcher.data.DayOfWeek
 import launcher.launcher.data.game.User
 import launcher.launcher.data.quest.OverallStatsUs
 import launcher.launcher.ui.screens.quest.stats.components.GitHubContributionChart
+import launcher.launcher.utils.convertToDayOfWeek
 
 @Composable
 fun OverallStatsView() {
@@ -412,16 +413,7 @@ private fun calculateTimeDisciplineScore(contributions: List<OverallStatsUs>, qu
 private fun calculatePowerhouseDay(contributions: List<OverallStatsUs>): String? {
     val recentContributions = contributions
         .filter { it.date >= LocalDate.now().minusDays(30) }
-        .groupBy { contribution ->
-            when (contribution.date.dayOfWeek) {
-                java.time.DayOfWeek.MONDAY -> DayOfWeek.MON
-                java.time.DayOfWeek.TUESDAY -> DayOfWeek.TUE
-                java.time.DayOfWeek.WEDNESDAY -> DayOfWeek.WED
-                java.time.DayOfWeek.THURSDAY -> DayOfWeek.THU
-                java.time.DayOfWeek.FRIDAY -> DayOfWeek.FRI
-                java.time.DayOfWeek.SATURDAY -> DayOfWeek.SAT
-                java.time.DayOfWeek.SUNDAY -> DayOfWeek.SUN
-            }
+        .groupBy { contribution -> contribution.date.dayOfWeek.convertToDayOfWeek()
         }
         .mapValues { entry ->
             entry.value.map { it.completedQuests }.average()
@@ -442,15 +434,7 @@ private fun calculateFailureRecoveryRate(contributions: List<OverallStatsUs>, qu
             contribution.date > failedDate &&
                     contribution.date <= destructDate &&
                     quest.selectedDays.contains(
-                        when (contribution.date.dayOfWeek) {
-                            java.time.DayOfWeek.MONDAY -> DayOfWeek.MON
-                            java.time.DayOfWeek.TUESDAY -> DayOfWeek.TUE
-                            java.time.DayOfWeek.WEDNESDAY -> DayOfWeek.WED
-                            java.time.DayOfWeek.THURSDAY -> DayOfWeek.THU
-                            java.time.DayOfWeek.FRIDAY -> DayOfWeek.FRI
-                            java.time.DayOfWeek.SATURDAY -> DayOfWeek.SAT
-                            java.time.DayOfWeek.SUNDAY -> DayOfWeek.SUN
-                        }
+                        contribution.date.dayOfWeek.convertToDayOfWeek()
                     ) &&
                     questHelper.getCompletedQuestsForDay(contribution.date).any { it.title == quest.title }
         }

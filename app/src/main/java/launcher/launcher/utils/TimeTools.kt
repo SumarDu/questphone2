@@ -102,22 +102,12 @@ fun formatRemainingTime(timeString: String): String {
 }
 fun getCurrentDay(): DayOfWeek {
     val calendar = Calendar.getInstance()
-    return when (calendar.get(Calendar.DAY_OF_WEEK)) {
-        Calendar.MONDAY -> DayOfWeek.MON
-        Calendar.TUESDAY -> DayOfWeek.TUE
-        Calendar.WEDNESDAY -> DayOfWeek.WED
-        Calendar.THURSDAY -> DayOfWeek.THU
-        Calendar.FRIDAY -> DayOfWeek.FRI
-        Calendar.SATURDAY -> DayOfWeek.SAT
-        Calendar.SUNDAY -> DayOfWeek.SUN
-        else -> throw IllegalStateException("Invalid day of week")
-    }
+    return calendar.convertToDayOfWeek()
 }
-fun getDayOfWeekEnum(date: Date): DayOfWeek {
-    val calendar = Calendar.getInstance()
-    calendar.time = date
 
-    return when (calendar.get(Calendar.DAY_OF_WEEK)) {
+fun Calendar.convertToDayOfWeek(): DayOfWeek {
+
+    return when ((this.get(Calendar.DAY_OF_WEEK))) {
         Calendar.MONDAY -> DayOfWeek.MON
         Calendar.TUESDAY -> DayOfWeek.TUE
         Calendar.WEDNESDAY -> DayOfWeek.WED
@@ -129,8 +119,8 @@ fun getDayOfWeekEnum(date: Date): DayOfWeek {
     }
 }
 
-fun java.time.DayOfWeek.convertToDayOfWeek(date: java.time.LocalDate): DayOfWeek{
-   return when (date.dayOfWeek) {
+fun java.time.DayOfWeek.convertToDayOfWeek(): DayOfWeek{
+   return when (this) {
         java.time.DayOfWeek.MONDAY -> DayOfWeek.MON
         java.time.DayOfWeek.TUESDAY -> DayOfWeek.TUE
         java.time.DayOfWeek.WEDNESDAY -> DayOfWeek.WED

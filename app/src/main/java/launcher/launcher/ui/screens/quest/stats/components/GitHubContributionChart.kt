@@ -156,7 +156,7 @@ private fun DayLabelsColumn(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(CELL_SPACING) // Match grid spacing
     ) {
         // Display labels for Monday, Wednesday, Friday
-        val daysToShow = listOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY)
+        val daysToShow = listOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY, DayOfWeek.FRIDAY,DayOfWeek.SUNDAY)
         DayOfWeek.entries.forEach { day ->
             if (day in daysToShow) {
                 Text(
