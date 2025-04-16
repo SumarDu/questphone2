@@ -15,7 +15,8 @@ data class OverallStats(
 data class OverallStatsUs(
     val date: LocalDate,
     val completedQuests: Int,
-    val totalQuests: Int
+    val totalQuests: Int,
+    val isPlaceholder: Boolean = false
 )
 
 /**
