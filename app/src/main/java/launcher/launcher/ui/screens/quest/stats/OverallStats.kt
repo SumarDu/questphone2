@@ -31,13 +31,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.res.painterResource
 import launcher.launcher.data.DayOfWeek
 import launcher.launcher.data.game.User
-import launcher.launcher.data.quest.QuestStatUS
+import launcher.launcher.data.quest.OverallStatsUs
 import launcher.launcher.ui.screens.quest.stats.components.GitHubContributionChart
 
 @Composable
-fun QuestStatsView() {
+fun OverallStatsView() {
     val questHelper = QuestHelper(LocalContext.current)
-    var contributions by remember { mutableStateOf(emptyList<QuestStatUS>()) }
+    var contributions by remember { mutableStateOf(emptyList<OverallStatsUs>()) }
 
     var scrollState = rememberScrollState()
     LaunchedEffect (contributions) {
@@ -85,7 +85,7 @@ fun QuestStatsView() {
 }
 
 @Composable
-private fun KeyMetricsSection(contributions: List<QuestStatUS>) {
+private fun KeyMetricsSection(contributions: List<OverallStatsUs>) {
     AnimatedVisibility(
         visible = contributions.isNotEmpty(),
         enter = fadeIn()
@@ -145,7 +145,7 @@ private fun KeyMetricsSection(contributions: List<QuestStatUS>) {
 }
 
 @Composable
-private fun GeneralStats(contributions: List<QuestStatUS>) {
+private fun GeneralStats(contributions: List<OverallStatsUs>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -244,24 +244,7 @@ private fun StatRow(
     }
 }
 
-private fun calculateStreak(contributions: List<QuestStatUS>): Int {
-    if (contributions.isEmpty()) return 0
-    var streak = 0
-    var currentDate = LocalDate.now()
-    val sortedContributions = contributions.sortedByDescending { it.date }
-
-    for (day in sortedContributions) {
-        if (day.date == currentDate && day.completedQuests > 0) {
-            streak++
-            currentDate = currentDate.minusDays(1)
-        } else if (day.date < currentDate) {
-            break
-        }
-    }
-    return streak
-}
-
-private fun calculateTrend(contributions: List<QuestStatUS>): Float {
+private fun calculateTrend(contributions: List<OverallStatsUs>): Float {
     if (contributions.size < 14) return 0f
     val recent = contributions
         .filter { it.date >= LocalDate.now().minusDays(14) }
@@ -276,7 +259,7 @@ private fun calculateTrend(contributions: List<QuestStatUS>): Float {
 
 
 @Composable
-private fun QuestPerformanceInsightsSection(contributions: List<QuestStatUS>) {
+private fun QuestPerformanceInsightsSection(contributions: List<OverallStatsUs>) {
     val questHelper = QuestHelper(LocalContext.current)
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -412,7 +395,7 @@ private fun StatRowWithTooltip(
         )
     }
 }
-private fun calculateTimeDisciplineScore(contributions: List<QuestStatUS>, questHelper: QuestHelper): Int {
+private fun calculateTimeDisciplineScore(contributions: List<OverallStatsUs>, questHelper: QuestHelper): Int {
     val completedQuests = contributions
         .filter { it.date >= LocalDate.now().minusDays(30) }
         .flatMap { day -> questHelper.getCompletedQuestsForDay(day.date) }
@@ -426,7 +409,7 @@ private fun calculateTimeDisciplineScore(contributions: List<QuestStatUS>, quest
     return (withinTimeRange.toFloat() / completedQuests.size * 100).toInt()
 }
 
-private fun calculatePowerhouseDay(contributions: List<QuestStatUS>): String? {
+private fun calculatePowerhouseDay(contributions: List<OverallStatsUs>): String? {
     val recentContributions = contributions
         .filter { it.date >= LocalDate.now().minusDays(30) }
         .groupBy { contribution ->
@@ -447,7 +430,7 @@ private fun calculatePowerhouseDay(contributions: List<QuestStatUS>): String? {
     return recentContributions.maxByOrNull { it.value }?.key?.name
 }
 
-private fun calculateFailureRecoveryRate(contributions: List<QuestStatUS>, questHelper: QuestHelper): Int {
+private fun calculateFailureRecoveryRate(contributions: List<OverallStatsUs>, questHelper: QuestHelper): Int {
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
     val failedQuests = contributions
         .filter { it.date >= LocalDate.now().minusDays(30) }
@@ -475,7 +458,7 @@ private fun calculateFailureRecoveryRate(contributions: List<QuestStatUS>, quest
     return (recoveredQuests.toFloat() / failedQuests.size * 100).toInt()
 }
 
-private fun calculateMissedRewardOpportunity(contributions: List<QuestStatUS>, questHelper: QuestHelper): Int {
+private fun calculateMissedRewardOpportunity(contributions: List<OverallStatsUs>, questHelper: QuestHelper): Int {
     return contributions
         .filter { it.date >= LocalDate.now().minusDays(30) }
         .flatMap { day -> questHelper.getFailedQuestsForDay(day.date) }

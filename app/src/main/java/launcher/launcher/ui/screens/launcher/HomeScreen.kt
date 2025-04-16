@@ -4,8 +4,6 @@ import android.content.Context.MODE_PRIVATE
 import android.util.Log
 import launcher.launcher.R
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -22,8 +20,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -54,27 +50,16 @@ import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.getCurrentDate
 
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import launcher.launcher.data.game.StreakCheckReturn
 import launcher.launcher.data.game.User
-import launcher.launcher.data.game.addXp
 import launcher.launcher.data.game.checkIfStreakFailed
 import launcher.launcher.data.game.continueStreak
 import launcher.launcher.data.game.getStreakInfo
-import launcher.launcher.data.game.getUserInfo
-import launcher.launcher.data.game.saveStreakInfo
-import launcher.launcher.data.game.saveUserInfo
-import launcher.launcher.data.game.xpFromStreak
 import launcher.launcher.ui.screens.game.StreakFailedDialog
 import launcher.launcher.ui.screens.game.StreakUpDialog
 import launcher.launcher.utils.VibrationHelper
 import launcher.launcher.utils.formatHour
-import org.checkerframework.checker.units.qual.s
 import kotlin.collections.forEach
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -195,7 +180,7 @@ fun HomeScreen(navController: NavController) {
                     .padding(8.dp)
                     .size(30.dp)
                     .clickable {
-                        navController.navigate(Screen.QuestStats.route)
+                        navController.navigate(Screen.OverallStats.route)
                     }
             )
             // Profile icon on the right
@@ -256,10 +241,11 @@ fun HomeScreen(navController: NavController) {
                     val baseQuest = questList[index]
                     val timeRange = "${formatHour(baseQuest.timeRange[0])} - ${formatHour(baseQuest.timeRange[1])} : "
                     val prefix = if(baseQuest.timeRange[0]==0&&baseQuest.timeRange[1]==24) "" else timeRange
+                    val isOver = questHelper.isOver(baseQuest)
                     QuestItem(
-                        text =  if(QuestHelper.isInTimeRange(baseQuest) && QuestHelper.isOver(baseQuest)) baseQuest.title else  prefix +  baseQuest.title,
+                        text =  if(QuestHelper.isInTimeRange(baseQuest) && isOver) baseQuest.title else  prefix +  baseQuest.title,
                         isCompleted = completedQuests.contains(baseQuest.title),
-                        isFailed = QuestHelper.isOver(baseQuest),
+                        isFailed = isOver,
                         modifier = Modifier.clickable {
                             viewQuest(baseQuest,navController)
                     })

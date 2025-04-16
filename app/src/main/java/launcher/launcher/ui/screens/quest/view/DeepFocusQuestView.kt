@@ -94,7 +94,7 @@ fun DeepFocusQuestView(
     var isAppInForeground by remember { mutableStateOf(true) }
 
     val isQuestWonDialogVisible = remember {mutableStateOf(false) }
-    val isFailed = remember { mutableStateOf(QuestHelper.isOver(basicQuestInfo)) }
+    val isFailed = remember { mutableStateOf(questHelper.isOver(basicQuestInfo)) }
 
 
     var progress by remember {

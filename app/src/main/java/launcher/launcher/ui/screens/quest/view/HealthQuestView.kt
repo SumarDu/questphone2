@@ -9,21 +9,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.xpToRewardForQuest
@@ -37,7 +32,6 @@ import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.HealthConnectManager
 import launcher.launcher.utils.HealthConnectPermissionManager
 import launcher.launcher.utils.QuestHelper
-import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
 
 @SuppressLint("DefaultLocale")
@@ -81,7 +75,7 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
 
     fun onQuestCompleted(){
         questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
-        healthQuest.incrementTime()
+        healthQuest.incrementGoal()
         questHelper.updateQuestInfo<HealthQuest>(basicQuestInfo) { healthQuest }
         isQuestWonDialogVisible.value = true
         isQuestComplete.value = true
@@ -113,7 +107,9 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
         }
 
         if (progressState.floatValue == 1f) {
-            onQuestCompleted()
+            if(!isQuestComplete.value){
+                onQuestCompleted()
+            }
         }
     }
 

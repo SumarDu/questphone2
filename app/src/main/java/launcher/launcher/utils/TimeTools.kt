@@ -7,7 +7,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import kotlin.time.Duration
 
 /**
  * format: yyyy-MM-dd
@@ -15,6 +14,29 @@ import kotlin.time.Duration
 fun getCurrentDate(): String {
     val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     return sdf.format(Date())
+}
+
+/**
+ * format: yyyy-MM-dd
+ */
+fun getPreviousDay(): String {
+    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    val calendar = Calendar.getInstance()
+    calendar.add(Calendar.DATE, -1) // Subtract 1 day
+    return sdf.format(calendar.time)
+}
+
+/**
+ * format: yyyy-MM-dd
+ */
+fun getDateFromString(dateStr: String): Date {
+    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    return sdf.parse(dateStr) ?: Date()
+}
+
+fun getDayName(date: Date): String {
+    val sdf = SimpleDateFormat("EEEE", Locale.getDefault())
+    return sdf.format(date)
 }
 
 /**
@@ -91,6 +113,21 @@ fun getCurrentDay(): DayOfWeek {
         else -> throw IllegalStateException("Invalid day of week")
     }
 }
+fun getDayOfWeekEnum(date: Date): DayOfWeek {
+    val calendar = Calendar.getInstance()
+    calendar.time = date
+
+    return when (calendar.get(Calendar.DAY_OF_WEEK)) {
+        Calendar.MONDAY -> DayOfWeek.MON
+        Calendar.TUESDAY -> DayOfWeek.TUE
+        Calendar.WEDNESDAY -> DayOfWeek.WED
+        Calendar.THURSDAY -> DayOfWeek.THU
+        Calendar.FRIDAY -> DayOfWeek.FRI
+        Calendar.SATURDAY -> DayOfWeek.SAT
+        Calendar.SUNDAY -> DayOfWeek.SUN
+        else -> throw IllegalStateException("Invalid day")
+    }
+}
 
 fun java.time.DayOfWeek.convertToDayOfWeek(date: java.time.LocalDate): DayOfWeek{
    return when (date.dayOfWeek) {
@@ -104,6 +141,7 @@ fun java.time.DayOfWeek.convertToDayOfWeek(date: java.time.LocalDate): DayOfWeek
     }
 }
 
+
 fun formatHour(hour: Int): String {
     return when (hour) {
         0, 24 -> "12 AM" // Midnight fix
@@ -111,4 +149,15 @@ fun formatHour(hour: Int): String {
         in 1..11 -> "$hour AM"
         else -> "${hour - 12} PM"
     }
+}
+fun getAllDatesBetween(startDate: Date, endDate: Date): List<Date> {
+    val dates = mutableListOf<Date>()
+    val cal = Calendar.getInstance()
+    cal.time = startDate
+
+    while (!cal.time.after(endDate)) {
+        dates.add(cal.time)
+        cal.add(Calendar.DATE, 1)
+    }
+    return dates
 }

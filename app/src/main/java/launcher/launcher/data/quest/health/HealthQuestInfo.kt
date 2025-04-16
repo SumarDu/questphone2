@@ -15,10 +15,10 @@ data class HealthQuest(
     val healthGoalConfig: HealthGoalConfig = HealthGoalConfig(),
     var nextGoal: Int = healthGoalConfig.initial
 ){
-    fun incrementTime() {
+    fun incrementGoal() {
         if (nextGoal < healthGoalConfig.final) {
             nextGoal = minOf(
-                nextGoal + healthGoalConfig.final,
+                nextGoal + healthGoalConfig.increment,
                 healthGoalConfig.final
             )
         }

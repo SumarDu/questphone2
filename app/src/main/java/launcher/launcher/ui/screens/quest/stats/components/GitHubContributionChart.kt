@@ -32,7 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import launcher.launcher.data.quest.QuestStatUS
+import launcher.launcher.data.quest.OverallStatsUs
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -41,14 +41,14 @@ import java.util.Locale
 
 @Composable
 fun GitHubContributionChart(
-    contributions: List<QuestStatUS>,
+    contributions: List<OverallStatsUs>,
     modifier: Modifier = Modifier
 ) {
     val weeks = contributions.groupBy { it.date.with(DayOfWeek.MONDAY) }
     val months = contributions.groupBy { it.date.month }
     val horizontalScrollState = rememberScrollState()
 
-    var selectedQuestStatUS by remember { mutableStateOf<QuestStatUS?>(null) }
+    var selectedOverallStatsUs by remember { mutableStateOf<OverallStatsUs?>(null) }
 
     Column(modifier = modifier) {
         Column(
@@ -98,7 +98,7 @@ fun GitHubContributionChart(
                         .width(maxOf(weeks.size * 15, 300).dp)
                         .height((7 * 17).dp)
                 ) {
-                    val allDays = mutableListOf<QuestStatUS>()
+                    val allDays = mutableListOf<OverallStatsUs>()
 
                     val startDate = weeks.keys.minOrNull() ?: LocalDate.now()
                     val endDate = weeks.keys.maxOrNull()?.plusDays(6) ?: LocalDate.now()
@@ -109,7 +109,7 @@ fun GitHubContributionChart(
                         if (existingDay != null) {
                             allDays.add(existingDay)
                         } else {
-                            allDays.add(QuestStatUS(currentDate, 0, 0))
+                            allDays.add(OverallStatsUs(currentDate, 0, 0))
                         }
                         currentDate = currentDate.plusDays(1)
                     }
@@ -129,7 +129,7 @@ fun GitHubContributionChart(
                                 val sortedDays = weekDays.sortedBy { it.date.dayOfWeek.value }
                                 sortedDays.forEach { day ->
                                     ContributionCell(day, onClick = { clickedDay ->
-                                        selectedQuestStatUS = clickedDay
+                                        selectedOverallStatsUs = clickedDay
                                     })
                                 }
                             }
@@ -140,11 +140,11 @@ fun GitHubContributionChart(
         }
         Spacer(modifier = Modifier.height(16.dp))
 
-        selectedQuestStatUS?.let { questStatUS ->
+        selectedOverallStatsUs?.let { questStatUS ->
             Box(
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
-                QuestTooltip(questStatUS = questStatUS)
+                QuestTooltip(overallStatsUs = questStatUS)
             }
         }
 
@@ -186,8 +186,8 @@ fun GitHubContributionChart(
 
 @Composable
 fun ContributionCell(
-    day: QuestStatUS,
-    onClick: ((QuestStatUS) -> Unit)? = null
+    day: OverallStatsUs,
+    onClick: ((OverallStatsUs) -> Unit)? = null
 ) {
     val completionPercentage = if (day.totalQuests > 0) {
         day.completedQuests.toFloat() / day.totalQuests.toFloat()
@@ -232,7 +232,7 @@ fun getContributionColor(level: Int): Color {
 }
 
 @Composable
-fun QuestTooltip(questStatUS: QuestStatUS) {
+fun QuestTooltip(overallStatsUs: OverallStatsUs) {
     Card(
         modifier = Modifier
             .padding(8.dp),
@@ -248,9 +248,9 @@ fun QuestTooltip(questStatUS: QuestStatUS) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             val formatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy")
-            val dateText = questStatUS.date.format(formatter)
-            val percentage = if (questStatUS.totalQuests > 0) {
-                (questStatUS.completedQuests.toFloat() / questStatUS.totalQuests.toFloat() * 100).toInt()
+            val dateText = overallStatsUs.date.format(formatter)
+            val percentage = if (overallStatsUs.totalQuests > 0) {
+                (overallStatsUs.completedQuests.toFloat() / overallStatsUs.totalQuests.toFloat() * 100).toInt()
             } else 0
 
             Text(
@@ -265,7 +265,7 @@ fun QuestTooltip(questStatUS: QuestStatUS) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "${questStatUS.completedQuests}/${questStatUS.totalQuests} Quests",
+                    text = "${overallStatsUs.completedQuests}/${overallStatsUs.totalQuests} Quests",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

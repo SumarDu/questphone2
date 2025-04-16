@@ -9,7 +9,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -19,8 +18,7 @@ import androidx.navigation.navArgument
 import io.github.jan.supabase.auth.handleDeeplinks
 import kotlinx.serialization.json.Json
 import launcher.launcher.config.Integration
-import launcher.launcher.data.game.UserInfo
-import launcher.launcher.data.game.getUserInfo
+import launcher.launcher.data.quest.BaseQuestState
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
@@ -32,10 +30,10 @@ import launcher.launcher.ui.screens.onboard.OnBoardScreen
 import launcher.launcher.ui.screens.quest.ListAllQuests
 import launcher.launcher.ui.screens.quest.ViewQuest
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
-import launcher.launcher.ui.screens.quest.stats.QuestStatsView
+import launcher.launcher.ui.screens.quest.stats.OverallStatsView
+import launcher.launcher.ui.screens.quest.stats.specific.BaseQuestStatsView
 import launcher.launcher.ui.theme.LauncherTheme
 import launcher.launcher.utils.Supabase
-import launcher.launcher.utils.VibrationHelper
 
 
 class MainActivity : ComponentActivity() {
@@ -86,9 +84,6 @@ class MainActivity : ComponentActivity() {
                             route = "${Screen.ViewQuest.route}{baseQuestInfo}",
                             arguments = listOf(navArgument("baseQuestInfo") { type = NavType.StringType })
                         ) { backStackEntry ->
-                            Log.d("viewQuest",
-                                backStackEntry.arguments?.getString("baseQuestInfo").toString()
-                            )
                             val json = backStackEntry.arguments?.getString("baseQuestInfo")
                             val basicQuestInfo = json?.let { Json.decodeFromString<BasicQuestInfo>(it) }
 
@@ -107,8 +102,14 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
-                        composable(Screen.QuestStats.route) {
-                            QuestStatsView()
+                        composable(Screen.OverallStats.route) {
+                            OverallStatsView()
+                        }
+                        composable("${Screen.QuestStats.route}{baseQuestInfo}") { backStackEntry ->
+                            val json = backStackEntry.arguments?.getString("baseQuestInfo")
+                            val basicQuestInfo = json?.let { Json.decodeFromString<BasicQuestInfo>(it) }
+
+                            BaseQuestStatsView(basicQuestInfo!!)
                         }
                     }
                 }

@@ -6,14 +6,16 @@ import android.util.Log
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.quest.BasicQuestInfo
 import androidx.core.content.edit
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import launcher.launcher.data.DayOfWeek
-import launcher.launcher.data.quest.QuestStatUS
+import launcher.launcher.data.quest.OverallStatsUs
+import launcher.launcher.data.quest.OverallStats
 import launcher.launcher.data.quest.QuestStats
+import launcher.launcher.ui.screens.launcher.components.getCurrentTime
+import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
+import java.util.Locale
 
 val json = Json {
     ignoreUnknownKeys = true
@@ -109,38 +111,77 @@ class QuestHelper(val context: Context) {
 
     fun markQuestAsComplete(baseData: BasicQuestInfo, date: String) {
         VibrationHelper.vibrate(100)
+        checkPreviousFailures(baseData)
+
         sharedPreferences.edit { putString(QUEST_LAST_PERFORMED_SUFFIX + baseData.title, date) }
         coinHelper.incrementCoinCount(baseData.reward)
+        val date = getCurrentDate()
 
         val totalQuests = filterQuestForToday()
-        val completedQuest = totalQuests.filter { data -> isQuestCompleted(data.title, getCurrentDate()) == true }
-        val questStats = QuestStats(
+        val completedQuest = totalQuests.filter { data -> isQuestCompleted(data.title, date) == true }
+        val overallStats = OverallStats(
             completedQuest.size,
             totalQuests.size
         )
-        saveStatsForDate(getCurrentDate(), questStats)
+        saveOverallStatsForDate(date, overallStats)
+        saveQuestStats(date, QuestStats(true, getCurrentTime()), baseData.title)
     }
 
-    fun saveStatsForDate(date: String, questStats: QuestStats) {
-        val sharedPreferences = context.getSharedPreferences("questStats", Context.MODE_PRIVATE)
+    fun saveQuestStats(date:String, stats: QuestStats, title: String) {
+        val sharedPreferences = context.getSharedPreferences("questStats_$title", Context.MODE_PRIVATE)
         sharedPreferences.edit {
             putString(
-                date, json.encodeToString(questStats)
+                date, json.encodeToString(stats)
+            )
+        }
+    }
+    fun getQuestStats(date:String, title: String): QuestStats? {
+        val sharedPreferences = context.getSharedPreferences("questStats_$title", Context.MODE_PRIVATE)
+        val str = sharedPreferences.getString(date, null)
+        if (str != null) {
+            val value = json.decodeFromString<QuestStats>(str)
+            return value
+        } else {
+            return null
+        }
+    }
+    fun getQuestStats(baseData: BasicQuestInfo): Map<String, QuestStats> {
+        checkPreviousFailures(baseData)
+        val sharedPreferences = context.getSharedPreferences("questStats_${baseData.title}", Context.MODE_PRIVATE)
+        val allDates = sharedPreferences.all.keys
+        val statsList = mutableMapOf<String, QuestStats>()
+
+        allDates.forEach { key ->
+            val str = sharedPreferences.getString(key, null)
+            if (str != null) {
+                val value = json.decodeFromString<QuestStats>(str)
+                statsList[key] = value
+            }
+        }
+        return statsList
+    }
+
+    fun saveOverallStatsForDate(date: String, overallStats: OverallStats) {
+        val sharedPreferences = context.getSharedPreferences("overallStats", Context.MODE_PRIVATE)
+        sharedPreferences.edit {
+            putString(
+                date, json.encodeToString(overallStats)
             )
         }
     }
 
-    fun getOverallStats(): List<QuestStatUS> {
-        val statList: MutableList<QuestStatUS> = mutableListOf()
-        val sp = context.getSharedPreferences("questStats", Context.MODE_PRIVATE)
+
+    fun getOverallStats(): List<OverallStatsUs> {
+        val statList: MutableList<OverallStatsUs> = mutableListOf()
+        val sp = context.getSharedPreferences("overallStats", Context.MODE_PRIVATE)
         val allKeys = sp.all.keys
 
         allKeys.forEach { key ->
             val str = sp.getString(key, null)
             Log.d("stats str", str.toString())
             if (str != null) {
-                val value = json.decodeFromString<QuestStats>(str)
-                statList.add(QuestStatUS(LocalDate.parse(key, DateTimeFormatter.ofPattern("yyyy-MM-dd")), value.questsPerformed, value.totalQuests))
+                val value = json.decodeFromString<OverallStats>(str)
+                statList.add(OverallStatsUs(LocalDate.parse(key, DateTimeFormatter.ofPattern("yyyy-MM-dd")), value.questsPerformed, value.totalQuests))
             }
         }
         Log.d("stats", statList.toString())
@@ -213,6 +254,41 @@ class QuestHelper(val context: Context) {
         }
     }
 
+    fun checkPreviousFailures(baseData: BasicQuestInfo) {
+        val lastPerformedStr = sharedPreferences.getString(
+            QUEST_LAST_PERFORMED_SUFFIX + baseData.title, null
+        ) ?: baseData.createdOn
+
+
+        val lastPerformedDate = getDateFromString(lastPerformedStr)
+        val yesterday = getDateFromString(if (baseData.selectedDays.contains(getCurrentDay()) && !isInTimeRange(baseData)) getCurrentDate() else getPreviousDay())
+
+        val allDates = getAllDatesBetween(lastPerformedDate, yesterday)
+
+        for (date in allDates) {
+            val dayEnum = getDayOfWeekEnum(date)
+            if (dayEnum in baseData.selectedDays) {
+                val formattedDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date)
+                val alreadySaved = getQuestStats(formattedDate, baseData.title)
+                if (alreadySaved == null) {
+                    // Mark as failure
+                    saveQuestStats(
+                        formattedDate,
+                        QuestStats(false,""),
+                        baseData.title
+                    )
+                }
+            }
+        }
+    }
+
+
+    fun isOver(baseData: BasicQuestInfo): Boolean {
+        val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        return currentHour > baseData.timeRange[1]
+//            saveQuestStats(getCurrentDate(), QuestStats(false, ""),baseData.title)
+    }
+
     companion object {
         private const val PREF_NAME = "all_quest_preferences"
         private const val ALL_QUESTS_LIST_KEY = "quest_list"
@@ -227,10 +303,6 @@ class QuestHelper(val context: Context) {
             return currentHour in timeRange[0]..timeRange[1]
         }
 
-        fun isOver(baseData: BasicQuestInfo): Boolean {
-            val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-            return (currentHour > baseData.timeRange[1])
-        }
 
         fun isNeedAutoDestruction(baseData: BasicQuestInfo): Boolean {
             val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")

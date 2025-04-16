@@ -45,7 +45,7 @@ fun SwiftMarkQuestView(
 
     val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
     val isQuestWonDialogVisible = remember {mutableStateOf(false) }
-    val isFailed = remember { mutableStateOf(QuestHelper.isOver(basicQuestInfo)) }
+    val isFailed = remember { mutableStateOf(questHelper.isOver(basicQuestInfo)) }
 
     val progress = remember {
         mutableFloatStateOf(if (isQuestComplete.value || isFailed.value ) 1f else 0f)
