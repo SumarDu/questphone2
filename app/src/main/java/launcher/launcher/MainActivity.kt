@@ -17,7 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import io.github.jan.supabase.auth.handleDeeplinks
 import kotlinx.serialization.json.Json
-import launcher.launcher.config.Integration
+import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.BaseQuestState
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.ui.navigation.Screen
@@ -96,9 +96,9 @@ class MainActivity : ComponentActivity() {
                                     navController
                                 )
                             }
-                            Integration.setupRoutes.forEach{ integrationInfo ->
-                                composable(route=integrationInfo.value.first) {
-                                    integrationInfo.value.second.invoke(navController)
+                            IntegrationId.entries.forEach{item ->
+                                composable(route=item.name) {
+                                    item.setupScreen.invoke(navController)
                                 }
                             }
                         }

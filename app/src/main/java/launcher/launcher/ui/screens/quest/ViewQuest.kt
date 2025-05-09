@@ -19,7 +19,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
-import launcher.launcher.config.Integration
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.utils.QuestHelper
@@ -38,7 +37,7 @@ fun ViewQuest(
         if(QuestHelper.isNeedAutoDestruction(basicQuestInfo)){
             showDestroyQuestDialog.value =true
         }else{
-            Integration.viewScreens[basicQuestInfo.integrationId.name]?.invoke(basicQuestInfo)
+            basicQuestInfo.integrationId.viewScreen.invoke(basicQuestInfo)
         }
         if(showDestroyQuestDialog.value) DestroyQuestDialog {
             questHelper.markAsDestroyed(basicQuestInfo.title)

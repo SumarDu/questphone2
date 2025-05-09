@@ -16,7 +16,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import launcher.launcher.data.IntegrationId
-import launcher.launcher.config.Integration
 import launcher.launcher.ui.screens.tutorial.QuestTutorial
 import launcher.launcher.utils.VibrationHelper
 
@@ -47,11 +46,9 @@ fun SetIntegration(navController: NavHostController) {
                 )
 
                 IntegrationsList{
-                    Integration.setupRoutes[it.name]?.let {
-                        navController.navigate(
-                            it.first
-                        )
-                    }
+                    navController.navigate(
+                        it.name
+                    )
                 }
             }
         }
@@ -65,7 +62,6 @@ fun SetIntegration(navController: NavHostController) {
 fun IntegrationsList(
     onSelected: (IntegrationId)-> Unit,
 ) {
-    val items = Integration.allInfo
     val currentDocLink = remember { mutableStateOf<String?>(null) }
 
     BackHandler(currentDocLink.value!=null) {
@@ -80,12 +76,12 @@ fun IntegrationsList(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
 
-            items(items) { item ->
+            items(IntegrationId.entries) { item ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .combinedClickable(
-                            onClick = {onSelected(item.id) },
+                            onClick = {onSelected(item) },
                             onLongClick = {
                                 VibrationHelper.vibrate(100)
                                 currentDocLink.value = item.docLink
@@ -93,7 +89,7 @@ fun IntegrationsList(
                         ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { onSelected(item.id) }) {
+                    IconButton(onClick = { onSelected(item) }) {
                         Icon(
                             painter = painterResource(id = item.icon),
                             contentDescription = item.label,
