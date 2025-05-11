@@ -239,11 +239,22 @@ fun LevelUpDialog(oldLevel: Int,onDismiss: () -> Unit,lvUpRew: HashMap<Rewards,I
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
                 lvUpRew.forEach {
-                    Text(
-                        text = "${it.key.simpleName} x ${it.value}",
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(vertical = 2.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(it.key.icon),
+                            contentDescription = it.key.simpleName,
+                            modifier = Modifier.size(30.dp)
+                        )
+                        Spacer(Modifier.size(4.dp))
+
+                        Text(
+                            text = "${it.key.simpleName} x ${it.value}",
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        )
+                    }
                 }
             }
 
