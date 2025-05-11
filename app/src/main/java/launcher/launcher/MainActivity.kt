@@ -18,7 +18,6 @@ import androidx.navigation.navArgument
 import io.github.jan.supabase.auth.handleDeeplinks
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.IntegrationId
-import launcher.launcher.data.quest.BaseQuestState
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
@@ -28,6 +27,7 @@ import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.HomeScreen
 import launcher.launcher.ui.screens.onboard.OnBoardScreen
 import launcher.launcher.ui.screens.quest.ListAllQuests
+import launcher.launcher.ui.screens.quest.RewardDialogMaker
 import launcher.launcher.ui.screens.quest.ViewQuest
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
 import launcher.launcher.ui.screens.quest.stats.OverallStatsView
@@ -45,13 +45,14 @@ class MainActivity : ComponentActivity() {
         Supabase.supabase.handleDeeplinks(intent)
 
         setContent {
-            var isUserOnboarded = remember {mutableStateOf(true)}
+            val isUserOnboarded = remember {mutableStateOf(true)}
             LaunchedEffect(isUserOnboarded.value) {
                 isUserOnboarded.value = data.getBoolean("onboard",false)
                 Log.d("onboard", isUserOnboarded.value.toString())
             }
             LauncherTheme {
                 Surface {
+                    RewardDialogMaker()
                     val navController = rememberNavController()
                     NavHost(
                         navController = navController,

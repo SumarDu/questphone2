@@ -26,7 +26,7 @@ import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.data.quest.health.HealthTaskType
 import launcher.launcher.data.quest.health.getUnitForType
-import launcher.launcher.ui.screens.quest.RewardDialogMaker
+import launcher.launcher.ui.screens.quest.checkForRewards
 import launcher.launcher.ui.screens.tutorial.HealthConnectScreen
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.HealthConnectManager
@@ -50,7 +50,6 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
     val hasRequiredPermissions = remember { mutableStateOf(false) }
     val currentHealthData = remember { mutableDoubleStateOf(0.0) }
     val progressState = remember { mutableFloatStateOf(if (isQuestComplete.value) 1f else 0f) }
-    val isQuestWonDialogVisible = remember {mutableStateOf(false) }
     val userInfo = getUserInfo(LocalContext.current)
 
     var instructions = ""
@@ -77,7 +76,7 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
         questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
         healthQuest.incrementGoal()
         questHelper.updateQuestInfo<HealthQuest>(basicQuestInfo) { healthQuest }
-        isQuestWonDialogVisible.value = true
+        checkForRewards(basicQuestInfo)
         isQuestComplete.value = true
     }
 
@@ -123,9 +122,6 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
         )
     } else {
 
-        if(isQuestWonDialogVisible.value){
-            RewardDialogMaker(basicQuestInfo)
-        }
         BaseQuestView(
             hideStartQuestBtn = true,
             progress = progressState,

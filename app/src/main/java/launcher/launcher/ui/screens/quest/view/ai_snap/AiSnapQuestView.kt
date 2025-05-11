@@ -7,32 +7,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
-import io.github.jan.supabase.auth.auth
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.xpToRewardForQuest
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.data.quest.ai.snap.AiSnap
-import launcher.launcher.data.quest.health.HealthQuest
-import launcher.launcher.ui.screens.account.LoginScreen
-import launcher.launcher.ui.screens.quest.RewardDialogMaker
+import launcher.launcher.ui.screens.quest.checkForRewards
 import launcher.launcher.ui.screens.quest.view.BaseQuestView
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
-import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
 
@@ -57,7 +47,6 @@ fun AiSnapQuestView(
 
 
     val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
-    val isQuestWonDialogVisible = remember {mutableStateOf(false) }
     val isFailed = remember { mutableStateOf(questHelper.isOver(basicQuestInfo)) }
     var progress = remember {
         mutableFloatStateOf(if (isQuestComplete.value || isFailed.value ) 1f else 0f)
@@ -67,15 +56,11 @@ fun AiSnapQuestView(
         isAiEvaluating.value = false
     }
 
-    if(isQuestWonDialogVisible.value){
-        RewardDialogMaker(basicQuestInfo)
-    }
-
     fun onQuestComplete(){
         progress.floatValue = 1f
         questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
         isCameraScreen.value = false
-        isQuestWonDialogVisible.value = true
+        checkForRewards(basicQuestInfo)
         isQuestComplete.value = true
     }
 

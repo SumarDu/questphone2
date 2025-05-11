@@ -23,7 +23,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -41,15 +40,11 @@ import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
 import androidx.core.content.edit
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.xpToRewardForQuest
-import launcher.launcher.data.quest.health.HealthQuest
-import launcher.launcher.services.AccessibilityService
 import launcher.launcher.services.INTENT_ACTION_START_DEEP_FOCUS
 import launcher.launcher.services.INTENT_ACTION_STOP_DEEP_FOCUS
-import launcher.launcher.ui.screens.quest.RewardDialogMaker
+import launcher.launcher.ui.screens.quest.checkForRewards
 import launcher.launcher.utils.sendRefreshRequest
 
 private const val PREF_NAME = "deep_focus_prefs"
@@ -93,7 +88,6 @@ fun DeepFocusQuestView(
     val lifecycleOwner = LocalLifecycleOwner.current
     var isAppInForeground by remember { mutableStateOf(true) }
 
-    val isQuestWonDialogVisible = remember {mutableStateOf(false) }
     val isFailed = remember { mutableStateOf(questHelper.isOver(basicQuestInfo)) }
 
 
@@ -135,7 +129,7 @@ fun DeepFocusQuestView(
         questHelper.setQuestRunning(basicQuestInfo.title, false)
         deepFocus.incrementTime()
         questHelper.updateQuestInfo<DeepFocus>(basicQuestInfo) { deepFocus }
-        isQuestWonDialogVisible.value = true
+        checkForRewards(basicQuestInfo)
         isQuestRunning = false
         timerActive = false
 
@@ -236,10 +230,6 @@ fun DeepFocusQuestView(
     // Convert progress state to MutableState<Float> for BaseQuestView
     val progressState = remember(progress) { mutableFloatStateOf(progress) }
 
-
-    if(isQuestWonDialogVisible.value){
-        RewardDialogMaker(basicQuestInfo)
-    }
     BaseQuestView(
         hideStartQuestBtn = isQuestComplete.value || isQuestRunning || isFailed.value || !isInTimeRange.value,
         progress = progressState,

@@ -8,7 +8,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,14 +18,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,7 +34,6 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -48,80 +44,104 @@ import launcher.launcher.R
 import launcher.launcher.data.game.Rewards
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.User.userInfo
-import launcher.launcher.data.game.UserInfo
 import launcher.launcher.data.game.addItemsToInventory
 import launcher.launcher.data.game.addXp
-import launcher.launcher.data.game.getUserInfo
-import launcher.launcher.data.game.saveUserInfo
 import launcher.launcher.data.game.xpToRewardForQuest
 import launcher.launcher.data.quest.BasicQuestInfo
 import launcher.launcher.utils.VibrationHelper
 
 enum class DialogState { COINS, LEVEL_UP, NONE }
 
+/**
+ * This values in here must be set to true in order to show the dialog [RewardDialogMaker] which is triggered
+ * in the parent activity.
+ * @property isRewardDialogVisible
+ * @property currentBasicQuestInfo the quest info that led to this reward dialog be triggered. null if dialog not
+ * visible.
+ */
+object RewardDialogTrigger{
+    var isRewardDialogVisible by mutableStateOf(false)
+    var currentBasicQuestInfo by mutableStateOf<BasicQuestInfo?>(null)
+}
+
+/**
+ * Calculates what to reward user as well as trigger the reward dialog to be shown to the user
+ */
+fun checkForRewards(basicQuestInfo: BasicQuestInfo){
+    RewardDialogTrigger.isRewardDialogVisible = true
+    RewardDialogTrigger.currentBasicQuestInfo =  basicQuestInfo
+}
+
+/**
+ * Handles both showing the rewards dialog as well as rewarding user with xp, coins and bs.
+ *
+ */
 @Composable
-fun RewardDialogMaker(baseQuest: BasicQuestInfo, onAllDialogsDismissed: () -> Unit = {}) {
-    val context = LocalContext.current
+fun RewardDialogMaker() {
+    val isRewardDialogTriggered by remember { derivedStateOf { RewardDialogTrigger.isRewardDialogVisible } }
+    if (isRewardDialogTriggered) {
 
-    // Calculate if user leveled up and the rewards
-    val oldLevel = remember { userInfo.level }
-    var didUserLevelUp = remember { false }
-    var levelUpRewards = remember { hashMapOf<Rewards, Int>() }
+        // Calculate if user leveled up and the rewards
+        val oldLevel = remember { userInfo.level }
+        var didUserLevelUp = remember { false }
+        var levelUpRewards = remember { hashMapOf<Rewards, Int>() }
 
-    val coinsEarned = baseQuest.reward
+        val coinsEarned = RewardDialogTrigger.currentBasicQuestInfo?.reward ?: 0
 
-    LaunchedEffect(Unit) {
-        val xp = xpToRewardForQuest(userInfo.level)
-        User.addXp(xp)
-        User.lastXpEarned = xp
-        didUserLevelUp = oldLevel != userInfo.level
+        LaunchedEffect(Unit) {
+            val xp = xpToRewardForQuest(userInfo.level)
+            User.addXp(xp)
+            User.lastXpEarned = xp
+            didUserLevelUp = oldLevel != userInfo.level
 
-        if(didUserLevelUp){
-            levelUpRewards.put(Rewards.QUEST_SKIPPER,1)
-            if(userInfo.level % 2==0){
-                levelUpRewards.put(Rewards.XP_BOOSTER,1)
-            }
-            if(userInfo.level % 5==0){
-                levelUpRewards.put(Rewards.STREAK_FREEZER,1)
-            }
-
-            User.addItemsToInventory(levelUpRewards)
-        }
-    }
-    // Track current dialog state
-    var currentDialog by remember { mutableStateOf(DialogState.COINS) }
-
-    // Show the appropriate dialog based on the current state
-    when (currentDialog) {
-        DialogState.COINS -> {
-            RewardDialog(
-                reward = coinsEarned,
-                onDismiss = {
-                    // If user leveled up, show level up dialog next, otherwise end
-                    currentDialog = if (didUserLevelUp) DialogState.LEVEL_UP else DialogState.NONE
+            if (didUserLevelUp) {
+                levelUpRewards.put(Rewards.QUEST_SKIPPER, 1)
+                if (userInfo.level % 2 == 0) {
+                    levelUpRewards.put(Rewards.XP_BOOSTER, 1)
                 }
-            )
-        }
-        DialogState.LEVEL_UP -> {
-            LevelUpDialog(
-                oldLevel = oldLevel,
-                lvUpRew = levelUpRewards,
-                onDismiss = {
-                    currentDialog = DialogState.NONE
+                if (userInfo.level % 5 == 0) {
+                    levelUpRewards.put(Rewards.STREAK_FREEZER, 1)
                 }
-            )
+
+                User.addItemsToInventory(levelUpRewards)
+            }
         }
-        DialogState.NONE -> {
-            // All dialogs have been dismissed
-            LaunchedEffect(key1 = true) {
-                onAllDialogsDismissed()
+        // Track current dialog state
+        var currentDialog by remember { mutableStateOf(DialogState.COINS) }
+
+        // Show the appropriate dialog based on the current state
+        when (currentDialog) {
+            DialogState.COINS -> {
+                CoinDialog(
+                    reward = coinsEarned,
+                    onDismiss = {
+                        // If user leveled up, show level up dialog next, otherwise end
+                        currentDialog =
+                            if (didUserLevelUp) DialogState.LEVEL_UP else DialogState.NONE
+                    }
+                )
+            }
+
+            DialogState.LEVEL_UP -> {
+                LevelUpDialog(
+                    oldLevel = oldLevel,
+                    lvUpRew = levelUpRewards,
+                    onDismiss = {
+                        currentDialog = DialogState.NONE
+                    }
+                )
+            }
+
+            DialogState.NONE -> {
+                RewardDialogTrigger.isRewardDialogVisible = false
+                RewardDialogTrigger.currentBasicQuestInfo = null
             }
         }
     }
 }
 
 @Composable
-fun RewardDialog(reward: Int, onDismiss: () -> Unit) {
+fun CoinDialog(reward: Int, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier.padding(24.dp),
