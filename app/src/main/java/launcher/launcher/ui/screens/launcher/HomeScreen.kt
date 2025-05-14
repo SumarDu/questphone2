@@ -61,6 +61,9 @@ import launcher.launcher.data.game.continueStreak
 import launcher.launcher.data.game.getStreakInfo
 import launcher.launcher.ui.screens.game.StreakFailedDialog
 import launcher.launcher.ui.screens.game.StreakUpDialog
+import launcher.launcher.ui.screens.quest.DialogState
+import launcher.launcher.ui.screens.quest.RewardDialogInfo
+import launcher.launcher.ui.screens.quest.RewardDialogMaker
 import launcher.launcher.utils.VibrationHelper
 import launcher.launcher.utils.formatHour
 import kotlin.collections.forEach
@@ -80,21 +83,20 @@ fun HomeScreen(navController: NavController) {
 
     var streakInfo = remember {mutableStateOf(getStreakInfo(context))}
 
-    val streakCompletedDialogVisible = remember { mutableStateOf(false) }
-    val streakDaysLost = remember { mutableIntStateOf(0) }
-    val streakFreezersUsed = remember { mutableIntStateOf(0) }
 
     BackHandler {  }
 
     fun streakFailResultHandler(streakCheckReturn: StreakCheckReturn?){
         if(streakCheckReturn!=null){
+            RewardDialogInfo.streakData = streakCheckReturn
             if(streakCheckReturn.streakFreezersUsed!=null){
-                streakFreezersUsed.intValue = streakCheckReturn.streakFreezersUsed
-                streakCompletedDialogVisible.value = true
+                RewardDialogInfo.currentDialog = DialogState.STREAK_UP
             }
             if(streakCheckReturn.streakDaysLost!=null){
-                streakDaysLost.intValue = streakCheckReturn.streakDaysLost
+                RewardDialogInfo.currentDialog = DialogState.STREAK_FAILED
             }
+            RewardDialogInfo.isRewardDialogVisible = true
+
         }
     }
     LaunchedEffect(completedQuests,streakInfo) {
@@ -115,20 +117,10 @@ fun HomeScreen(navController: NavController) {
 
         if (completedQuests.size == questList.size && data.getBoolean("onboard",false)) {
             if (User.continueStreak()) {
-                streakFreezersUsed.intValue = 0
-                streakCompletedDialogVisible.value = true
-            }
-        }
-    }
+                RewardDialogInfo.currentDialog = DialogState.STREAK_UP
+                RewardDialogInfo.isRewardDialogVisible = true
 
-    if(streakCompletedDialogVisible.value){
-        StreakUpDialog(streakFreezersUsed.intValue) {
-            streakCompletedDialogVisible.value = false
-        }
-    }
-    if(streakDaysLost.intValue!=0){
-        StreakFailedDialog(streakDaysLost.intValue) {
-            streakDaysLost.intValue = 0
+            }
         }
     }
 

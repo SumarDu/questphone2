@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,15 +43,20 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import launcher.launcher.R
 import launcher.launcher.data.game.Rewards
+import launcher.launcher.data.game.StreakCheckReturn
 import launcher.launcher.data.game.User
+import launcher.launcher.data.game.User.streakData
 import launcher.launcher.data.game.User.userInfo
-import launcher.launcher.data.game.addItemsToInventory
+import launcher.launcher.data.game.addLevelUpRewards
 import launcher.launcher.data.game.addXp
+import launcher.launcher.data.game.xpFromStreak
 import launcher.launcher.data.game.xpToRewardForQuest
 import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.ui.screens.game.StreakFailedDialog
+import launcher.launcher.ui.screens.game.StreakUpDialog
 import launcher.launcher.utils.VibrationHelper
 
-enum class DialogState { COINS, LEVEL_UP, NONE }
+enum class DialogState { COINS, LEVEL_UP, STREAK_UP, STREAK_FAILED, NONE }
 
 /**
  * This values in here must be set to true in order to show the dialog [RewardDialogMaker] which is triggered
@@ -58,18 +64,22 @@ enum class DialogState { COINS, LEVEL_UP, NONE }
  * @property isRewardDialogVisible
  * @property currentBasicQuestInfo the quest info that led to this reward dialog be triggered. null if dialog not
  * visible.
+ * @property streakData data to be used by streak dialogs. empty if not triggered by stuff related to streak
  */
-object RewardDialogTrigger{
+object RewardDialogInfo{
     var isRewardDialogVisible by mutableStateOf(false)
     var currentBasicQuestInfo by mutableStateOf<BasicQuestInfo?>(null)
+    var streakData : StreakCheckReturn? = null
+    var currentDialog by mutableStateOf<DialogState>(DialogState.COINS)
 }
 
 /**
  * Calculates what to reward user as well as trigger the reward dialog to be shown to the user
  */
 fun checkForRewards(basicQuestInfo: BasicQuestInfo){
-    RewardDialogTrigger.isRewardDialogVisible = true
-    RewardDialogTrigger.currentBasicQuestInfo =  basicQuestInfo
+    RewardDialogInfo.isRewardDialogVisible = true
+    RewardDialogInfo.currentBasicQuestInfo =  basicQuestInfo
+    RewardDialogInfo.currentDialog = DialogState.COINS
 }
 
 /**
@@ -77,8 +87,13 @@ fun checkForRewards(basicQuestInfo: BasicQuestInfo){
  *
  */
 @Composable
-fun RewardDialogMaker() {
-    val isRewardDialogTriggered by remember { derivedStateOf { RewardDialogTrigger.isRewardDialogVisible } }
+fun RewardDialogMaker(  ) {
+    val isRewardDialogTriggered by remember { derivedStateOf { RewardDialogInfo.isRewardDialogVisible } }
+
+
+    // Track current dialog state
+    var currentDialog = remember { derivedStateOf { RewardDialogInfo.currentDialog } }
+
     if (isRewardDialogTriggered) {
 
         // Calculate if user leveled up and the rewards
@@ -86,37 +101,33 @@ fun RewardDialogMaker() {
         var didUserLevelUp = remember { false }
         var levelUpRewards = remember { hashMapOf<Rewards, Int>() }
 
-        val coinsEarned = RewardDialogTrigger.currentBasicQuestInfo?.reward ?: 0
 
+        // if quest info is empty, the function was triggered by stuff like daily rewards
+        val isTriggeredViaQuestCompletion = RewardDialogInfo.currentBasicQuestInfo != null
+
+        val coinsEarned = RewardDialogInfo.currentBasicQuestInfo?.reward ?: 0
         LaunchedEffect(Unit) {
-            val xp = xpToRewardForQuest(userInfo.level)
+            val xp = if(isTriggeredViaQuestCompletion) xpToRewardForQuest(userInfo.level) else xpFromStreak(streakData.currentStreak)
             User.addXp(xp)
             User.lastXpEarned = xp
+
+
             didUserLevelUp = oldLevel != userInfo.level
 
             if (didUserLevelUp) {
-                levelUpRewards.put(Rewards.QUEST_SKIPPER, 1)
-                if (userInfo.level % 2 == 0) {
-                    levelUpRewards.put(Rewards.XP_BOOSTER, 1)
-                }
-                if (userInfo.level % 5 == 0) {
-                    levelUpRewards.put(Rewards.STREAK_FREEZER, 1)
-                }
-
-                User.addItemsToInventory(levelUpRewards)
+                levelUpRewards = User.addLevelUpRewards()
             }
         }
-        // Track current dialog state
-        var currentDialog by remember { mutableStateOf(DialogState.COINS) }
+
 
         // Show the appropriate dialog based on the current state
-        when (currentDialog) {
+        when (currentDialog.value) {
             DialogState.COINS -> {
                 CoinDialog(
                     reward = coinsEarned,
                     onDismiss = {
                         // If user leveled up, show level up dialog next, otherwise end
-                        currentDialog =
+                        RewardDialogInfo.currentDialog =
                             if (didUserLevelUp) DialogState.LEVEL_UP else DialogState.NONE
                     }
                 )
@@ -127,15 +138,32 @@ fun RewardDialogMaker() {
                     oldLevel = oldLevel,
                     lvUpRew = levelUpRewards,
                     onDismiss = {
-                        currentDialog = DialogState.NONE
+                        RewardDialogInfo.currentDialog = DialogState.NONE
                     }
                 )
             }
 
-            DialogState.NONE -> {
-                RewardDialogTrigger.isRewardDialogVisible = false
-                RewardDialogTrigger.currentBasicQuestInfo = null
+            DialogState.STREAK_UP -> {
+                StreakUpDialog {
+                    RewardDialogInfo.currentDialog =
+                        if (didUserLevelUp) DialogState.LEVEL_UP else DialogState.NONE
+                }
             }
+            DialogState.STREAK_FAILED ->
+            {
+                StreakFailedDialog() {
+                    RewardDialogInfo.currentDialog = DialogState.NONE
+                }
+            }
+            DialogState.NONE -> {
+                RewardDialogInfo.apply {
+                    isRewardDialogVisible = false
+                    currentBasicQuestInfo = null
+                    streakData = null
+                }
+
+            }
+
         }
     }
 }
@@ -222,7 +250,7 @@ fun LevelUpDialog(oldLevel: Int,onDismiss: () -> Unit,lvUpRew: HashMap<Rewards,I
             }
 
             Icon(
-                imageVector = Icons.Filled.Star,
+                painter = painterResource(R.drawable.star),
                 contentDescription = "Level Up",
                 tint = Color(0xFFFFC107), // Gold color
                 modifier = Modifier
@@ -275,6 +303,7 @@ fun LevelUpDialog(oldLevel: Int,onDismiss: () -> Unit,lvUpRew: HashMap<Rewards,I
                             modifier = Modifier.padding(vertical = 2.dp)
                         )
                     }
+                    Spacer(modifier = Modifier.size(8.dp))
                 }
             }
 

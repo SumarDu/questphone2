@@ -2,6 +2,7 @@ package launcher.launcher.data.game
 
 import android.content.Context
 import android.util.Log
+import androidx.compose.runtime.remember
 import androidx.core.content.edit
 import kotlinx.serialization.Serializable
 import launcher.launcher.utils.getCurrentDate
@@ -89,13 +90,24 @@ fun User.continueStreak(): Boolean {
         streakData.longestStreak = maxOf(streakData.currentStreak, streakData.longestStreak)
         streakData.lastCompletedDate = getCurrentDate()
 
-        val xp = xpFromStreak(streakData.currentStreak)
-        addXp(xp)
-        lastXpEarned = xp
         saveStreakInfo()
         return true
     }
     return false
+}
+
+fun User.addLevelUpRewards(): HashMap<Rewards,Int>{
+    var levelUpRewards  = hashMapOf<Rewards, Int>()
+    levelUpRewards.put(Rewards.QUEST_SKIPPER, 1)
+    if (userInfo.level % 2 == 0) {
+        levelUpRewards.put(Rewards.XP_BOOSTER, 1)
+    }
+    if (userInfo.level % 5 == 0) {
+        levelUpRewards.put(Rewards.STREAK_FREEZER, 1)
+    }
+
+    addItemsToInventory(levelUpRewards)
+    return levelUpRewards
 }
 
 

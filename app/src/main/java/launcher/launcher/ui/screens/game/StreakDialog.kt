@@ -32,11 +32,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import launcher.launcher.data.game.StreakData
 import launcher.launcher.data.game.User
+import launcher.launcher.ui.screens.quest.RewardDialogInfo
 import launcher.launcher.utils.VibrationHelper
 
 @Composable
-fun StreakUpDialog(streakFreezersUsed: Int = 0, onDismiss: () -> Unit,) {
+fun StreakUpDialog( onDismiss: () -> Unit) {
+    val streakFreezersUsed = RewardDialogInfo.streakData?.streakFreezersUsed ?: 0
     Dialog(onDismissRequest = onDismiss) {
         Surface(Modifier
             .clip(RoundedCornerShape(11.dp))) {
@@ -116,7 +119,8 @@ fun StreakUpDialog(streakFreezersUsed: Int = 0, onDismiss: () -> Unit,) {
     }
 }
 @Composable
-fun StreakFailedDialog(streakDaysLost:Int, onDismiss: () -> Unit,) {
+fun StreakFailedDialog( onDismiss: () -> Unit,) {
+    val streakDaysLost = RewardDialogInfo.streakData?.streakDaysLost ?: 0
     Dialog(onDismissRequest = onDismiss) {
         Surface(Modifier
             .clip(RoundedCornerShape(11.dp))) {
