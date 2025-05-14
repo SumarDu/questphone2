@@ -46,6 +46,7 @@ import launcher.launcher.data.game.UserInfo
 import launcher.launcher.data.game.getStreakInfo
 import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.isBoosterActive
+import launcher.launcher.data.game.useInventoryItem
 import launcher.launcher.data.game.xpToLevelUp
 import launcher.launcher.utils.CoinHelper
 import launcher.launcher.utils.formatRemainingTime
@@ -193,7 +194,10 @@ fun UserInfoScreen() {
                         userInfo.inventory.forEach { (reward, count) ->
 
                             Row(
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable{
+                                    selectedInventoryItem.value = reward
+                                }
                             ) {
                                 Image(
                                     painter = painterResource(reward.icon),
@@ -205,9 +209,7 @@ fun UserInfoScreen() {
                                     " ${reward.simpleName} × $count",
                                     style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.padding(vertical = 2.dp)
-                                        .clickable{
-                                            selectedInventoryItem.value = reward
-                                        }
+
                                 )
                             }
 
@@ -270,7 +272,6 @@ fun InventoryItemInfoDialog(
     reward: Rewards,
     onDismissRequest: () -> Unit = {}
 ) {
-    val context = LocalContext.current
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(dismissOnClickOutside = true)
@@ -322,6 +323,7 @@ fun InventoryItemInfoDialog(
                     if(reward.isUsableFromInventory && !User.isBoosterActive(Rewards.XP_BOOSTER)){
                         Button(onClick = {
                             reward.onUse()
+                            User.useInventoryItem(Rewards.XP_BOOSTER)
                             onDismissRequest()
                         }) {
                             Text("Use")
