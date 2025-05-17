@@ -10,14 +10,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
+import kotlinx.coroutines.launch
 import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.xpToRewardForQuest
 import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.ai.snap.AiSnap
 import launcher.launcher.ui.screens.quest.checkForRewards
 import launcher.launcher.ui.screens.quest.view.BaseQuestView
@@ -35,16 +38,16 @@ fun AiSnapQuestView(
     val aiQuest = questHelper.getQuestInfo<AiSnap>(basicQuestInfo)
     val isQuestComplete = remember {
         mutableStateOf(
-            questHelper.isQuestCompleted(
-                basicQuestInfo.title,
-                getCurrentDate()
-            ) == true
+            basicQuestInfo.lastCompletedOn == getCurrentDate()
         )
     }
     var isCameraScreen = remember { mutableStateOf(false) }
     var isAiEvaluating = remember { mutableStateOf(false) }
     val userInfo = getUserInfo(LocalContext.current)
 
+
+    val dao = QuestDatabaseProvider.getInstance(context).questDao()
+    val scope = rememberCoroutineScope()
 
     val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
     val isFailed = remember { mutableStateOf(questHelper.isOver(basicQuestInfo)) }
@@ -58,7 +61,10 @@ fun AiSnapQuestView(
 
     fun onQuestComplete(){
         progress.floatValue = 1f
-        questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
+        basicQuestInfo.lastCompletedOn = getCurrentDate()
+        scope.launch {
+            dao.upsertQuest(basicQuestInfo)
+        }
         isCameraScreen.value = false
         checkForRewards(basicQuestInfo)
         isQuestComplete.value = true

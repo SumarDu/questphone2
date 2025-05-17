@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -23,6 +24,7 @@ import kotlinx.coroutines.launch
 import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.xpToRewardForQuest
 import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.data.quest.health.HealthTaskType
 import launcher.launcher.data.quest.health.getUnitForType
@@ -33,6 +35,7 @@ import launcher.launcher.utils.HealthConnectManager
 import launcher.launcher.utils.HealthConnectPermissionManager
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.getCurrentDate
+import launcher.launcher.utils.json
 
 @SuppressLint("DefaultLocale")
 @Composable
@@ -40,19 +43,19 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val questHelper = QuestHelper(context)
-    val healthQuest = questHelper.getQuestInfo<HealthQuest>(basicQuestInfo) ?: return
+    val healthQuest by remember { mutableStateOf(json.decodeFromString<HealthQuest>(basicQuestInfo.questInfo)) }
+    val dao = QuestDatabaseProvider.getInstance(context).questDao()
 
     val healthManager = HealthConnectManager(context)
     val permissionManager = HealthConnectPermissionManager(context)
 
     var isQuestComplete =
-        remember { mutableStateOf(questHelper.isQuestCompleted(basicQuestInfo.title, getCurrentDate()) == true) }
+        remember { mutableStateOf(basicQuestInfo.lastCompletedOn == getCurrentDate()) }
     val hasRequiredPermissions = remember { mutableStateOf(false) }
     val currentHealthData = remember { mutableDoubleStateOf(0.0) }
     val progressState = remember { mutableFloatStateOf(if (isQuestComplete.value) 1f else 0f) }
     val userInfo = getUserInfo(LocalContext.current)
 
-    var instructions = ""
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = permissionManager.requestPermissionContract,
@@ -73,16 +76,16 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
     )
 
     fun onQuestCompleted(){
-        questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
         healthQuest.incrementGoal()
-        questHelper.updateQuestInfo<HealthQuest>(basicQuestInfo) { healthQuest }
+        basicQuestInfo.questInfo = json.encodeToString(healthQuest)
+        basicQuestInfo.lastCompletedOn = getCurrentDate()
+        scope.launch {
+            dao.upsertQuest(basicQuestInfo)
+        }
         checkForRewards(basicQuestInfo)
         isQuestComplete.value = true
     }
 
-    LaunchedEffect(instructions) {
-        instructions = questHelper.getInstruction(basicQuestInfo.title)
-    }
     LaunchedEffect(Unit) {
         val isHealthConnectAvailable = healthManager.isAvailable()
         if (!isHealthConnectAvailable) {
@@ -171,7 +174,7 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
                 }
 
                 MarkdownText(
-                    markdown = instructions,
+                    markdown = basicQuestInfo.instructions,
                     modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
                 )
 

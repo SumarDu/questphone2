@@ -24,6 +24,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -31,14 +37,23 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.utils.QuestHelper
 
 @Composable
 fun ListAllQuests(navHostController: NavHostController) {
+    var questList by remember { mutableStateOf<List<BasicQuestInfo>>(emptyList()) }
+    val dao = QuestDatabaseProvider.getInstance(LocalContext.current).questDao()
+
+    LaunchedEffect(Unit) {
+        questList = dao.getAllQuests().first()
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
@@ -53,8 +68,6 @@ fun ListAllQuests(navHostController: NavHostController) {
         floatingActionButtonPosition = FabPosition.End
     ) { innerPadding ->
 
-        val questHelper = QuestHelper(LocalContext.current)
-        val questList = questHelper.getQuestList()
         Column(
             modifier = Modifier.fillMaxWidth()
                 .padding(innerPadding)

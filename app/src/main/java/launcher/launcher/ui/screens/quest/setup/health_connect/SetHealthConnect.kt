@@ -15,8 +15,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import kotlinx.coroutines.launch
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.BaseQuestState
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.data.quest.health.HealthTaskType
 import launcher.launcher.data.quest.health.getUnitForType
@@ -34,17 +36,19 @@ fun SetHealthConnect(navController: NavHostController) {
     val healthQuest = remember { mutableStateOf(HealthQuest()) }
     val isReviewDialogVisible = remember { mutableStateOf(false) }
 
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     if (isReviewDialogVisible.value) {
-        val baseQuest = baseQuestState.toBaseQuest()
+        val baseQuest = baseQuestState.toBaseQuest(healthQuest.value)
         ReviewDialog(
             items = listOf(
                 baseQuest, healthQuest.value
             ),
             onConfirm = {
-                sp.saveInstruction(baseQuest.title,baseQuestState.instructions)
-                sp.appendToQuestList(
-                    baseQuest, healthQuest.value
-                )
+                scope.launch {
+                    val dao = QuestDatabaseProvider.getInstance(context).questDao()
+                    dao.upsertQuest(baseQuest)
+                }
                 isReviewDialogVisible.value = false
                 navController.popBackStack()
             },

@@ -6,7 +6,9 @@ import android.util.Log
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.quest.BasicQuestInfo
 import androidx.core.content.edit
+import androidx.room.TypeConverter
 import launcher.launcher.data.DayOfWeek
+import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.OverallStatsUs
 import launcher.launcher.data.quest.OverallStats
 import launcher.launcher.data.quest.QuestStats
@@ -307,3 +309,4 @@ class QuestHelper(val context: Context) {
         }
     }
 }
+

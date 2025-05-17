@@ -31,9 +31,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.input.pointer.pointerInput
@@ -54,11 +56,14 @@ import launcher.launcher.utils.getCurrentDate
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import kotlinx.coroutines.flow.first
 import launcher.launcher.data.game.StreakCheckReturn
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.checkIfStreakFailed
 import launcher.launcher.data.game.continueStreak
 import launcher.launcher.data.game.getStreakInfo
+import launcher.launcher.data.quest.QuestDatabaseProvider
+import launcher.launcher.data.quest.QuestFilterUtil
 import launcher.launcher.ui.screens.game.StreakFailedDialog
 import launcher.launcher.ui.screens.game.StreakUpDialog
 import launcher.launcher.ui.screens.quest.DialogState
@@ -73,8 +78,10 @@ import kotlin.collections.forEach
 fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
 
+    val dao = QuestDatabaseProvider.getInstance(context).questDao()
+
     val questHelper = QuestHelper(context)
-    val questList =  questHelper.filterQuestForToday(questHelper.getQuestList())
+    var questList by remember { mutableStateOf(emptyList<BasicQuestInfo>()) }
     val coinHelper = CoinHelper(context)
 
     val currentDate = getCurrentDate()
@@ -83,6 +90,10 @@ fun HomeScreen(navController: NavController) {
 
     var streakInfo = remember {mutableStateOf(getStreakInfo(context))}
 
+    LaunchedEffect(Unit) {
+        val quests = dao.getAllQuests().first()
+        questList = QuestFilterUtil.filterQuestForToday(quests)
+    }
 
     BackHandler {  }
 
@@ -99,10 +110,10 @@ fun HomeScreen(navController: NavController) {
 
         }
     }
-    LaunchedEffect(completedQuests,streakInfo) {
+    LaunchedEffect(questList) {
 
         questList.forEach { item ->
-            if (questHelper.isQuestCompleted(item.title, currentDate) == true) {
+            if (item.lastCompletedOn == getCurrentDate()) {
                 completedQuests.add(item.title)
             }
             if (questHelper.isQuestRunning(item.title)) {
@@ -119,7 +130,6 @@ fun HomeScreen(navController: NavController) {
             if (User.continueStreak()) {
                 RewardDialogInfo.currentDialog = DialogState.STREAK_UP
                 RewardDialogInfo.isRewardDialogVisible = true
-
             }
         }
     }

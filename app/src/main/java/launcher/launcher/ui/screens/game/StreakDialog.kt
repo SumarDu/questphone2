@@ -26,12 +26,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import launcher.launcher.R
 import launcher.launcher.data.game.StreakData
 import launcher.launcher.data.game.User
 import launcher.launcher.ui.screens.quest.RewardDialogInfo
@@ -58,7 +60,7 @@ fun StreakUpDialog( onDismiss: () -> Unit) {
                 }
 
                 Icon(
-                    imageVector = Icons.Filled.Star,
+                    painter = painterResource(R.drawable.star),
                     contentDescription = "Streak",
                     tint = Color(0xFFFFC107), // Gold color
                     modifier = Modifier

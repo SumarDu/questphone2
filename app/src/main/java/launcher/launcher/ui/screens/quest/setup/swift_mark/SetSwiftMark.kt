@@ -23,14 +23,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import kotlinx.coroutines.launch
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.BaseQuestState
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.screens.quest.setup.ReviewDialog
 import launcher.launcher.ui.screens.quest.setup.components.SetBaseQuest
 import launcher.launcher.utils.QuestHelper
@@ -46,23 +49,24 @@ fun SetSwiftMark(navController: NavHostController) {
 
     val sp = QuestHelper(LocalContext.current)
     val scrollState = rememberScrollState()
-
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val isReviewDialogVisible = remember { mutableStateOf(false) }
 
 
     if (isReviewDialogVisible.value) {
         val baseQuest =
-            baseQuestState.toBaseQuest()
+            baseQuestState.toBaseQuest(null)
         ReviewDialog(
             items = listOf(
                 baseQuest
             ),
 
             onConfirm = {
-                sp.saveInstruction(baseQuest.title,baseQuestState.instructions)
-                sp.appendToQuestList(
-                    baseQuest
-                )
+                scope.launch {
+                    val dao = QuestDatabaseProvider.getInstance(context).questDao()
+                    dao.upsertQuest(baseQuest)
+                }
                 isReviewDialogVisible.value = false
                 navController.popBackStack()
             },

@@ -14,11 +14,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import kotlinx.coroutines.launch
 import launcher.launcher.data.AppInfo
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.focus.DeepFocus
 import launcher.launcher.data.quest.focus.FocusTimeConfig
 import launcher.launcher.data.quest.BaseQuestState
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.screens.quest.setup.ReviewDialog
 import launcher.launcher.ui.screens.quest.setup.components.SetBaseQuest
 import launcher.launcher.ui.screens.quest.setup.components.SetFocusTimeUI
@@ -42,6 +44,7 @@ fun SetDeepFocus(navController: NavHostController) {
 
     val isReviewDialogVisible = remember { mutableStateOf(false) }
 
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(apps) {
         apps.value = reloadApps(context.packageManager,context).getOrNull() ?: emptyList()
@@ -57,26 +60,26 @@ fun SetDeepFocus(navController: NavHostController) {
         )
     }
     if (isReviewDialogVisible.value) {
-        val baseQuest =
-            baseQuestState.toBaseQuest()
         val deepFocus = DeepFocus(
             focusTimeConfig = focusTimeConfig.value,
             unrestrictedApps = selectedApps.toSet(),
             nextFocusDurationInMillis = focusTimeConfig.value.initialTimeInMs
         )
+        val baseQuest =
+            baseQuestState.toBaseQuest<DeepFocus>(deepFocus)
+
         ReviewDialog(
             items = listOf(
                 baseQuest,deepFocus
             ),
 
             onConfirm = {
-                sp.saveInstruction(baseQuest.title,baseQuestState.instructions)
-                sp.appendToQuestList(
-                    baseQuest,deepFocus
-                )
+                scope.launch {
+                    val dao = QuestDatabaseProvider.getInstance(context).questDao()
+                    dao.upsertQuest(baseQuest)
+                }
                 isReviewDialogVisible.value = false
                 navController.popBackStack()
-
             },
             onDismiss = {
                 isReviewDialogVisible.value = false

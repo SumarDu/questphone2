@@ -24,8 +24,10 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import kotlinx.coroutines.launch
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.BaseQuestState
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.ai.snap.AiSnap
 import launcher.launcher.ui.screens.quest.setup.ReviewDialog
 import launcher.launcher.ui.screens.quest.setup.components.SetBaseQuest
@@ -54,20 +56,23 @@ fun SetAiSnap(navController: NavHostController) {
     ) { uri ->
         uri?.let { spatialImageUri.value = it }
     }
+    val scope = rememberCoroutineScope()
 
 
     // Review dialog before creating the quest
     if (isReviewDialogVisible.value) {
-        val baseQuest = baseQuestState.toBaseQuest()
         val aiSnapQuest = AiSnap(
             taskDescription = taskDescription.value,
         )
+        val baseQuest = baseQuestState.toBaseQuest(aiSnapQuest)
 
         ReviewDialog(
             items = listOf(baseQuest, aiSnapQuest),
             onConfirm = {
-                sp.saveInstruction(baseQuest.title,taskDescription.value)
-                sp.appendToQuestList(baseQuest, aiSnapQuest)
+                scope.launch {
+                    val dao = QuestDatabaseProvider.getInstance(context).questDao()
+                    dao.upsertQuest(baseQuest)
+                }
                 isReviewDialogVisible.value = false
                 navController.popBackStack()
                 if(spatialImageUri.value !=null){

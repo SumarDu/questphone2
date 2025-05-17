@@ -4,6 +4,7 @@ import android.content.Context
 import kotlinx.serialization.Serializable
 import launcher.launcher.utils.json
 import androidx.core.content.edit
+import androidx.room.Entity
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.isTimeOver
 
@@ -13,6 +14,7 @@ import launcher.launcher.utils.isTimeOver
  * @param activeBoosts A map of active boosts in the game. Format <BoostObject,Timestamp>
  *     timeStamp format: yyyy-dd-mm-hh-mm
  */
+
 @Serializable
 data class UserInfo(
     var xp : Int= 0,

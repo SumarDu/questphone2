@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -40,11 +41,14 @@ import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
 import androidx.core.content.edit
+import kotlinx.coroutines.launch
 import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.xpToRewardForQuest
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.services.INTENT_ACTION_START_DEEP_FOCUS
 import launcher.launcher.services.INTENT_ACTION_STOP_DEEP_FOCUS
 import launcher.launcher.ui.screens.quest.checkForRewards
+import launcher.launcher.utils.json
 import launcher.launcher.utils.sendRefreshRequest
 
 private const val PREF_NAME = "deep_focus_prefs"
@@ -60,22 +64,18 @@ fun DeepFocusQuestView(
 ) {
     val context = LocalContext.current
     val questHelper = QuestHelper(context)
-    val deepFocus = questHelper.getQuestInfo<DeepFocus>(basicQuestInfo) ?: return
+    val deepFocus = json.decodeFromString<DeepFocus>(basicQuestInfo.questInfo)
     val duration = deepFocus.nextFocusDurationInMillis
     val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
 
-    var instructions = ""
 
-    LaunchedEffect(instructions) {
-        instructions = questHelper.getInstruction(basicQuestInfo.title)
-    }
     LaunchedEffect(Unit) {
         createNotificationChannel(context)
     }
 
 
     var isQuestComplete = remember {
-        mutableStateOf(questHelper.isQuestCompleted(basicQuestInfo.title, getCurrentDate()) == true)
+        mutableStateOf(basicQuestInfo.lastCompletedOn == getCurrentDate())
     }
     var isQuestRunning by remember {
         mutableStateOf(questHelper.isQuestRunning(basicQuestInfo.title))
@@ -90,7 +90,8 @@ fun DeepFocusQuestView(
 
     val isFailed = remember { mutableStateOf(questHelper.isOver(basicQuestInfo)) }
 
-
+    val dao = QuestDatabaseProvider.getInstance(context).questDao()
+    val scope = rememberCoroutineScope()
     var progress by remember {
         mutableFloatStateOf(if (isQuestComplete.value || isFailed.value ) 1f else 0f)
     }
@@ -125,10 +126,14 @@ fun DeepFocusQuestView(
     val userInfo = getUserInfo(LocalContext.current)
 
     fun onQuestComplete(){
-        questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
-        questHelper.setQuestRunning(basicQuestInfo.title, false)
         deepFocus.incrementTime()
-        questHelper.updateQuestInfo<DeepFocus>(basicQuestInfo) { deepFocus }
+        basicQuestInfo.lastCompletedOn = getCurrentDate()
+        basicQuestInfo.questInfo = json.encodeToString(deepFocus)
+        scope.launch {
+            dao.upsertQuest(basicQuestInfo)
+        }
+
+        questHelper.setQuestRunning(basicQuestInfo.title, false)
         checkForRewards(basicQuestInfo)
         isQuestRunning = false
         timerActive = false
@@ -317,7 +322,7 @@ fun DeepFocusQuestView(
             }
 
             MarkdownText(
-                markdown = instructions,
+                markdown = basicQuestInfo.instructions,
                 modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
             )
         }

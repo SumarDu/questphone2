@@ -5,17 +5,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
+import kotlinx.coroutines.launch
 import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.xpToRewardForQuest
 import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.screens.quest.checkForRewards
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
@@ -30,12 +34,11 @@ fun SwiftMarkQuestView(
     val questHelper = QuestHelper(context)
     val isQuestComplete = remember {
         mutableStateOf(
-            questHelper.isQuestCompleted(
-                basicQuestInfo.title,
-                getCurrentDate()
-            ) == true
+            basicQuestInfo.lastCompletedOn == getCurrentDate()
         )
     }
+    val scope = rememberCoroutineScope()
+    val dao = QuestDatabaseProvider.getInstance(context).questDao()
 
     val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
     val isFailed = remember { mutableStateOf(questHelper.isOver(basicQuestInfo)) }
@@ -49,7 +52,10 @@ fun SwiftMarkQuestView(
 
     fun onQuestCompleted(){
         progress.floatValue = 1f
-        questHelper.markQuestAsComplete(basicQuestInfo, getCurrentDate())
+        scope.launch {
+            basicQuestInfo.lastCompletedOn = getCurrentDate()
+            dao.upsertQuest(basicQuestInfo)
+        }
         checkForRewards(basicQuestInfo)
         isQuestComplete.value = true
     }
@@ -92,7 +98,7 @@ fun SwiftMarkQuestView(
             }
 
             MarkdownText(
-                markdown = questHelper.getInstruction(basicQuestInfo.title),
+                markdown = basicQuestInfo.instructions,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                 modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
             )
