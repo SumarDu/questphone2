@@ -1,5 +1,8 @@
 package launcher.launcher
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -9,6 +12,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -19,6 +23,7 @@ import io.github.jan.supabase.auth.handleDeeplinks
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.CommonQuestInfo
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
 import launcher.launcher.ui.screens.game.StoreScreen
@@ -34,6 +39,8 @@ import launcher.launcher.ui.screens.quest.stats.OverallStatsView
 import launcher.launcher.ui.screens.quest.stats.specific.BaseQuestStatsView
 import launcher.launcher.ui.theme.LauncherTheme
 import launcher.launcher.utils.Supabase
+import launcher.launcher.utils.isOnline
+import launcher.launcher.utils.triggerSync
 
 
 class MainActivity : ComponentActivity() {
@@ -44,9 +51,10 @@ class MainActivity : ComponentActivity() {
         val data = getSharedPreferences("onboard", MODE_PRIVATE)
         Supabase.supabase.handleDeeplinks(intent)
 
+
         setContent {
             val isUserOnboarded = remember {mutableStateOf(true)}
-            LaunchedEffect(isUserOnboarded.value) {
+            LaunchedEffect(Unit) {
                 isUserOnboarded.value = data.getBoolean("onboard",false)
                 Log.d("onboard", isUserOnboarded.value.toString())
             }
@@ -54,6 +62,18 @@ class MainActivity : ComponentActivity() {
                 Surface {
                     RewardDialogMaker()
                     val navController = rememberNavController()
+                    val dao = QuestDatabaseProvider.getInstance(applicationContext).questDao()
+
+                    val unSyncedItems = remember { dao.getUnSyncedQuests() }
+                    val context = LocalContext.current
+                    LaunchedEffect(Unit) {
+                        unSyncedItems.collect {
+                            if(context.isOnline()){
+                                triggerSync(applicationContext)
+                            }
+                        }
+                    }
+
                     NavHost(
                         navController = navController,
                         startDestination = if (!isUserOnboarded.value) Screen.OnBoard.route
@@ -118,3 +138,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+

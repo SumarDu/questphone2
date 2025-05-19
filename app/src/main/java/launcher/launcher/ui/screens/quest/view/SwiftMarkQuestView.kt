@@ -33,7 +33,7 @@ fun SwiftMarkQuestView(
     val questHelper = QuestHelper(context)
     val isQuestComplete = remember {
         mutableStateOf(
-            commonQuestInfo.lastCompletedOn == getCurrentDate()
+            commonQuestInfo.last_completed_on == getCurrentDate()
         )
     }
     val scope = rememberCoroutineScope()
@@ -51,8 +51,10 @@ fun SwiftMarkQuestView(
 
     fun onQuestCompleted(){
         progress.floatValue = 1f
+        commonQuestInfo.last_completed_on = getCurrentDate()
+        commonQuestInfo.synced = false
+        commonQuestInfo.last_updated = System.currentTimeMillis()
         scope.launch {
-            commonQuestInfo.lastCompletedOn = getCurrentDate()
             dao.upsertQuest(commonQuestInfo)
         }
         checkForRewards(commonQuestInfo)
@@ -91,7 +93,7 @@ fun SwiftMarkQuestView(
 
             if(!isInTimeRange.value){
                 Text(
-                    text = "Time: ${formatHour(commonQuestInfo.timeRange[0])} to ${formatHour(commonQuestInfo.timeRange[1])}",
+                    text = "Time: ${formatHour(commonQuestInfo.time_range[0])} to ${formatHour(commonQuestInfo.time_range[1])}",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
             }

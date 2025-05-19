@@ -2,11 +2,13 @@ package launcher.launcher.data
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import kotlinx.serialization.Serializable
 import launcher.launcher.R
 import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.ui.screens.quest.setup.deep_focus.SetDeepFocus
 import launcher.launcher.ui.screens.quest.view.DeepFocusQuestView
 
+@Serializable
 enum class IntegrationId(
     val icon: Int = R.drawable.baseline_extension_24,
     val label: String = "",

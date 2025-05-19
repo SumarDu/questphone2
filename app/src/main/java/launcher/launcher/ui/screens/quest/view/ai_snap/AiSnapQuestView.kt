@@ -36,10 +36,10 @@ fun AiSnapQuestView(
 ) {
     val context = LocalContext.current
     val questHelper = QuestHelper(context)
-    val aiQuest = json.decodeFromString<AiSnap>(commonQuestInfo.questJson)
+    val aiQuest = json.decodeFromString<AiSnap>(commonQuestInfo.quest_json)
     val isQuestComplete = remember {
         mutableStateOf(
-            commonQuestInfo.lastCompletedOn == getCurrentDate()
+            commonQuestInfo.last_completed_on == getCurrentDate()
         )
     }
     var isCameraScreen = remember { mutableStateOf(false) }
@@ -62,7 +62,9 @@ fun AiSnapQuestView(
 
     fun onQuestComplete(){
         progress.floatValue = 1f
-        commonQuestInfo.lastCompletedOn = getCurrentDate()
+        commonQuestInfo.last_completed_on = getCurrentDate()
+        commonQuestInfo.synced = false
+        commonQuestInfo.last_updated = System.currentTimeMillis()
         scope.launch {
             dao.upsertQuest(commonQuestInfo)
         }
@@ -109,7 +111,7 @@ fun AiSnapQuestView(
 
                 if(!isInTimeRange.value){
                     Text(
-                        text = "Time: ${formatHour(commonQuestInfo.timeRange[0])} to ${formatHour(commonQuestInfo.timeRange[1])}",
+                        text = "Time: ${formatHour(commonQuestInfo.time_range[0])} to ${formatHour(commonQuestInfo.time_range[1])}",
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                     )
                 }

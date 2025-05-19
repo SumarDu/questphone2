@@ -64,7 +64,7 @@ fun DeepFocusQuestView(
 ) {
     val context = LocalContext.current
     val questHelper = QuestHelper(context)
-    val deepFocus = json.decodeFromString<DeepFocus>(commonQuestInfo.questJson)
+    val deepFocus = json.decodeFromString<DeepFocus>(commonQuestInfo.quest_json)
     val duration = deepFocus.nextFocusDurationInMillis
     val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(commonQuestInfo)) }
 
@@ -75,7 +75,7 @@ fun DeepFocusQuestView(
 
 
     var isQuestComplete = remember {
-        mutableStateOf(commonQuestInfo.lastCompletedOn == getCurrentDate())
+        mutableStateOf(commonQuestInfo.last_completed_on == getCurrentDate())
     }
     var isQuestRunning by remember {
         mutableStateOf(questHelper.isQuestRunning(commonQuestInfo.title))
@@ -127,8 +127,10 @@ fun DeepFocusQuestView(
 
     fun onQuestComplete(){
         deepFocus.incrementTime()
-        commonQuestInfo.lastCompletedOn = getCurrentDate()
-        commonQuestInfo.questJson = json.encodeToString(deepFocus)
+        commonQuestInfo.last_completed_on = getCurrentDate()
+        commonQuestInfo.quest_json = json.encodeToString(deepFocus)
+        commonQuestInfo.synced = false
+        commonQuestInfo.last_updated = System.currentTimeMillis()
         scope.launch {
             dao.upsertQuest(commonQuestInfo)
         }
@@ -263,7 +265,7 @@ fun DeepFocusQuestView(
 
             if(!isInTimeRange.value){
                 Text(
-                    text = "Time: ${formatHour(commonQuestInfo.timeRange[0])} to ${formatHour(commonQuestInfo.timeRange[1])}",
+                    text = "Time: ${formatHour(commonQuestInfo.time_range[0])} to ${formatHour(commonQuestInfo.time_range[1])}",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
             }

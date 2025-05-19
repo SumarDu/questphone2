@@ -29,6 +29,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,18 +76,14 @@ fun HomeScreen(navController: NavController) {
     val dao = QuestDatabaseProvider.getInstance(context).questDao()
 
     val questHelper = QuestHelper(context)
-    var questList by remember { mutableStateOf(emptyList<CommonQuestInfo>()) }
+    val questList by dao.getAllQuests().collectAsState(initial = emptyList())
+
     val coinHelper = CoinHelper(context)
 
     val completedQuests = remember { SnapshotStateList<String>() }
     val progress = (completedQuests.size.toFloat() / questList.size.toFloat()).coerceIn(0f,1f)
 
     var streakInfo = remember {mutableStateOf(getStreakInfo(context))}
-
-    LaunchedEffect(Unit) {
-        questList = dao.getAllQuests().first()
-        questList.filterQuestsForToday()
-    }
 
     BackHandler {  }
 
@@ -106,7 +103,7 @@ fun HomeScreen(navController: NavController) {
     LaunchedEffect(questList) {
 
         questList.forEach { item ->
-            if (item.lastCompletedOn == getCurrentDate()) {
+            if (item.last_completed_on == getCurrentDate()) {
                 completedQuests.add(item.title)
             }
             if (questHelper.isQuestRunning(item.title)) {
@@ -239,8 +236,8 @@ fun HomeScreen(navController: NavController) {
             ) {
                 items(questList.size){ index ->
                     val baseQuest = questList[index]
-                    val timeRange = "${formatHour(baseQuest.timeRange[0])} - ${formatHour(baseQuest.timeRange[1])} : "
-                    val prefix = if(baseQuest.timeRange[0]==0&&baseQuest.timeRange[1]==24) "" else timeRange
+                    val timeRange = "${formatHour(baseQuest.time_range[0])} - ${formatHour(baseQuest.time_range[1])} : "
+                    val prefix = if(baseQuest.time_range[0]==0&&baseQuest.time_range[1]==24) "" else timeRange
                     val isOver = questHelper.isOver(baseQuest)
                     QuestItem(
                         text =  if(QuestHelper.isInTimeRange(baseQuest) && isOver) baseQuest.title else  prefix +  baseQuest.title,

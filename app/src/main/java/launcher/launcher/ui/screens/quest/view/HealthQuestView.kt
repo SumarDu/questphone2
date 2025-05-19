@@ -43,14 +43,14 @@ fun HealthQuestView(commonQuestInfo: CommonQuestInfo) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val questHelper = QuestHelper(context)
-    val healthQuest by remember { mutableStateOf(json.decodeFromString<HealthQuest>(commonQuestInfo.questJson)) }
+    val healthQuest by remember { mutableStateOf(json.decodeFromString<HealthQuest>(commonQuestInfo.quest_json)) }
     val dao = QuestDatabaseProvider.getInstance(context).questDao()
 
     val healthManager = HealthConnectManager(context)
     val permissionManager = HealthConnectPermissionManager(context)
 
     var isQuestComplete =
-        remember { mutableStateOf(commonQuestInfo.lastCompletedOn == getCurrentDate()) }
+        remember { mutableStateOf(commonQuestInfo.last_completed_on == getCurrentDate()) }
     val hasRequiredPermissions = remember { mutableStateOf(false) }
     val currentHealthData = remember { mutableDoubleStateOf(0.0) }
     val progressState = remember { mutableFloatStateOf(if (isQuestComplete.value) 1f else 0f) }
@@ -77,8 +77,10 @@ fun HealthQuestView(commonQuestInfo: CommonQuestInfo) {
 
     fun onQuestCompleted(){
         healthQuest.incrementGoal()
-        commonQuestInfo.questJson = json.encodeToString(healthQuest)
-        commonQuestInfo.lastCompletedOn = getCurrentDate()
+        commonQuestInfo.quest_json = json.encodeToString(healthQuest)
+        commonQuestInfo.last_completed_on = getCurrentDate()
+        commonQuestInfo.synced = false
+        commonQuestInfo.last_updated = System.currentTimeMillis()
         scope.launch {
             dao.upsertQuest(commonQuestInfo)
         }

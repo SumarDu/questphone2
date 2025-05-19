@@ -72,10 +72,11 @@ dependencies {
 
     implementation(libs.supabase.auth)
     implementation(libs.supabase.storage)
+    implementation(libs.postgrest.kt)
 
     implementation(libs.ktor.client.okhttp)
 
-
+    implementation (libs.androidx.work.runtime.ktx)
 
     implementation(libs.compose.markdown)
 

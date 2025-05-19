@@ -176,7 +176,7 @@ fun QuestHeader(baseData: CommonQuestInfo, currentStreak: Int) {
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "${formatHour(baseData.timeRange[0])} - ${formatHour(baseData.timeRange[1])}",
+                        text = "${formatHour(baseData.time_range[0])} - ${formatHour(baseData.time_range[1])}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                     )
@@ -481,14 +481,14 @@ fun QuestDetailsCard(baseData: CommonQuestInfo) {
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            QuestInfoRow(label = "Days Active", value = baseData.selectedDays.toString())
+            QuestInfoRow(label = "Days Active", value = baseData.selected_days.toString())
             QuestInfoRow(
                 label = "Time Range",
-                value = "${formatHour(baseData.timeRange[0])} - ${formatHour(baseData.timeRange[1])}"
+                value = "${formatHour(baseData.time_range[0])} - ${formatHour(baseData.time_range[1])}"
             )
-            QuestInfoRow(label = "Created", value = baseData.createdOn)
-            QuestInfoRow(label = "Expires", value = baseData.autoDestruct)
-            QuestInfoRow(label = "Integration", value = baseData.integrationId.name)
+            QuestInfoRow(label = "Created", value = baseData.created_on)
+            QuestInfoRow(label = "Expires", value = baseData.auto_destruct)
+            QuestInfoRow(label = "Integration", value = baseData.integration_id.name)
             QuestInfoRow(
                 label = "Reward",
                 value = "${baseData.reward} coins",

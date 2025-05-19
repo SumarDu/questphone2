@@ -17,8 +17,9 @@ import java.util.Locale
 
 val json = Json {
     ignoreUnknownKeys = true
-    prettyPrint = true
+    prettyPrint = false
     encodeDefaults = true
+    explicitNulls = false
 }
 
 class QuestHelper(val context: Context) {
@@ -92,11 +93,11 @@ class QuestHelper(val context: Context) {
     fun checkPreviousFailures(baseData: CommonQuestInfo) {
         val lastPerformedStr = sharedPreferences.getString(
             QUEST_LAST_PERFORMED_SUFFIX + baseData.title, null
-        ) ?: baseData.createdOn
+        ) ?: baseData.created_on
 
 
         val lastPerformedDate = getDateFromString(lastPerformedStr)
-        val yesterday = getDateFromString(if (baseData.selectedDays.contains(getCurrentDay()) && !isInTimeRange(baseData)) getCurrentDate() else getPreviousDay())
+        val yesterday = getDateFromString(if (baseData.selected_days.contains(getCurrentDay()) && !isInTimeRange(baseData)) getCurrentDate() else getPreviousDay())
 
         val allDates = getAllDatesBetween(lastPerformedDate, yesterday)
 
@@ -105,7 +106,7 @@ class QuestHelper(val context: Context) {
             val calendar = Calendar.getInstance()
             calendar.time = date
             val day = calendar.convertToDayOfWeek()
-            if (day in baseData.selectedDays) {
+            if (day in baseData.selected_days) {
                 val formattedDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date)
                 val alreadySaved = getQuestStats(formattedDate, baseData.title)
                 if (alreadySaved == null) {
@@ -123,7 +124,7 @@ class QuestHelper(val context: Context) {
 
     fun isOver(baseData: CommonQuestInfo): Boolean {
         val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        return currentHour > baseData.timeRange[1]
+        return currentHour > baseData.time_range[1]
     }
 
     companion object {
@@ -133,7 +134,7 @@ class QuestHelper(val context: Context) {
 
         fun isInTimeRange(baseData: CommonQuestInfo): Boolean {
             val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-            val timeRange = baseData.timeRange
+            val timeRange = baseData.time_range
             return currentHour in timeRange[0]..timeRange[1]
         }
 
@@ -141,7 +142,7 @@ class QuestHelper(val context: Context) {
         fun isNeedAutoDestruction(baseData: CommonQuestInfo): Boolean {
             val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
             val today = LocalDate.now()
-            val autoDestruct = LocalDate.parse(baseData.autoDestruct, formatter)
+            val autoDestruct = LocalDate.parse(baseData.auto_destruct, formatter)
             return today >= autoDestruct
         }
     }
@@ -152,7 +153,7 @@ class QuestHelper(val context: Context) {
 fun List<CommonQuestInfo>.filterQuestsForToday(){
     val today = getCurrentDay()
     filter {
-        it.selectedDays.contains(today) && !it.isDestroyed
+        it.selected_days.contains(today) && !it.is_destroyed
     }
 }
 /**
@@ -162,9 +163,9 @@ fun List<CommonQuestInfo>.filterQuestsByDay(date: LocalDate){
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
     val dayOfWeek = date.dayOfWeek.convertToDayOfWeek()
     filter {
-        it.selectedDays.contains(dayOfWeek) &&
-                !it.isDestroyed &&
-                LocalDate.parse(it.autoDestruct, formatter).isAfter(date)
+        it.selected_days.contains(dayOfWeek) &&
+                !it.is_destroyed &&
+                LocalDate.parse(it.auto_destruct, formatter).isAfter(date)
     }
 }
 
@@ -175,7 +176,7 @@ fun filterIncompleteQuestsForDay(quests: List<CommonQuestInfo>, date: LocalDate)
     quests.filterQuestsByDay(date)
     val dateStr = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
     return quests.filter {
-        it.lastCompletedOn != dateStr
+        it.last_completed_on != dateStr
     }
 }
 
@@ -186,7 +187,7 @@ fun filterCompleteQuestsForDay(quests: List<CommonQuestInfo>, date: java.time.Lo
     quests.filterQuestsByDay(date)
     val dateStr = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
     return quests.filter {
-        it.lastCompletedOn == dateStr
+        it.last_completed_on == dateStr
     }
 }
 

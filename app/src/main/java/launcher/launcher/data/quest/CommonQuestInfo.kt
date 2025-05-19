@@ -18,40 +18,48 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 import launcher.launcher.data.DayOfWeek
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.utils.getCurrentDate
 import launcher.launcher.utils.json
+import java.util.UUID
 
 /**
  * Stores information about quests which are common to all integration types
  *
  * @property title this should be unique as it also acts as a primary key
  * @property reward the coins rewarded for that quest
- * @property integrationId id
- * @property selectedDays the days on which it can be performed
- * @property autoDestruct format yyyy-mm-dd
- * @property timeRange format startHour,endHour, says when between what time range the quest is to be completed
- * @property createdOn
- * @property questJson stores additional integration specific information here
+ * @property integration_id id
+ * @property selected_days the days on which it can be performed
+ * @property auto_destruct format yyyy-mm-dd
+ * @property time_range format startHour,endHour, says when between what time range the quest is to be completed
+ * @property created_on
+ * @property quest_json stores additional integration specific information here
  */
 @Entity
 @Serializable
 @TypeConverters(BaseQuestConverter::class)
 data class CommonQuestInfo(
     @PrimaryKey
+    val id: String = UUID.randomUUID().toString(),
     var title: String = "",
     val reward: Int = 5,
-    var integrationId : IntegrationId = IntegrationId.DEEP_FOCUS,
-    var selectedDays: Set<DayOfWeek> = emptySet(),
-    var autoDestruct: String = "9999-12-31",
-    var timeRange: List<Int> = listOf(0,24),
-    var createdOn : String = getCurrentDate(),
-    var lastCompletedOn: String = "0001-01-01",
+    var integration_id : IntegrationId = IntegrationId.DEEP_FOCUS,
+    var selected_days: Set<DayOfWeek> = emptySet(),
+    var auto_destruct: String = "9999-12-31",
+    var time_range: List<Int> = listOf(0,24),
+    var created_on : String = getCurrentDate(),
+    var last_completed_on: String = "0001-01-01",
     var instructions: String = "",
-    var questJson: String = "",
-    var isDestroyed : Boolean = false
+    var quest_json: String = "",
+    var is_destroyed : Boolean = false,
+    @Transient
+    var synced: Boolean = false,
+    var last_updated: Long = System.currentTimeMillis(),  // Epoch millis
 )
 
 
@@ -75,12 +83,12 @@ class QuestInfoState(
     inline fun < reified T : Any> toBaseQuest(questInfo: T? = null) = CommonQuestInfo(
         title = title,
         reward = reward,
-        integrationId = integrationId,
-        selectedDays = selectedDays,
-        autoDestruct = initialAutoDestruct,
-        timeRange = initialTimeRange,
+        integration_id = integrationId,
+        selected_days = selectedDays,
+        auto_destruct = initialAutoDestruct,
+        time_range = initialTimeRange,
         instructions = instructions,
-        questJson = if(questInfo!=null) json.encodeToString(questInfo) else ""
+        quest_json = if(questInfo!=null) json.encodeToString(questInfo) else ""
     )
 }
 
@@ -122,15 +130,20 @@ interface QuestDao {
     @Query("SELECT * FROM CommonQuestInfo")
     fun getAllQuests(): Flow<List<CommonQuestInfo>>
 
+    @Query("SELECT * FROM CommonQuestInfo WHERE synced = 0")
+    fun getUnSyncedQuests(): Flow<List<CommonQuestInfo>>
+
     @Delete
     suspend fun deleteQuest(quest: CommonQuestInfo)
 
     @Query("DELETE FROM CommonQuestInfo WHERE title = :title")
     suspend fun deleteQuestByTitle(title: String)
 
+    @Query("UPDATE CommonQuestInfo SET synced = 1 WHERE id = :id")
+    suspend fun markAsSynced(id: String)
+
     @Query("DELETE FROM CommonQuestInfo")
     suspend fun clearAll()
-
 
 }
 

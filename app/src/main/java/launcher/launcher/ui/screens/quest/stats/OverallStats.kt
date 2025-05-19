@@ -425,7 +425,7 @@ private fun calculateTimeDisciplineScore(contributions: List<OverallStatsUs>, al
     if (completedQuests.isEmpty()) return 0
     // Assume completion is within timeRange (no completion time data; uses isInTimeRange logic)
     val withinTimeRange = completedQuests.count { quest ->
-        quest.timeRange.let { range ->
+        quest.time_range.let { range ->
             range.getOrElse(0) { 0 } <= range.getOrElse(1) { 24 }
         }
     }
@@ -451,11 +451,11 @@ private fun calculateFailureRecoveryRate(contributions: List<OverallStatsUs>, al
         .flatMap { day -> filterIncompleteQuestsForDay(allQuests,day.date).map { it to day.date } }
     if (failedQuests.isEmpty()) return 100
     val recoveredQuests = failedQuests.count { (quest, failedDate) ->
-        val destructDate = LocalDate.parse(quest.autoDestruct, formatter)
+        val destructDate = LocalDate.parse(quest.auto_destruct, formatter)
         contributions.any { contribution ->
             contribution.date > failedDate &&
                     contribution.date <= destructDate &&
-                    quest.selectedDays.contains(
+                    quest.selected_days.contains(
                         contribution.date.dayOfWeek.convertToDayOfWeek()
                     ) &&
                     filterCompleteQuestsForDay(allQuests,contribution.date).any { it.title == quest.title }

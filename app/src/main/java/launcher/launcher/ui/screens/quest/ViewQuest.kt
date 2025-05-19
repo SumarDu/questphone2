@@ -44,13 +44,16 @@ fun ViewQuest(
         if(QuestHelper.isNeedAutoDestruction(commonQuestInfo)){
             showDestroyQuestDialog.value =true
         }else{
-            commonQuestInfo.integrationId.viewScreen.invoke(commonQuestInfo)
+            commonQuestInfo.integration_id.viewScreen.invoke(commonQuestInfo)
         }
         if(showDestroyQuestDialog.value) DestroyQuestDialog {
-            commonQuestInfo.isDestroyed = true
+            commonQuestInfo.is_destroyed = true
+            commonQuestInfo.synced = false
+            commonQuestInfo.last_updated = System.currentTimeMillis()
             scope.launch {
                 dao.upsertQuest(commonQuestInfo)
             }
+
             showDestroyQuestDialog.value =false
             navController.navigate(Screen.HomeScreen.route) {
                 popUpTo(Screen.ViewQuest.route) { inclusive = true }

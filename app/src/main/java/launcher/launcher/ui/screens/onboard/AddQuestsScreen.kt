@@ -1,5 +1,6 @@
 package launcher.launcher.ui.screens.onboard
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +21,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +48,10 @@ fun AddQuestsScreen(navController: NavController) {
 
     val isUserAddingQuest = remember { mutableStateOf(questList.isEmpty()) }
 
+
+    LaunchedEffect(questList) {
+        Log.d(":",questList.toString())
+    }
 
     BackHandler(isUserAddingQuest.value) {
         isUserAddingQuest.value = false
