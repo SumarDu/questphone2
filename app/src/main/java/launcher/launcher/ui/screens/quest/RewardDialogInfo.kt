@@ -15,15 +15,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,7 +48,7 @@ import launcher.launcher.data.game.addLevelUpRewards
 import launcher.launcher.data.game.addXp
 import launcher.launcher.data.game.xpFromStreak
 import launcher.launcher.data.game.xpToRewardForQuest
-import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.ui.screens.game.StreakFailedDialog
 import launcher.launcher.ui.screens.game.StreakUpDialog
 import launcher.launcher.utils.VibrationHelper
@@ -62,13 +59,13 @@ enum class DialogState { COINS, LEVEL_UP, STREAK_UP, STREAK_FAILED, NONE }
  * This values in here must be set to true in order to show the dialog [RewardDialogMaker] which is triggered
  * in the parent activity.
  * @property isRewardDialogVisible
- * @property currentBasicQuestInfo the quest info that led to this reward dialog be triggered. null if dialog not
+ * @property currentCommonQuestInfo the quest info that led to this reward dialog be triggered. null if dialog not
  * visible.
  * @property streakData data to be used by streak dialogs. empty if not triggered by stuff related to streak
  */
 object RewardDialogInfo{
     var isRewardDialogVisible by mutableStateOf(false)
-    var currentBasicQuestInfo by mutableStateOf<BasicQuestInfo?>(null)
+    var currentCommonQuestInfo by mutableStateOf<CommonQuestInfo?>(null)
     var streakData : StreakCheckReturn? = null
     var currentDialog by mutableStateOf<DialogState>(DialogState.COINS)
 }
@@ -76,9 +73,9 @@ object RewardDialogInfo{
 /**
  * Calculates what to reward user as well as trigger the reward dialog to be shown to the user
  */
-fun checkForRewards(basicQuestInfo: BasicQuestInfo){
+fun checkForRewards(commonQuestInfo: CommonQuestInfo){
     RewardDialogInfo.isRewardDialogVisible = true
-    RewardDialogInfo.currentBasicQuestInfo =  basicQuestInfo
+    RewardDialogInfo.currentCommonQuestInfo =  commonQuestInfo
     RewardDialogInfo.currentDialog = DialogState.COINS
 }
 
@@ -103,9 +100,9 @@ fun RewardDialogMaker(  ) {
 
 
         // if quest info is empty, the function was triggered by stuff like daily rewards
-        val isTriggeredViaQuestCompletion = RewardDialogInfo.currentBasicQuestInfo != null
+        val isTriggeredViaQuestCompletion = RewardDialogInfo.currentCommonQuestInfo != null
 
-        val coinsEarned = RewardDialogInfo.currentBasicQuestInfo?.reward ?: 0
+        val coinsEarned = RewardDialogInfo.currentCommonQuestInfo?.reward ?: 0
         LaunchedEffect(Unit) {
             val xp = if(isTriggeredViaQuestCompletion) xpToRewardForQuest(userInfo.level) else xpFromStreak(streakData.currentStreak)
             User.addXp(xp)
@@ -158,7 +155,7 @@ fun RewardDialogMaker(  ) {
             DialogState.NONE -> {
                 RewardDialogInfo.apply {
                     isRewardDialogVisible = false
-                    currentBasicQuestInfo = null
+                    currentCommonQuestInfo = null
                     streakData = null
                 }
 

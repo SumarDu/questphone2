@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import launcher.launcher.data.IntegrationId
-import launcher.launcher.data.quest.BaseQuestState
+import launcher.launcher.data.quest.QuestInfoState
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.screens.quest.setup.ReviewDialog
 import launcher.launcher.ui.screens.quest.setup.components.SetBaseQuest
@@ -43,8 +43,8 @@ import launcher.launcher.utils.QuestHelper
 @Composable
 fun SetSwiftMark(navController: NavHostController) {
 
-    val baseQuestState =
-        remember { BaseQuestState(initialIntegrationId = IntegrationId.SWIFT_MARK,
+    val questInfoState =
+        remember { QuestInfoState(initialIntegrationId = IntegrationId.SWIFT_MARK,
             initialReward = 1) }
 
     val sp = QuestHelper(LocalContext.current)
@@ -56,7 +56,7 @@ fun SetSwiftMark(navController: NavHostController) {
 
     if (isReviewDialogVisible.value) {
         val baseQuest =
-            baseQuestState.toBaseQuest(null)
+            questInfoState.toBaseQuest(null)
         ReviewDialog(
             items = listOf(
                 baseQuest
@@ -99,7 +99,7 @@ fun SetSwiftMark(navController: NavHostController) {
                         text = "Swift Quest",
                         style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                     )
-                    SetBaseQuest(baseQuestState)
+                    SetBaseQuest(questInfoState)
 
 
                     Button(

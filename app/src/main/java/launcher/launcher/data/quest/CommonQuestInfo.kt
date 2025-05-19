@@ -18,17 +18,14 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import kotlinx.coroutines.flow.Flow
-import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import launcher.launcher.data.DayOfWeek
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.utils.getCurrentDate
-import launcher.launcher.utils.getCurrentDay
 import launcher.launcher.utils.json
 
 /**
- * Stores basic information about a quests
+ * Stores information about quests which are common to all integration types
  *
  * @property title this should be unique as it also acts as a primary key
  * @property reward the coins rewarded for that quest
@@ -36,11 +33,13 @@ import launcher.launcher.utils.json
  * @property selectedDays the days on which it can be performed
  * @property autoDestruct format yyyy-mm-dd
  * @property timeRange format startHour,endHour, says when between what time range the quest is to be completed
+ * @property createdOn
+ * @property questJson stores additional integration specific information here
  */
 @Entity
 @Serializable
 @TypeConverters(BaseQuestConverter::class)
-data class BasicQuestInfo(
+data class CommonQuestInfo(
     @PrimaryKey
     var title: String = "",
     val reward: Int = 5,
@@ -51,13 +50,13 @@ data class BasicQuestInfo(
     var createdOn : String = getCurrentDate(),
     var lastCompletedOn: String = "0001-01-01",
     var instructions: String = "",
-    var questInfo: String = "",
+    var questJson: String = "",
     var isDestroyed : Boolean = false
 )
 
 
 @Stable
-class BaseQuestState(
+class QuestInfoState(
     initialTitle: String = "",
     initialInstructions: String = "",
     initialReward: Int = 5,
@@ -73,7 +72,7 @@ class BaseQuestState(
     var instructions by mutableStateOf(initialInstructions)
     var initialAutoDestruct by mutableStateOf(initialAutoDestruct)
     var initialTimeRange by mutableStateOf(initialTimeRange)
-    inline fun < reified T : Any> toBaseQuest(questInfo: T? = null) = BasicQuestInfo(
+    inline fun < reified T : Any> toBaseQuest(questInfo: T? = null) = CommonQuestInfo(
         title = title,
         reward = reward,
         integrationId = integrationId,
@@ -81,7 +80,7 @@ class BaseQuestState(
         autoDestruct = initialAutoDestruct,
         timeRange = initialTimeRange,
         instructions = instructions,
-        questInfo = if(questInfo!=null) json.encodeToString(questInfo) else ""
+        questJson = if(questInfo!=null) json.encodeToString(questInfo) else ""
     )
 }
 
@@ -112,31 +111,31 @@ object BaseQuestConverter {
 interface QuestDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertQuest(quest: BasicQuestInfo)
+    suspend fun upsertQuest(quest: CommonQuestInfo)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertAll(quests: List<BasicQuestInfo>)
+    suspend fun upsertAll(quests: List<CommonQuestInfo>)
 
-    @Query("SELECT * FROM BasicQuestInfo WHERE title = :title")
-    suspend fun getQuest(title: String): BasicQuestInfo?
+    @Query("SELECT * FROM CommonQuestInfo WHERE title = :title")
+    suspend fun getQuest(title: String): CommonQuestInfo?
 
-    @Query("SELECT * FROM BasicQuestInfo")
-    fun getAllQuests(): Flow<List<BasicQuestInfo>>
+    @Query("SELECT * FROM CommonQuestInfo")
+    fun getAllQuests(): Flow<List<CommonQuestInfo>>
 
     @Delete
-    suspend fun deleteQuest(quest: BasicQuestInfo)
+    suspend fun deleteQuest(quest: CommonQuestInfo)
 
-    @Query("DELETE FROM BasicQuestInfo WHERE title = :title")
+    @Query("DELETE FROM CommonQuestInfo WHERE title = :title")
     suspend fun deleteQuestByTitle(title: String)
 
-    @Query("DELETE FROM BasicQuestInfo")
+    @Query("DELETE FROM CommonQuestInfo")
     suspend fun clearAll()
 
 
 }
 
 @androidx.room.Database(
-    entities = [BasicQuestInfo::class],
+    entities = [CommonQuestInfo::class],
     version = 1,
     exportSchema = false
 )
@@ -159,16 +158,6 @@ object QuestDatabaseProvider {
             ).build()
             INSTANCE = instance
             instance
-        }
-    }
-}
-
-object QuestFilterUtil {
-    fun filterQuestForToday(
-        quests: List<BasicQuestInfo>): List<BasicQuestInfo> {
-        val today = getCurrentDay()
-        return quests.filter {
-            it.selectedDays.contains(today) && !it.isDestroyed
         }
     }
 }

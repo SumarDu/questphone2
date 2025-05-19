@@ -19,8 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,7 +30,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,7 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
-import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.components.LiveClock
 import launcher.launcher.utils.CoinHelper
@@ -63,13 +60,10 @@ import launcher.launcher.data.game.checkIfStreakFailed
 import launcher.launcher.data.game.continueStreak
 import launcher.launcher.data.game.getStreakInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
-import launcher.launcher.data.quest.QuestFilterUtil
-import launcher.launcher.ui.screens.game.StreakFailedDialog
-import launcher.launcher.ui.screens.game.StreakUpDialog
 import launcher.launcher.ui.screens.quest.DialogState
 import launcher.launcher.ui.screens.quest.RewardDialogInfo
-import launcher.launcher.ui.screens.quest.RewardDialogMaker
 import launcher.launcher.utils.VibrationHelper
+import launcher.launcher.utils.filterQuestsForToday
 import launcher.launcher.utils.formatHour
 import kotlin.collections.forEach
 
@@ -81,18 +75,17 @@ fun HomeScreen(navController: NavController) {
     val dao = QuestDatabaseProvider.getInstance(context).questDao()
 
     val questHelper = QuestHelper(context)
-    var questList by remember { mutableStateOf(emptyList<BasicQuestInfo>()) }
+    var questList by remember { mutableStateOf(emptyList<CommonQuestInfo>()) }
     val coinHelper = CoinHelper(context)
 
-    val currentDate = getCurrentDate()
     val completedQuests = remember { SnapshotStateList<String>() }
     val progress = (completedQuests.size.toFloat() / questList.size.toFloat()).coerceIn(0f,1f)
 
     var streakInfo = remember {mutableStateOf(getStreakInfo(context))}
 
     LaunchedEffect(Unit) {
-        val quests = dao.getAllQuests().first()
-        questList = QuestFilterUtil.filterQuestForToday(quests)
+        questList = dao.getAllQuests().first()
+        questList.filterQuestsForToday()
     }
 
     BackHandler {  }
@@ -271,8 +264,8 @@ fun HomeScreen(navController: NavController) {
     }}
 }
 
-fun viewQuest(baseQuest: BasicQuestInfo, navController: NavController) {
-    val data = Json.encodeToString<BasicQuestInfo>(baseQuest )
+fun viewQuest(baseQuest: CommonQuestInfo, navController: NavController) {
+    val data = Json.encodeToString<CommonQuestInfo>(baseQuest )
     navController.navigate(Screen.ViewQuest.route + data)
 }
 @Composable

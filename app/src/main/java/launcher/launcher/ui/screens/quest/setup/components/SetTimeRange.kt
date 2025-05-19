@@ -10,11 +10,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import launcher.launcher.data.quest.BaseQuestState
+import launcher.launcher.data.quest.QuestInfoState
 import launcher.launcher.utils.formatHour
 
 @Composable
-fun SetTimeRange(initialTimeRange: BaseQuestState) {
+fun SetTimeRange(initialTimeRange: QuestInfoState) {
     var showDialog by remember { mutableStateOf(false) }
     var startHour by remember { mutableStateOf(0) }
     var endHour by remember { mutableStateOf(24) } // 24 represents midnight (12 AM next day)

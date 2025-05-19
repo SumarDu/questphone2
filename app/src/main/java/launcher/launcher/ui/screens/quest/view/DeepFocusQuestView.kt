@@ -34,7 +34,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.delay
-import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.focus.DeepFocus
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
@@ -60,13 +60,13 @@ private const val NOTIFICATION_ID = 1001
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DeepFocusQuestView(
-    basicQuestInfo: BasicQuestInfo
+    commonQuestInfo: CommonQuestInfo
 ) {
     val context = LocalContext.current
     val questHelper = QuestHelper(context)
-    val deepFocus = json.decodeFromString<DeepFocus>(basicQuestInfo.questInfo)
+    val deepFocus = json.decodeFromString<DeepFocus>(commonQuestInfo.questJson)
     val duration = deepFocus.nextFocusDurationInMillis
-    val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
+    val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(commonQuestInfo)) }
 
 
     LaunchedEffect(Unit) {
@@ -75,20 +75,20 @@ fun DeepFocusQuestView(
 
 
     var isQuestComplete = remember {
-        mutableStateOf(basicQuestInfo.lastCompletedOn == getCurrentDate())
+        mutableStateOf(commonQuestInfo.lastCompletedOn == getCurrentDate())
     }
     var isQuestRunning by remember {
-        mutableStateOf(questHelper.isQuestRunning(basicQuestInfo.title))
+        mutableStateOf(questHelper.isQuestRunning(commonQuestInfo.title))
     }
 
     var timerActive by remember { mutableStateOf(false) }
 
-    val questKey = basicQuestInfo.title.replace(" ", "_").lowercase()
+    val questKey = commonQuestInfo.title.replace(" ", "_").lowercase()
 
     val lifecycleOwner = LocalLifecycleOwner.current
     var isAppInForeground by remember { mutableStateOf(true) }
 
-    val isFailed = remember { mutableStateOf(questHelper.isOver(basicQuestInfo)) }
+    val isFailed = remember { mutableStateOf(questHelper.isOver(commonQuestInfo)) }
 
     val dao = QuestDatabaseProvider.getInstance(context).questDao()
     val scope = rememberCoroutineScope()
@@ -111,7 +111,7 @@ fun DeepFocusQuestView(
                     isAppInForeground = false
                     // Show notification if quest is running and app goes to background
                     if (isQuestRunning && !isQuestComplete.value) {
-                        updateTimerNotification(context, basicQuestInfo.title, progress, duration)
+                        updateTimerNotification(context, commonQuestInfo.title, progress, duration)
                     }
                 }
                 else -> { /* Ignore other events */ }
@@ -127,14 +127,14 @@ fun DeepFocusQuestView(
 
     fun onQuestComplete(){
         deepFocus.incrementTime()
-        basicQuestInfo.lastCompletedOn = getCurrentDate()
-        basicQuestInfo.questInfo = json.encodeToString(deepFocus)
+        commonQuestInfo.lastCompletedOn = getCurrentDate()
+        commonQuestInfo.questJson = json.encodeToString(deepFocus)
         scope.launch {
-            dao.upsertQuest(basicQuestInfo)
+            dao.upsertQuest(commonQuestInfo)
         }
 
-        questHelper.setQuestRunning(basicQuestInfo.title, false)
-        checkForRewards(basicQuestInfo)
+        questHelper.setQuestRunning(commonQuestInfo.title, false)
+        checkForRewards(commonQuestInfo)
         isQuestRunning = false
         timerActive = false
 
@@ -151,7 +151,7 @@ fun DeepFocusQuestView(
         isQuestComplete.value =true
     }
     fun startQuest() {
-        questHelper.setQuestRunning(basicQuestInfo.title, true)
+        questHelper.setQuestRunning(commonQuestInfo.title, true)
         isQuestRunning = true
         timerActive = true
 
@@ -201,7 +201,7 @@ fun DeepFocusQuestView(
 
                 // Update notification if app is in background
                 if (!isAppInForeground && isQuestRunning) {
-                    updateTimerNotification(context, basicQuestInfo.title, progress, duration)
+                    updateTimerNotification(context, commonQuestInfo.title, progress, duration)
                 }
                 if (progress >= 1f) {
                     onQuestComplete()
@@ -250,20 +250,20 @@ fun DeepFocusQuestView(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = basicQuestInfo.title,
+                text = commonQuestInfo.title,
                 style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                 fontFamily = JetBrainsMonoFont,
                 modifier = Modifier.padding(top = 40.dp)
             )
 
             Text(
-                text = (if(isQuestComplete.value) "Reward" else "Next Reward") + ": ${basicQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
+                text = (if(isQuestComplete.value) "Reward" else "Next Reward") + ": ${commonQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
             )
 
             if(!isInTimeRange.value){
                 Text(
-                    text = "Time: ${formatHour(basicQuestInfo.timeRange[0])} to ${formatHour(basicQuestInfo.timeRange[1])}",
+                    text = "Time: ${formatHour(commonQuestInfo.timeRange[0])} to ${formatHour(commonQuestInfo.timeRange[1])}",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
             }
@@ -312,7 +312,7 @@ fun DeepFocusQuestView(
                             .clickable {
                                 // Show notification before launching other app
                                 if (isQuestRunning && !isQuestComplete.value) {
-                                    updateTimerNotification(context, basicQuestInfo.title, progress, duration)
+                                    updateTimerNotification(context, commonQuestInfo.title, progress, duration)
                                 }
                                 val intent = pm.getLaunchIntentForPackage(packageName)
                                 intent?.let { context.startActivity(it) }
@@ -322,7 +322,7 @@ fun DeepFocusQuestView(
             }
 
             MarkdownText(
-                markdown = basicQuestInfo.instructions,
+                markdown = commonQuestInfo.instructions,
                 modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
             )
         }

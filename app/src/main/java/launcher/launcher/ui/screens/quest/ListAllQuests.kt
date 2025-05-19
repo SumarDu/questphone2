@@ -7,18 +7,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -28,26 +24,22 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.flow.first
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.navigation.Screen
-import launcher.launcher.utils.QuestHelper
 
 @Composable
 fun ListAllQuests(navHostController: NavHostController) {
-    var questList by remember { mutableStateOf<List<BasicQuestInfo>>(emptyList()) }
+    var questList by remember { mutableStateOf<List<CommonQuestInfo>>(emptyList()) }
     val dao = QuestDatabaseProvider.getInstance(LocalContext.current).questDao()
 
     LaunchedEffect(Unit) {
@@ -86,13 +78,13 @@ fun ListAllQuests(navHostController: NavHostController) {
 }
 
 @Composable
-fun QuestList(navHostController: NavController, questList: List<BasicQuestInfo>, itemTop: @Composable () -> Unit = {}, itemBottom: @Composable () -> Unit = {}) {
+fun QuestList(navHostController: NavController, questList: List<CommonQuestInfo>, itemTop: @Composable () -> Unit = {}, itemBottom: @Composable () -> Unit = {}) {
 
     LazyColumn {
         item {
             itemTop()
         }
-        items(questList){questBase: BasicQuestInfo ->
+        items(questList){questBase: CommonQuestInfo ->
             QuestItem(
                 title = questBase.title,
                 reward = questBase.reward,
@@ -100,7 +92,7 @@ fun QuestList(navHostController: NavController, questList: List<BasicQuestInfo>,
 //                    val data = Json.encodeToString<BasicQuestInfo>(questBase)
 ////                    navHostController.navigate(Screen.ViewQuest.route + data)
 //                    navHostController.navigate(Screen.QuestStats.route)
-                    navHostController.navigate(Screen.QuestStats.route + Json.encodeToString<BasicQuestInfo>(questBase))
+                    navHostController.navigate(Screen.QuestStats.route + Json.encodeToString<CommonQuestInfo>(questBase))
 //
 ////                    )
                 }

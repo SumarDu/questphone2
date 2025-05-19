@@ -19,7 +19,7 @@ import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.launch
 import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.xpToRewardForQuest
-import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.ai.snap.AiSnap
 import launcher.launcher.ui.screens.quest.checkForRewards
@@ -28,17 +28,18 @@ import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
+import launcher.launcher.utils.json
 
 @Composable
 fun AiSnapQuestView(
-    basicQuestInfo: BasicQuestInfo
+    commonQuestInfo: CommonQuestInfo
 ) {
     val context = LocalContext.current
     val questHelper = QuestHelper(context)
-    val aiQuest = questHelper.getQuestInfo<AiSnap>(basicQuestInfo)
+    val aiQuest = json.decodeFromString<AiSnap>(commonQuestInfo.questJson)
     val isQuestComplete = remember {
         mutableStateOf(
-            basicQuestInfo.lastCompletedOn == getCurrentDate()
+            commonQuestInfo.lastCompletedOn == getCurrentDate()
         )
     }
     var isCameraScreen = remember { mutableStateOf(false) }
@@ -49,8 +50,8 @@ fun AiSnapQuestView(
     val dao = QuestDatabaseProvider.getInstance(context).questDao()
     val scope = rememberCoroutineScope()
 
-    val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
-    val isFailed = remember { mutableStateOf(questHelper.isOver(basicQuestInfo)) }
+    val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(commonQuestInfo)) }
+    val isFailed = remember { mutableStateOf(questHelper.isOver(commonQuestInfo)) }
     var progress = remember {
         mutableFloatStateOf(if (isQuestComplete.value || isFailed.value ) 1f else 0f)
     }
@@ -61,12 +62,12 @@ fun AiSnapQuestView(
 
     fun onQuestComplete(){
         progress.floatValue = 1f
-        basicQuestInfo.lastCompletedOn = getCurrentDate()
+        commonQuestInfo.lastCompletedOn = getCurrentDate()
         scope.launch {
-            dao.upsertQuest(basicQuestInfo)
+            dao.upsertQuest(commonQuestInfo)
         }
         isCameraScreen.value = false
-        checkForRewards(basicQuestInfo)
+        checkForRewards(commonQuestInfo)
         isQuestComplete.value = true
     }
 
@@ -95,25 +96,25 @@ fun AiSnapQuestView(
                 modifier = Modifier.padding(16.dp)
             ) {
                 Text(
-                    text = basicQuestInfo.title,
+                    text = commonQuestInfo.title,
                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                     fontFamily = JetBrainsMonoFont,
                     modifier = Modifier.padding(top = 40.dp)
                 )
 
                 Text(
-                    text = (if(isQuestComplete.value) "Reward" else "Next Reward") + ": ${basicQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
+                    text = (if(isQuestComplete.value) "Reward" else "Next Reward") + ": ${commonQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
 
                 if(!isInTimeRange.value){
                     Text(
-                        text = "Time: ${formatHour(basicQuestInfo.timeRange[0])} to ${formatHour(basicQuestInfo.timeRange[1])}",
+                        text = "Time: ${formatHour(commonQuestInfo.timeRange[0])} to ${formatHour(commonQuestInfo.timeRange[1])}",
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                     )
                 }
                 MarkdownText(
-                    markdown = questHelper.getInstruction(basicQuestInfo.title),
+                    markdown = commonQuestInfo.instructions,
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
                 )

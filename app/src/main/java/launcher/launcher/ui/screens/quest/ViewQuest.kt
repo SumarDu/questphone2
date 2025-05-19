@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,28 +20,37 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
-import launcher.launcher.data.quest.BasicQuestInfo
+import kotlinx.coroutines.launch
+import launcher.launcher.data.quest.CommonQuestInfo
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.utils.QuestHelper
 
 @Composable
 fun ViewQuest(
     navController: NavHostController,
-    basicQuestInfo: BasicQuestInfo
+    commonQuestInfo: CommonQuestInfo
 ) {
     val context = LocalContext.current
     val questHelper = QuestHelper(context)
 
     val showDestroyQuestDialog = remember { mutableStateOf(false) }
 
+
+    val scope = rememberCoroutineScope()
+    val dao = QuestDatabaseProvider.getInstance(context).questDao()
+
     Surface {
-        if(QuestHelper.isNeedAutoDestruction(basicQuestInfo)){
+        if(QuestHelper.isNeedAutoDestruction(commonQuestInfo)){
             showDestroyQuestDialog.value =true
         }else{
-            basicQuestInfo.integrationId.viewScreen.invoke(basicQuestInfo)
+            commonQuestInfo.integrationId.viewScreen.invoke(commonQuestInfo)
         }
         if(showDestroyQuestDialog.value) DestroyQuestDialog {
-            questHelper.markAsDestroyed(basicQuestInfo.title)
+            commonQuestInfo.isDestroyed = true
+            scope.launch {
+                dao.upsertQuest(commonQuestInfo)
+            }
             showDestroyQuestDialog.value =false
             navController.navigate(Screen.HomeScreen.route) {
                 popUpTo(Screen.ViewQuest.route) { inclusive = true }

@@ -3,13 +3,13 @@ package launcher.launcher.ui.screens.quest.setup.components
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
-import launcher.launcher.data.quest.BaseQuestState
+import launcher.launcher.data.quest.QuestInfoState
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AutoDestruct(baseQuestState: BaseQuestState) {
+fun AutoDestruct(questInfoState: QuestInfoState) {
     val context = LocalContext.current
     var showDialog by remember { mutableStateOf(false) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
@@ -35,7 +35,7 @@ fun AutoDestruct(baseQuestState: BaseQuestState) {
                     if(option == "Select Date"){
                         showDialog = true
                     }else{
-                        baseQuestState.initialAutoDestruct = "9999-06-21"
+                        questInfoState.initialAutoDestruct = "9999-06-21"
                     }
                 }
             )
@@ -48,7 +48,7 @@ fun AutoDestruct(baseQuestState: BaseQuestState) {
             confirmButton = {
                 TextButton(onClick = {
                     showDialog = false
-                    baseQuestState.initialAutoDestruct =
+                    questInfoState.initialAutoDestruct =
                         selectedDate?.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")).toString()
                 }) {
                     Text("OK")

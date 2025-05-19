@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import launcher.launcher.data.IntegrationId
-import launcher.launcher.data.quest.BaseQuestState
+import launcher.launcher.data.quest.QuestInfoState
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.data.quest.health.HealthTaskType
@@ -32,14 +32,14 @@ fun SetHealthConnect(navController: NavHostController) {
     val scrollState = rememberScrollState()
     val sp = QuestHelper(LocalContext.current)
 
-    val baseQuestState = remember { BaseQuestState(initialIntegrationId = IntegrationId.HEALTH_CONNECT) }
+    val questInfoState = remember { QuestInfoState(initialIntegrationId = IntegrationId.HEALTH_CONNECT) }
     val healthQuest = remember { mutableStateOf(HealthQuest()) }
     val isReviewDialogVisible = remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     if (isReviewDialogVisible.value) {
-        val baseQuest = baseQuestState.toBaseQuest(healthQuest.value)
+        val baseQuest = questInfoState.toBaseQuest(healthQuest.value)
         ReviewDialog(
             items = listOf(
                 baseQuest, healthQuest.value
@@ -78,7 +78,7 @@ fun SetHealthConnect(navController: NavHostController) {
                         style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                     )
 
-                    SetBaseQuest(baseQuestState, isTimeRangeSupported = false)
+                    SetBaseQuest(questInfoState, isTimeRangeSupported = false)
 
                         Column(
                             modifier = Modifier

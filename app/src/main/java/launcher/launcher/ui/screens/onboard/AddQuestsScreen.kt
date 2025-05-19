@@ -1,12 +1,6 @@
 package launcher.launcher.ui.screens.onboard
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,9 +18,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -38,16 +33,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.screens.quest.QuestList
 import launcher.launcher.ui.screens.quest.setup.IntegrationsList
-import launcher.launcher.utils.QuestHelper
 
 @Composable
 fun AddQuestsScreen(navController: NavController) {
 
-    val questHelper = QuestHelper(LocalContext.current)
-    val questList = questHelper.getQuestList()
+    val dao = QuestDatabaseProvider.getInstance(LocalContext.current).questDao()
+
+    val questList by dao.getAllQuests().collectAsState(initial = emptyList())
+
     val isUserAddingQuest = remember { mutableStateOf(questList.isEmpty()) }
+
 
     BackHandler(isUserAddingQuest.value) {
         isUserAddingQuest.value = false

@@ -3,7 +3,7 @@ package launcher.launcher.data
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import launcher.launcher.R
-import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.ui.screens.quest.setup.deep_focus.SetDeepFocus
 import launcher.launcher.ui.screens.quest.view.DeepFocusQuestView
 
@@ -12,7 +12,7 @@ enum class IntegrationId(
     val label: String = "",
     val description: String = "",
     val setupScreen: @Composable (NavHostController) -> Unit = { navController -> SetDeepFocus(navController) },
-    val viewScreen: @Composable (BasicQuestInfo) -> Unit = { baseQuest -> DeepFocusQuestView(baseQuest) },
+    val viewScreen: @Composable (CommonQuestInfo) -> Unit = { baseQuest -> DeepFocusQuestView(baseQuest) },
     val isLoginRequired: Boolean = false,
     val docLink : String = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/AiSnap.md"
 ) {

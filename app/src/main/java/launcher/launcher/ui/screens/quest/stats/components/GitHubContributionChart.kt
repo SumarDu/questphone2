@@ -21,7 +21,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,8 +34,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.first
 import launcher.launcher.data.quest.OverallStatsUs // Assuming this class exists
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.utils.QuestHelper
+import launcher.launcher.utils.filterQuestsByDay
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.Month
@@ -340,6 +345,15 @@ fun ContributionLegend(modifier: Modifier = Modifier) {
 @Composable
 fun QuestTooltip(overallStatsUs: OverallStatsUs) {
     val questHelper = QuestHelper(LocalContext.current)
+    val dao = QuestDatabaseProvider.getInstance(LocalContext.current).questDao()
+
+    var questsForDay by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        val quest = dao.getAllQuests().first()
+        quest.filterQuestsByDay(overallStatsUs.date)
+        questsForDay = quest.size
+    }
+
     Card(
         modifier = Modifier
             .padding(8.dp), // Padding around the card
@@ -369,7 +383,7 @@ fun QuestTooltip(overallStatsUs: OverallStatsUs) {
 
             val questText = when {
                 overallStatsUs.isPlaceholder -> "No data for this day" // Handle placeholder display
-                overallStatsUs.totalQuests == 0 -> "0/${questHelper.getQuestsForDay(overallStatsUs.date).size} Quests"
+                overallStatsUs.totalQuests == 0 -> "0/${questsForDay} Quests"
                 else -> "${overallStatsUs.completedQuests} / ${overallStatsUs.totalQuests} Quests"
             }
 

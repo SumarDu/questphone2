@@ -18,7 +18,7 @@ import androidx.navigation.navArgument
 import io.github.jan.supabase.auth.handleDeeplinks
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.IntegrationId
-import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
 import launcher.launcher.ui.screens.game.StoreScreen
@@ -86,9 +86,9 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(navArgument("baseQuestInfo") { type = NavType.StringType })
                         ) { backStackEntry ->
                             val json = backStackEntry.arguments?.getString("baseQuestInfo")
-                            val basicQuestInfo = json?.let { Json.decodeFromString<BasicQuestInfo>(it) }
+                            val commonQuestInfo = json?.let { Json.decodeFromString<CommonQuestInfo>(it) }
 
-                            ViewQuest(navController,basicQuestInfo!!)
+                            ViewQuest(navController,commonQuestInfo!!)
                         }
 
                         navigation(startDestination = SetupQuestScreen.Integration.route, route = Screen.AddNewQuest.route){
@@ -108,9 +108,9 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("${Screen.QuestStats.route}{baseQuestInfo}") { backStackEntry ->
                             val json = backStackEntry.arguments?.getString("baseQuestInfo")
-                            val basicQuestInfo = json?.let { Json.decodeFromString<BasicQuestInfo>(it) }
+                            val commonQuestInfo = json?.let { Json.decodeFromString<CommonQuestInfo>(it) }
 
-                            BaseQuestStatsView(basicQuestInfo!!)
+                            BaseQuestStatsView(commonQuestInfo!!)
                         }
                     }
                 }

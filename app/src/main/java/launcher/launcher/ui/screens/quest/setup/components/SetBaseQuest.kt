@@ -8,37 +8,32 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import launcher.launcher.data.quest.BaseQuestState
-import launcher.launcher.utils.QuestHelper
+import kotlinx.coroutines.flow.first
+import launcher.launcher.data.quest.QuestInfoState
+import launcher.launcher.data.quest.QuestDatabaseProvider
 
 @Composable
-fun SetBaseQuest(baseQuestState: BaseQuestState,isTimeRangeSupported: Boolean = true) {
+fun SetBaseQuest(questInfoState: QuestInfoState, isTimeRangeSupported: Boolean = true) {
 
-//        Text(
-//            text = "Set Info",
-//            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-//            modifier = Modifier.fillMaxWidth()
-//        )
-
-    val sp = QuestHelper(LocalContext.current)
     val allQuestTitles = mutableSetOf<String>()
 
     var isTitleDublicate by remember { mutableStateOf(false) }
+    val dao = QuestDatabaseProvider.getInstance(LocalContext.current).questDao()
 
-    LaunchedEffect(allQuestTitles) {
+    LaunchedEffect(Unit) {
         allQuestTitles.addAll(
-            sp.getQuestList().map { it.title }
+            dao.getAllQuests().first().map { it.title }
         )
 
     }
 
     OutlinedTextField(
-        value = baseQuestState.title,
+        value = questInfoState.title,
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
         onValueChange = {
             isTitleDublicate = allQuestTitles.contains(it)
-            baseQuestState.title = it
+            questInfoState.title = it
                         },
         label = { Text("Quest Title") },
         modifier = Modifier.fillMaxWidth(),
@@ -48,21 +43,21 @@ fun SetBaseQuest(baseQuestState: BaseQuestState,isTimeRangeSupported: Boolean = 
         Text(text = "Title already exists", color = MaterialTheme.colorScheme.error)
     }
 
-    SelectDaysOfWeek(baseQuestState)
+    SelectDaysOfWeek(questInfoState)
 
 
     OutlinedTextField(
-        value = baseQuestState.instructions,
+        value = questInfoState.instructions,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-        onValueChange = { baseQuestState.instructions = it }, // Direct update
+        onValueChange = { questInfoState.instructions = it }, // Direct update
         label = { Text("Instructions") },
         modifier = Modifier.fillMaxWidth()
             .height(200.dp)
     )
-    AutoDestruct(baseQuestState)
+    AutoDestruct(questInfoState)
 
     if(isTimeRangeSupported){
-        SetTimeRange(baseQuestState)
+        SetTimeRange(questInfoState)
     }
 
 }

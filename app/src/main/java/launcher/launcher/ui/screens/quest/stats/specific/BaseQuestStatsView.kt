@@ -5,20 +5,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,7 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestStats
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.formatHour
@@ -46,7 +40,7 @@ import java.util.*
 import launcher.launcher.R
 
 @Composable
-fun BaseQuestStatsView(baseData: BasicQuestInfo) {
+fun BaseQuestStatsView(baseData: CommonQuestInfo) {
     // Calculate statistics
     val questHelper = QuestHelper(LocalContext.current)
     val questStats = questHelper.getQuestStats(baseData)
@@ -147,7 +141,7 @@ fun BaseQuestStatsView(baseData: BasicQuestInfo) {
 }
 
 @Composable
-fun QuestHeader(baseData: BasicQuestInfo, currentStreak: Int) {
+fun QuestHeader(baseData: CommonQuestInfo, currentStreak: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -467,7 +461,7 @@ fun CalendarSection(
 }
 
 @Composable
-fun QuestDetailsCard(baseData: BasicQuestInfo) {
+fun QuestDetailsCard(baseData: CommonQuestInfo) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),

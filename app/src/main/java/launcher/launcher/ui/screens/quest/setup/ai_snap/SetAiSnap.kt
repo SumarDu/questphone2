@@ -26,7 +26,7 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import kotlinx.coroutines.launch
 import launcher.launcher.data.IntegrationId
-import launcher.launcher.data.quest.BaseQuestState
+import launcher.launcher.data.quest.QuestInfoState
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.ai.snap.AiSnap
 import launcher.launcher.ui.screens.quest.setup.ReviewDialog
@@ -43,7 +43,7 @@ fun SetAiSnap(navController: NavHostController) {
     val sp = QuestHelper(LocalContext.current)
 
     // State for the quest
-    val baseQuestState = remember { BaseQuestState(initialIntegrationId = IntegrationId.AI_SNAP) }
+    val questInfoState = remember { QuestInfoState(initialIntegrationId = IntegrationId.AI_SNAP) }
     val taskDescription = remember { mutableStateOf("") }
     val spatialImageUri = remember { mutableStateOf<Uri?>(null) }
 
@@ -64,7 +64,7 @@ fun SetAiSnap(navController: NavHostController) {
         val aiSnapQuest = AiSnap(
             taskDescription = taskDescription.value,
         )
-        val baseQuest = baseQuestState.toBaseQuest(aiSnapQuest)
+        val baseQuest = questInfoState.toBaseQuest(aiSnapQuest)
 
         ReviewDialog(
             items = listOf(baseQuest, aiSnapQuest),
@@ -110,7 +110,7 @@ fun SetAiSnap(navController: NavHostController) {
                     }
 
                     // Base quest configuration
-                    SetBaseQuest(baseQuestState)
+                    SetBaseQuest(questInfoState)
 
                     // Task description
                     OutlinedTextField(

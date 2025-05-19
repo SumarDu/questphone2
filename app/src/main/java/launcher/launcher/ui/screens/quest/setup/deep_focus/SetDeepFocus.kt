@@ -19,13 +19,12 @@ import launcher.launcher.data.AppInfo
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.focus.DeepFocus
 import launcher.launcher.data.quest.focus.FocusTimeConfig
-import launcher.launcher.data.quest.BaseQuestState
+import launcher.launcher.data.quest.QuestInfoState
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.screens.quest.setup.ReviewDialog
 import launcher.launcher.ui.screens.quest.setup.components.SetBaseQuest
 import launcher.launcher.ui.screens.quest.setup.components.SetFocusTimeUI
 import launcher.launcher.utils.QuestHelper
-import launcher.launcher.utils.getCachedApps
 import launcher.launcher.utils.reloadApps
 
 @SuppressLint("UnrememberedMutableState")
@@ -36,7 +35,7 @@ fun SetDeepFocus(navController: NavHostController) {
 
     val showDialog = remember { mutableStateOf(false) }
     val selectedApps = remember { mutableStateListOf<String>() }
-    val baseQuestState = remember { BaseQuestState(initialIntegrationId = IntegrationId.DEEP_FOCUS) }
+    val questInfoState = remember { QuestInfoState(initialIntegrationId = IntegrationId.DEEP_FOCUS) }
     val focusTimeConfig = remember { mutableStateOf(FocusTimeConfig()) }
 
     val scrollState = rememberScrollState()
@@ -66,7 +65,7 @@ fun SetDeepFocus(navController: NavHostController) {
             nextFocusDurationInMillis = focusTimeConfig.value.initialTimeInMs
         )
         val baseQuest =
-            baseQuestState.toBaseQuest<DeepFocus>(deepFocus)
+            questInfoState.toBaseQuest<DeepFocus>(deepFocus)
 
         ReviewDialog(
             items = listOf(
@@ -110,7 +109,7 @@ fun SetDeepFocus(navController: NavHostController) {
                         text = "Deep Focus ",
                         style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                     )
-                    SetBaseQuest(baseQuestState)
+                    SetBaseQuest(questInfoState)
 
                     OutlinedButton(
                         onClick = { showDialog.value = true },

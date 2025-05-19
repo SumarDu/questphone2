@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,7 +17,7 @@ import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.launch
 import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.xpToRewardForQuest
-import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.screens.quest.checkForRewards
 import launcher.launcher.ui.theme.JetBrainsMonoFont
@@ -28,20 +27,20 @@ import launcher.launcher.utils.getCurrentDate
 
 @Composable
 fun SwiftMarkQuestView(
-    basicQuestInfo: BasicQuestInfo
+    commonQuestInfo: CommonQuestInfo
 ) {
     val context = LocalContext.current
     val questHelper = QuestHelper(context)
     val isQuestComplete = remember {
         mutableStateOf(
-            basicQuestInfo.lastCompletedOn == getCurrentDate()
+            commonQuestInfo.lastCompletedOn == getCurrentDate()
         )
     }
     val scope = rememberCoroutineScope()
     val dao = QuestDatabaseProvider.getInstance(context).questDao()
 
-    val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(basicQuestInfo)) }
-    val isFailed = remember { mutableStateOf(questHelper.isOver(basicQuestInfo)) }
+    val isInTimeRange = remember { mutableStateOf(QuestHelper.isInTimeRange(commonQuestInfo)) }
+    val isFailed = remember { mutableStateOf(questHelper.isOver(commonQuestInfo)) }
 
     val progress = remember {
         mutableFloatStateOf(if (isQuestComplete.value || isFailed.value ) 1f else 0f)
@@ -53,10 +52,10 @@ fun SwiftMarkQuestView(
     fun onQuestCompleted(){
         progress.floatValue = 1f
         scope.launch {
-            basicQuestInfo.lastCompletedOn = getCurrentDate()
-            dao.upsertQuest(basicQuestInfo)
+            commonQuestInfo.lastCompletedOn = getCurrentDate()
+            dao.upsertQuest(commonQuestInfo)
         }
-        checkForRewards(basicQuestInfo)
+        checkForRewards(commonQuestInfo)
         isQuestComplete.value = true
     }
 
@@ -78,27 +77,27 @@ fun SwiftMarkQuestView(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = basicQuestInfo.title,
+                text = commonQuestInfo.title,
                 style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                 fontFamily = JetBrainsMonoFont,
                 modifier = Modifier.padding(top = 40.dp)
             )
 
             Text(
-                text = (if(isQuestComplete.value) "Next Reward" else "Reward") + ": ${basicQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
+                text = (if(isQuestComplete.value) "Next Reward" else "Reward") + ": ${commonQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
             )
 
 
             if(!isInTimeRange.value){
                 Text(
-                    text = "Time: ${formatHour(basicQuestInfo.timeRange[0])} to ${formatHour(basicQuestInfo.timeRange[1])}",
+                    text = "Time: ${formatHour(commonQuestInfo.timeRange[0])} to ${formatHour(commonQuestInfo.timeRange[1])}",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
             }
 
             MarkdownText(
-                markdown = basicQuestInfo.instructions,
+                markdown = commonQuestInfo.instructions,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
                 modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
             )

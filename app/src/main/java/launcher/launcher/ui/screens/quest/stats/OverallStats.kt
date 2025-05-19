@@ -28,12 +28,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.res.painterResource
-import launcher.launcher.data.DayOfWeek
+import kotlinx.coroutines.flow.first
 import launcher.launcher.data.game.User
+import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.OverallStatsUs
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.screens.quest.stats.components.GitHubContributionChart
 import launcher.launcher.utils.convertToDayOfWeek
+import launcher.launcher.utils.filterCompleteQuestsForDay
+import launcher.launcher.utils.filterIncompleteQuestsForDay
 
 @Composable
 fun OverallStatsView() {
@@ -262,6 +267,22 @@ private fun calculateTrend(contributions: List<OverallStatsUs>): Float {
 @Composable
 private fun QuestPerformanceInsightsSection(contributions: List<OverallStatsUs>) {
     val questHelper = QuestHelper(LocalContext.current)
+    val dao = QuestDatabaseProvider.getInstance(LocalContext.current).questDao()
+    var allQuests by remember { mutableStateOf(emptyList<CommonQuestInfo>()) }
+
+    var timeDisciplineScore by remember { mutableIntStateOf(0) }
+    var failureRecoveryRate by remember { mutableIntStateOf(0) }
+    var missRewardRate by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        allQuests = dao.getAllQuests().first()
+    }
+    LaunchedEffect(allQuests) {
+        timeDisciplineScore = calculateTimeDisciplineScore(contributions, allQuests)
+        failureRecoveryRate = calculateFailureRecoveryRate(contributions, allQuests)
+        missRewardRate = calculateMissedRewardOpportunity(contributions, allQuests)
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -282,10 +303,10 @@ private fun QuestPerformanceInsightsSection(contributions: List<OverallStatsUs>)
             var showTimeTooltip by remember { mutableStateOf(false) }
             StatRowWithTooltip(
                 label = "Time Discipline Score",
-                value = "${calculateTimeDisciplineScore(contributions, questHelper)}/100",
+                value = "${timeDisciplineScore}/100",
                 valueColor = when {
-                    calculateTimeDisciplineScore(contributions, questHelper) >= 80 -> MaterialTheme.colorScheme.primary
-                    calculateTimeDisciplineScore(contributions, questHelper) >= 50 -> MaterialTheme.colorScheme.onSurface
+                    timeDisciplineScore >= 80 -> MaterialTheme.colorScheme.primary
+                    timeDisciplineScore >= 50 -> MaterialTheme.colorScheme.onSurface
                     else -> MaterialTheme.colorScheme.error
                 },
                 showTooltip = showTimeTooltip,
@@ -308,10 +329,10 @@ private fun QuestPerformanceInsightsSection(contributions: List<OverallStatsUs>)
             var showFailureTooltip by remember { mutableStateOf(false) }
             StatRowWithTooltip(
                 label = "Failure Recovery Rate",
-                value = "${calculateFailureRecoveryRate(contributions, questHelper)}%",
+                value = "${failureRecoveryRate}%",
                 valueColor = when {
-                    calculateFailureRecoveryRate(contributions, questHelper) >= 70 -> MaterialTheme.colorScheme.primary
-                    calculateFailureRecoveryRate(contributions, questHelper) >= 40 -> MaterialTheme.colorScheme.onSurface
+                    failureRecoveryRate >= 70 -> MaterialTheme.colorScheme.primary
+                    failureRecoveryRate >= 40 -> MaterialTheme.colorScheme.onSurface
                     else -> MaterialTheme.colorScheme.error
                 },
                 showTooltip = showFailureTooltip,
@@ -323,8 +344,8 @@ private fun QuestPerformanceInsightsSection(contributions: List<OverallStatsUs>)
             var showMissedTooltip by remember { mutableStateOf(false) }
             StatRowWithTooltip(
                 label = "Missed Rewards",
-                value = "${calculateMissedRewardOpportunity(contributions, questHelper)} points",
-                valueColor = if (calculateMissedRewardOpportunity(contributions, questHelper) > 100) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                value = "$missRewardRate points",
+                valueColor = if (missRewardRate > 100) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                 showTooltip = showMissedTooltip,
                 onTooltipToggle = { showMissedTooltip = !showMissedTooltip },
                 tooltipText = "Total rewards lost from uncompleted quests. Complete more to earn these points!"
@@ -396,10 +417,11 @@ private fun StatRowWithTooltip(
         )
     }
 }
-private fun calculateTimeDisciplineScore(contributions: List<OverallStatsUs>, questHelper: QuestHelper): Int {
+private fun calculateTimeDisciplineScore(contributions: List<OverallStatsUs>, allQuests: List<CommonQuestInfo>): Int {
+
     val completedQuests = contributions
         .filter { it.date >= LocalDate.now().minusDays(30) }
-        .flatMap { day -> questHelper.getCompletedQuestsForDay(day.date) }
+        .flatMap { day -> filterCompleteQuestsForDay(allQuests,day.date) }
     if (completedQuests.isEmpty()) return 0
     // Assume completion is within timeRange (no completion time data; uses isInTimeRange logic)
     val withinTimeRange = completedQuests.count { quest ->
@@ -422,11 +444,11 @@ private fun calculatePowerhouseDay(contributions: List<OverallStatsUs>): String?
     return recentContributions.maxByOrNull { it.value }?.key?.name
 }
 
-private fun calculateFailureRecoveryRate(contributions: List<OverallStatsUs>, questHelper: QuestHelper): Int {
+private fun calculateFailureRecoveryRate(contributions: List<OverallStatsUs>, allQuests:List<CommonQuestInfo>): Int {
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
     val failedQuests = contributions
         .filter { it.date >= LocalDate.now().minusDays(30) }
-        .flatMap { day -> questHelper.getFailedQuestsForDay(day.date).map { it to day.date } }
+        .flatMap { day -> filterIncompleteQuestsForDay(allQuests,day.date).map { it to day.date } }
     if (failedQuests.isEmpty()) return 100
     val recoveredQuests = failedQuests.count { (quest, failedDate) ->
         val destructDate = LocalDate.parse(quest.autoDestruct, formatter)
@@ -436,15 +458,15 @@ private fun calculateFailureRecoveryRate(contributions: List<OverallStatsUs>, qu
                     quest.selectedDays.contains(
                         contribution.date.dayOfWeek.convertToDayOfWeek()
                     ) &&
-                    questHelper.getCompletedQuestsForDay(contribution.date).any { it.title == quest.title }
+                    filterCompleteQuestsForDay(allQuests,contribution.date).any { it.title == quest.title }
         }
     }
     return (recoveredQuests.toFloat() / failedQuests.size * 100).toInt()
 }
 
-private fun calculateMissedRewardOpportunity(contributions: List<OverallStatsUs>, questHelper: QuestHelper): Int {
+private fun calculateMissedRewardOpportunity(contributions: List<OverallStatsUs>, allQuests:List<CommonQuestInfo>): Int {
     return contributions
         .filter { it.date >= LocalDate.now().minusDays(30) }
-        .flatMap { day -> questHelper.getFailedQuestsForDay(day.date) }
+        .flatMap { day -> filterIncompleteQuestsForDay(allQuests,day.date) }
         .sumOf { it.reward }
 }

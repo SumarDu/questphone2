@@ -4,15 +4,11 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import kotlinx.serialization.json.Json
-import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.CommonQuestInfo
 import androidx.core.content.edit
-import androidx.room.TypeConverter
-import launcher.launcher.data.DayOfWeek
-import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.OverallStatsUs
 import launcher.launcher.data.quest.OverallStats
 import launcher.launcher.data.quest.QuestStats
-import launcher.launcher.ui.screens.launcher.components.getCurrentTime
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -31,103 +27,6 @@ class QuestHelper(val context: Context) {
         Context.MODE_PRIVATE
     )
 
-    val coinHelper = CoinHelper(context)
-    val instructionPref: SharedPreferences = context.getSharedPreferences(INSTRUCTION_NAME, Context.MODE_PRIVATE)
-    val destructionPref: SharedPreferences = context.getSharedPreferences(DESTRUCTION_NAME, Context.MODE_PRIVATE)
-
-    fun getQuestList(): List<BasicQuestInfo> {
-        val serializedList = sharedPreferences.getString(ALL_QUESTS_LIST_KEY, null) ?: return emptyList()
-
-        return try {
-            json.decodeFromString<List<BasicQuestInfo>>(serializedList)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
-        }
-    }
-
-    fun saveQuestList(list: List<BasicQuestInfo>) {
-        val listData = json.encodeToString(list)
-        sharedPreferences.edit { putString(ALL_QUESTS_LIST_KEY, listData) }
-    }
-
-    inline fun <reified T : Any> appendToQuestList(baseData: BasicQuestInfo, questInfo: T) {
-        val currentQuests = getQuestList().toMutableList()
-        currentQuests.add(baseData)
-        saveQuestList(currentQuests)
-        sharedPreferences.edit {
-            putString("quest_data_${baseData.title}", json.encodeToString(questInfo))
-        }
-    }
-
-    fun appendToQuestList(baseData: BasicQuestInfo) {
-        val currentQuests = getQuestList().toMutableList()
-        currentQuests.add(baseData)
-        saveQuestList(currentQuests)
-    }
-
-    inline fun <reified T : Any> getQuestInfo(baseData: BasicQuestInfo): T? {
-        val questInfo = sharedPreferences.getString("quest_data_${baseData.title}", null) ?: return null
-        return try {
-            json.decodeFromString<T>(questInfo)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-
-    inline fun <reified T : Any> updateQuestInfo(
-        baseData: BasicQuestInfo,
-        updateAction: (T) -> T
-    ) {
-        val data = getQuestInfo<T>(baseData)
-        if (data != null) {
-            val updatedData = updateAction(data)
-            sharedPreferences.edit {
-                putString("quest_data_${baseData.title}", json.encodeToString(updatedData))
-            }
-        }
-    }
-
-    fun saveInstruction(title: String, instruction: String) {
-        instructionPref.edit { putString(title, instruction) }
-    }
-
-    fun getInstruction(title: String): String {
-        return instructionPref.getString(title, "").toString()
-    }
-
-    fun markAsDestroyed(title: String) {
-        destructionPref.edit { putBoolean(title, true) }
-    }
-
-    fun isDestroyed(title: String): Boolean {
-        return destructionPref.getBoolean(title, false)
-    }
-
-    fun isQuestCompleted(title: String, date: String): Boolean? {
-        val lastPerformed =
-            sharedPreferences.getString(QUEST_LAST_PERFORMED_SUFFIX + title, null) ?: return null
-        return lastPerformed == date
-    }
-
-    fun markQuestAsComplete(baseData: BasicQuestInfo, date: String) {
-        VibrationHelper.vibrate(100)
-        checkPreviousFailures(baseData)
-
-        sharedPreferences.edit { putString(QUEST_LAST_PERFORMED_SUFFIX + baseData.title, date) }
-        coinHelper.incrementCoinCount(baseData.reward)
-        val date = getCurrentDate()
-
-        val totalQuests = filterQuestForToday()
-        val completedQuest = totalQuests.filter { data -> isQuestCompleted(data.title, date) == true }
-        val overallStats = OverallStats(
-            completedQuest.size,
-            totalQuests.size
-        )
-        saveOverallStatsForDate(date, overallStats)
-        saveQuestStats(date, QuestStats(true, getCurrentTime()), baseData.title)
-    }
 
     fun saveQuestStats(date:String, stats: QuestStats, title: String) {
         val sharedPreferences = context.getSharedPreferences("questStats_$title", Context.MODE_PRIVATE)
@@ -147,7 +46,7 @@ class QuestHelper(val context: Context) {
             return null
         }
     }
-    fun getQuestStats(baseData: BasicQuestInfo): Map<String, QuestStats> {
+    fun getQuestStats(baseData: CommonQuestInfo): Map<String, QuestStats> {
         checkPreviousFailures(baseData)
         val sharedPreferences = context.getSharedPreferences("questStats_${baseData.title}", Context.MODE_PRIVATE)
         val allDates = sharedPreferences.all.keys
@@ -163,14 +62,6 @@ class QuestHelper(val context: Context) {
         return statsList
     }
 
-    fun saveOverallStatsForDate(date: String, overallStats: OverallStats) {
-        val sharedPreferences = context.getSharedPreferences("overallStats", Context.MODE_PRIVATE)
-        sharedPreferences.edit {
-            putString(
-                date, json.encodeToString(overallStats)
-            )
-        }
-    }
 
 
     fun getOverallStats(): List<OverallStatsUs> {
@@ -198,57 +89,7 @@ class QuestHelper(val context: Context) {
         sharedPreferences.edit { putBoolean(QUEST_IS_RUNNING_SUFFIX + title, isRunning) }
     }
 
-    /**
-     * Filters out all the quests that need to be performed today
-     *
-     * @param quests
-     * @return
-     */
-    fun filterQuestForToday(quests: List<BasicQuestInfo> = getQuestList()): List<BasicQuestInfo> {
-        val today = getCurrentDay()
-        Log.d("current day", today.name)
-        Log.d("all quests ", quests.toString())
-
-        return quests.filter {
-            it.selectedDays.contains(today) && !isDestroyed(it.title)
-        }
-    }
-
-    /**
-     * Returns all quests available on the given date based on selectedDays and autoDestruct.
-     */
-    fun getQuestsForDay(date: LocalDate): List<BasicQuestInfo> {
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-        val dayOfWeek = date.dayOfWeek.convertToDayOfWeek()
-        return getQuestList().filter {
-            it.selectedDays.contains(dayOfWeek) &&
-                    !isDestroyed(it.title) &&
-                    LocalDate.parse(it.autoDestruct, formatter).isAfter(date)
-        }
-    }
-
-    /**
-     * Returns quests completed on the given date.
-     */
-    fun getCompletedQuestsForDay(date: LocalDate): List<BasicQuestInfo> {
-        val dateStr = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-        return getQuestsForDay(date).filter { quest ->
-            isQuestCompleted(quest.title, dateStr) == true
-        }
-    }
-
-    /**
-     * Returns quests that were available but not completed on the given date.
-     */
-    fun getFailedQuestsForDay(date: LocalDate): List<BasicQuestInfo> {
-        val dateStr = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-        return getQuestsForDay(date).filter { quest ->
-            val completed = isQuestCompleted(quest.title, dateStr)
-            completed == false || completed == null
-        }
-    }
-
-    fun checkPreviousFailures(baseData: BasicQuestInfo) {
+    fun checkPreviousFailures(baseData: CommonQuestInfo) {
         val lastPerformedStr = sharedPreferences.getString(
             QUEST_LAST_PERFORMED_SUFFIX + baseData.title, null
         ) ?: baseData.createdOn
@@ -280,33 +121,72 @@ class QuestHelper(val context: Context) {
     }
 
 
-    fun isOver(baseData: BasicQuestInfo): Boolean {
+    fun isOver(baseData: CommonQuestInfo): Boolean {
         val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         return currentHour > baseData.timeRange[1]
-//            saveQuestStats(getCurrentDate(), QuestStats(false, ""),baseData.title)
     }
 
     companion object {
         private const val PREF_NAME = "all_quest_preferences"
-        private const val ALL_QUESTS_LIST_KEY = "quest_list"
-        private const val INSTRUCTION_NAME = "instruction_data"
-        private const val DESTRUCTION_NAME = "destruction_data"
         private const val QUEST_LAST_PERFORMED_SUFFIX = "date_wen_quest_lst_d_"
         private const val QUEST_IS_RUNNING_SUFFIX = "quest_state_"
 
-        fun isInTimeRange(baseData: BasicQuestInfo): Boolean {
+        fun isInTimeRange(baseData: CommonQuestInfo): Boolean {
             val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
             val timeRange = baseData.timeRange
             return currentHour in timeRange[0]..timeRange[1]
         }
 
 
-        fun isNeedAutoDestruction(baseData: BasicQuestInfo): Boolean {
+        fun isNeedAutoDestruction(baseData: CommonQuestInfo): Boolean {
             val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
             val today = LocalDate.now()
             val autoDestruct = LocalDate.parse(baseData.autoDestruct, formatter)
             return today >= autoDestruct
         }
+    }
+}
+
+
+
+fun List<CommonQuestInfo>.filterQuestsForToday(){
+    val today = getCurrentDay()
+    filter {
+        it.selectedDays.contains(today) && !it.isDestroyed
+    }
+}
+/**
+ * Filter out all quests that need to be performed on a specific day
+ */
+fun List<CommonQuestInfo>.filterQuestsByDay(date: LocalDate){
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+    val dayOfWeek = date.dayOfWeek.convertToDayOfWeek()
+    filter {
+        it.selectedDays.contains(dayOfWeek) &&
+                !it.isDestroyed &&
+                LocalDate.parse(it.autoDestruct, formatter).isAfter(date)
+    }
+}
+
+/**
+ * Filters out all incomplete + failed quests for a specific day
+ */
+fun filterIncompleteQuestsForDay(quests: List<CommonQuestInfo>, date: LocalDate): List<CommonQuestInfo> {
+    quests.filterQuestsByDay(date)
+    val dateStr = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+    return quests.filter {
+        it.lastCompletedOn != dateStr
+    }
+}
+
+/**
+ * Filters out all successful quests for a specific day
+ */
+fun filterCompleteQuestsForDay(quests: List<CommonQuestInfo>, date: java.time.LocalDate): List<CommonQuestInfo> {
+    quests.filterQuestsByDay(date)
+    val dateStr = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+    return quests.filter {
+        it.lastCompletedOn == dateStr
     }
 }
 

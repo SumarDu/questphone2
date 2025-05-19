@@ -23,7 +23,7 @@ import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.launch
 import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.xpToRewardForQuest
-import launcher.launcher.data.quest.BasicQuestInfo
+import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.data.quest.health.HealthTaskType
@@ -39,18 +39,18 @@ import launcher.launcher.utils.json
 
 @SuppressLint("DefaultLocale")
 @Composable
-fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
+fun HealthQuestView(commonQuestInfo: CommonQuestInfo) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val questHelper = QuestHelper(context)
-    val healthQuest by remember { mutableStateOf(json.decodeFromString<HealthQuest>(basicQuestInfo.questInfo)) }
+    val healthQuest by remember { mutableStateOf(json.decodeFromString<HealthQuest>(commonQuestInfo.questJson)) }
     val dao = QuestDatabaseProvider.getInstance(context).questDao()
 
     val healthManager = HealthConnectManager(context)
     val permissionManager = HealthConnectPermissionManager(context)
 
     var isQuestComplete =
-        remember { mutableStateOf(basicQuestInfo.lastCompletedOn == getCurrentDate()) }
+        remember { mutableStateOf(commonQuestInfo.lastCompletedOn == getCurrentDate()) }
     val hasRequiredPermissions = remember { mutableStateOf(false) }
     val currentHealthData = remember { mutableDoubleStateOf(0.0) }
     val progressState = remember { mutableFloatStateOf(if (isQuestComplete.value) 1f else 0f) }
@@ -77,12 +77,12 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
 
     fun onQuestCompleted(){
         healthQuest.incrementGoal()
-        basicQuestInfo.questInfo = json.encodeToString(healthQuest)
-        basicQuestInfo.lastCompletedOn = getCurrentDate()
+        commonQuestInfo.questJson = json.encodeToString(healthQuest)
+        commonQuestInfo.lastCompletedOn = getCurrentDate()
         scope.launch {
-            dao.upsertQuest(basicQuestInfo)
+            dao.upsertQuest(commonQuestInfo)
         }
-        checkForRewards(basicQuestInfo)
+        checkForRewards(commonQuestInfo)
         isQuestComplete.value = true
     }
 
@@ -137,13 +137,13 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = basicQuestInfo.title,
+                    text = commonQuestInfo.title,
                     style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                     fontFamily = JetBrainsMonoFont,
                     modifier = Modifier.padding(top = 40.dp)
                 )
                 Text(
-                    text = (if(isQuestComplete.value) "Reward" else "Next Reward") + ": ${basicQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
+                    text = (if(isQuestComplete.value) "Reward" else "Next Reward") + ": ${commonQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
 
@@ -174,7 +174,7 @@ fun HealthQuestView(basicQuestInfo: BasicQuestInfo) {
                 }
 
                 MarkdownText(
-                    markdown = basicQuestInfo.instructions,
+                    markdown = commonQuestInfo.instructions,
                     modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
                 )
 

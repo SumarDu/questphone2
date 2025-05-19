@@ -14,11 +14,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import launcher.launcher.data.DayOfWeek
-import launcher.launcher.data.quest.BaseQuestState
+import launcher.launcher.data.quest.QuestInfoState
 
 @Composable
 fun SelectDaysOfWeek(
-    baseQuest: BaseQuestState,
+    baseQuest: QuestInfoState,
     modifier: Modifier = Modifier
 ) {
 
