@@ -41,7 +41,7 @@ enum class SignUpStep {
 }
 
 @Composable
-fun SignUpScreen(loginStep: MutableState<LoginStep>, onSignupSuccess: ()->Unit) {
+fun SignUpScreen(loginStep: MutableState<LoginStep>) {
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -65,26 +65,6 @@ fun SignUpScreen(loginStep: MutableState<LoginStep>, onSignupSuccess: ()->Unit) 
     val sessionStatus by Supabase.supabase.auth.sessionStatus.collectAsStateWithLifecycle(
         initialValue = SessionStatus.Initializing
     )
-
-    // Handle session status changes
-    LaunchedEffect(sessionStatus) {
-        when (sessionStatus) {
-            is SessionStatus.Authenticated -> {
-                onSignupSuccess()
-                loginStep.value = LoginStep.COMPLETE
-            }
-
-            is SessionStatus.RefreshFailure -> {
-                errorMessage = "Session expired. Please log in again."
-            }
-
-            is SessionStatus.Initializing -> {
-                Log.d("Signup", "Initializing session...")
-            }
-
-            else -> {}
-        }
-    }
 
 
     Box(

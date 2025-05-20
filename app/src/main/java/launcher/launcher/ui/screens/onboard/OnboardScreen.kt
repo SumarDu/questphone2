@@ -26,6 +26,7 @@ import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import launcher.launcher.ui.navigation.Screen
 import androidx.core.content.edit
+import launcher.launcher.ui.screens.account.SetupProfileScreen
 import launcher.launcher.utils.VibrationHelper
 
 // Sealed class to represent different types of onboarding pages
@@ -57,7 +58,7 @@ fun OnboardingScreen(
     // Determine if we're on the first or last page
     val isFirstPage = pagerState.currentPage == 0
     val isLastPage = pagerState.currentPage == pages.size - 1
-    val isNextEnabled = remember  {mutableStateOf(true)}
+    val isNextEnabled = remember  {mutableStateOf(false)}
 
     Column(
         modifier = Modifier
@@ -75,10 +76,11 @@ fun OnboardingScreen(
             when (val page = pages[position]) {
                 is OnboardingContent.StandardPage -> {
                     StandardPageContent(
+                        isNextEnabled = isNextEnabled,
                         title = page.title,
                         description = page.description
                     )
-                    isNextEnabled.value = true
+//                    isNextEnabled.value = true
                 }
                 is OnboardingContent.CustomPage -> {
                     page.content(isNextEnabled)
@@ -174,7 +176,18 @@ fun OnboardingScreen(
     }
 
 @Composable
-fun StandardPageContent(title: String, description: String) {
+fun StandardPageContent(
+    isNextEnabled: MutableState<Boolean> ,
+    title: String,
+    description: String
+) {
+
+    // :pray: cheat fix for next button disappearing
+    LaunchedEffect(isNextEnabled.value) {
+        if(isNextEnabled.value!=true){
+            isNextEnabled.value = true
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -217,13 +230,16 @@ fun OnBoardScreen(navController: NavHostController) {
                 "BlankPhone",
                 "Welcome to BlankPhone! Ever felt like your phone controls you instead of the other way around? BlankPhone helps you build mindful screen habits by turning screen time into a rewarding challenge."
             ),
+            OnboardingContent.CustomPage{_ ->
+                SetupProfileScreen()
+            },
             OnboardingContent.StandardPage(
                 "How it Works?",
                 "Unlock screen time by completing real-life challenges! Whether it’s doing meditation, taking a walk, or studying, you decide how to earn your screen time. Stay productive while still enjoying your favorite apps!"
             ),
 
             OnboardingContent.CustomPage{ isNextEnabled ->
-                SetLauncher(isNextEnabled)
+                SetLauncher()
             },
             OnboardingContent.StandardPage(
                 "Stay Motivated",

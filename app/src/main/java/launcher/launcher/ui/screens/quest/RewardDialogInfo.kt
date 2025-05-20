@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import launcher.launcher.R
-import launcher.launcher.data.game.Rewards
+import launcher.launcher.data.game.InventoryItem
 import launcher.launcher.data.game.StreakCheckReturn
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.User.streakData
@@ -96,7 +96,7 @@ fun RewardDialogMaker(  ) {
         // Calculate if user leveled up and the rewards
         val oldLevel = remember { userInfo.level }
         var didUserLevelUp = remember { false }
-        var levelUpRewards = remember { hashMapOf<Rewards, Int>() }
+        var levelUpInventoryItem = remember { hashMapOf<InventoryItem, Int>() }
 
 
         // if quest info is empty, the function was triggered by stuff like daily rewards
@@ -112,7 +112,7 @@ fun RewardDialogMaker(  ) {
             didUserLevelUp = oldLevel != userInfo.level
 
             if (didUserLevelUp) {
-                levelUpRewards = User.addLevelUpRewards()
+                levelUpInventoryItem = User.addLevelUpRewards()
             }
         }
 
@@ -133,7 +133,7 @@ fun RewardDialogMaker(  ) {
             DialogState.LEVEL_UP -> {
                 LevelUpDialog(
                     oldLevel = oldLevel,
-                    lvUpRew = levelUpRewards,
+                    lvUpRew = levelUpInventoryItem,
                     onDismiss = {
                         RewardDialogInfo.currentDialog = DialogState.NONE
                     }
@@ -229,7 +229,7 @@ fun CoinDialog(reward: Int, onDismiss: () -> Unit) {
 }
 
 @Composable
-fun LevelUpDialog(oldLevel: Int,onDismiss: () -> Unit,lvUpRew: HashMap<Rewards,Int> = hashMapOf()) {
+fun LevelUpDialog(oldLevel: Int,onDismiss: () -> Unit,lvUpRew: HashMap<InventoryItem,Int> = hashMapOf()) {
     Dialog(onDismissRequest = onDismiss) {
 
         Column(

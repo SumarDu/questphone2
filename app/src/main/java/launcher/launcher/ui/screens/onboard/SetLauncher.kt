@@ -33,7 +33,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 
 @Composable
-fun SetLauncher(isNextEnabled: MutableState<Boolean>) {
+fun SetLauncher() {
     val context = LocalContext.current
     val launcherPackage = "launcher.launcher"
     context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager

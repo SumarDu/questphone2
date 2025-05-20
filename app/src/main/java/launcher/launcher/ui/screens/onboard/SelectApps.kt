@@ -41,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.window.Dialog
@@ -71,8 +72,6 @@ fun SelectApps(isNextEnabled: MutableState<Boolean>) {
             isAccessibilityServiceEnabled.value = isAccessibilityServiceEnabled(context, AccessibilityService::class.java)
             isNextEnabled.value = isAccessibilityServiceEnabled.value
         }
-    }
-    LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             val apps = sp.getStringSet("distracting_apps", emptySet<String>()) ?: emptySet()
             selectedApps.clear() // Clear to avoid duplicates
@@ -80,9 +79,9 @@ fun SelectApps(isNextEnabled: MutableState<Boolean>) {
             isNextEnabled.value = selectedApps.isNotEmpty() && isAccessibilityServiceEnabled.value
         }
     }
-    LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.DESTROYED) {
-            sp.edit { putStringSet("distracting_apps", selectedApps.toSet()) }
+    LaunchedEffect(selectedApps) {
+        snapshotFlow { selectedApps.toSet() }.collect { appsSet ->
+            sp.edit { putStringSet("distracting_apps", appsSet) }
         }
     }
     LaunchedEffect(Unit) {

@@ -2,7 +2,6 @@ package launcher.launcher.data.game
 
 import android.content.Context
 import android.util.Log
-import androidx.compose.runtime.remember
 import androidx.core.content.edit
 import kotlinx.serialization.Serializable
 import launcher.launcher.utils.getCurrentDate
@@ -48,8 +47,8 @@ fun User.checkIfStreakFailed(): StreakCheckReturn? {
         // check if user has available streak freezers
         val requiredStreakFreezers = (daysSince-1).toInt()
         // user has enough streak freezers, hence use them
-            if(getInventoryItemCount(Rewards.STREAK_FREEZER) >= requiredStreakFreezers){
-                useInventoryItem(Rewards.STREAK_FREEZER,requiredStreakFreezers)
+            if(getInventoryItemCount(InventoryItem.STREAK_FREEZER) >= requiredStreakFreezers){
+                useInventoryItem(InventoryItem.STREAK_FREEZER,requiredStreakFreezers)
 
                 val oldStreak = streakData.currentStreak
                 streakData.currentStreak += requiredStreakFreezers
@@ -96,18 +95,18 @@ fun User.continueStreak(): Boolean {
     return false
 }
 
-fun User.addLevelUpRewards(): HashMap<Rewards,Int>{
-    var levelUpRewards  = hashMapOf<Rewards, Int>()
-    levelUpRewards.put(Rewards.QUEST_SKIPPER, 1)
+fun User.addLevelUpRewards(): HashMap<InventoryItem,Int>{
+    var levelUpInventoryItem  = hashMapOf<InventoryItem, Int>()
+    levelUpInventoryItem.put(InventoryItem.QUEST_SKIPPER, 1)
     if (userInfo.level % 2 == 0) {
-        levelUpRewards.put(Rewards.XP_BOOSTER, 1)
+        levelUpInventoryItem.put(InventoryItem.XP_BOOSTER, 1)
     }
     if (userInfo.level % 5 == 0) {
-        levelUpRewards.put(Rewards.STREAK_FREEZER, 1)
+        levelUpInventoryItem.put(InventoryItem.STREAK_FREEZER, 1)
     }
 
-    addItemsToInventory(levelUpRewards)
-    return levelUpRewards
+    addItemsToInventory(levelUpInventoryItem)
+    return levelUpInventoryItem
 }
 
 

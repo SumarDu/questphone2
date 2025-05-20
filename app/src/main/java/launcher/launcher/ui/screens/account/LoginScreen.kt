@@ -56,29 +56,6 @@ fun LoginScreen(loginStep : MutableState<LoginStep>, onLoginSucess: ()->Unit) {
     val isEmailValid = email.contains("@") && email.contains(".")
 
 
-    LaunchedEffect(Supabase.supabase.auth) {
-        Supabase.supabase.auth.sessionStatus.collectLatest { authState ->
-            when (authState) {
-                is SessionStatus.Authenticated -> {
-                    errorMessage = null
-                    isLoading = false
-                    onLoginSucess()
-                    loginStep.value = LoginStep.COMPLETE
-
-                }
-
-                is SessionStatus.RefreshFailure -> {
-                    errorMessage = "Session expired. Please log in again."
-                }
-
-                is SessionStatus.Initializing -> {
-                    Log.d("Signup", "Initializing session...")
-                }
-
-                else -> {}
-            }
-        }
-    }
 
 
     BackHandler {
@@ -232,6 +209,7 @@ fun LoginScreen(loginStep : MutableState<LoginStep>, onLoginSucess: ()->Unit) {
                                 errorMessage = e.errorDescription
                                 isLoading = false
                             }
+                            onLoginSucess()
                         }
 
                     }

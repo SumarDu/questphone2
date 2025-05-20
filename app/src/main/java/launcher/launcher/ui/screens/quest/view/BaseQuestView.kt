@@ -38,7 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import launcher.launcher.data.game.Rewards
+import launcher.launcher.data.game.InventoryItem
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.getInventoryItemCount
 import launcher.launcher.data.game.useInventoryItem
@@ -73,7 +73,7 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
                     Row(
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        if(!isQuestCompleted.value && User.getInventoryItemCount(Rewards.QUEST_SKIPPER) > 0){
+                        if(!isQuestCompleted.value && User.getInventoryItemCount(InventoryItem.QUEST_SKIPPER) > 0){
                             OutlinedButton(
                                 onClick = {
                                     VibrationHelper.vibrate(50)
@@ -125,7 +125,7 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
                             )
                             Spacer(modifier = Modifier.size(8.dp))
                             Text(
-                                text = "Available: ${User.getInventoryItemCount(Rewards.QUEST_SKIPPER)}",
+                                text = "Available: ${User.getInventoryItemCount(InventoryItem.QUEST_SKIPPER)}",
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(bottom = 16.dp)
                             )
@@ -134,7 +134,7 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
                                 Button(
                                     onClick = {
                                         VibrationHelper.vibrate(200)
-                                        User.useInventoryItem(Rewards.QUEST_SKIPPER)
+                                        User.useInventoryItem(InventoryItem.QUEST_SKIPPER)
                                         onQuestCompleted()
                                         isUseQuestSkipperDialogVisible.value = false
                                     },

@@ -4,24 +4,24 @@ import android.content.Context
 import kotlinx.serialization.Serializable
 import launcher.launcher.utils.json
 import androidx.core.content.edit
-import androidx.room.Entity
-import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.isTimeOver
 
 
 /**
  * Represents the user's information in the game
- * @param activeBoosts A map of active boosts in the game. Format <BoostObject,Timestamp>
+ * @param active_boosts A map of active boosts in the game. Format <BoostObject,Timestamp>
  *     timeStamp format: yyyy-dd-mm-hh-mm
  */
-
 @Serializable
 data class UserInfo(
+    var username: String = "",
+    var full_name: String = "",
+    var has_profile: Boolean = false,
     var xp : Int= 0,
     var level : Int = 1,
-    val inventory: HashMap<Rewards, Int> = hashMapOf(Pair(Rewards.STREAK_FREEZER,2)),
+    val inventory: HashMap<InventoryItem, Int> = hashMapOf(Pair(InventoryItem.STREAK_FREEZER,2)),
     val achievements: List<Achievements> = listOf(Achievements.THE_DISCIPLINED,Achievements.MONTH_STREAK),
-    var activeBoosts: HashMap<Rewards,String> = hashMapOf()
+    var active_boosts: HashMap<InventoryItem,String> = hashMapOf()
 )
 
 
@@ -36,7 +36,7 @@ object User {
     lateinit var streakData: StreakData
 
     var lastXpEarned: Int? = null
-    var lastRewards: List<Rewards>? = null
+    var lastRewards: List<InventoryItem>? = null
 
     fun init(context: Context) {
         appContext = context.applicationContext
@@ -67,7 +67,7 @@ fun xpToRewardForQuest(level: Int, multiplier: Int = 1): Int {
  */
 fun User.addXp(xp: Int){
     removeInactiveBooster()
-    val multiplier = if(isBoosterActive(Rewards.XP_BOOSTER)) 2 else 1
+    val multiplier = if(isBoosterActive(InventoryItem.XP_BOOSTER)) 2 else 1
     userInfo.xp += xp * multiplier
     while(userInfo.xp >= xpToLevelUp(userInfo.level+1)){
         userInfo.level++
@@ -76,18 +76,18 @@ fun User.addXp(xp: Int){
 }
 
 fun User.removeInactiveBooster() {
-    userInfo.activeBoosts.forEach {
+    userInfo.active_boosts.forEach {
         if(isTimeOver(it.value)){
-            userInfo.activeBoosts.remove(it.key)
+            userInfo.active_boosts.remove(it.key)
         }
     }
     saveUserInfo()
 }
 
-fun User.isBoosterActive(reward: Rewards): Boolean {
-    if (userInfo.activeBoosts.contains(reward)) {
+fun User.isBoosterActive(reward: InventoryItem): Boolean {
+    if (userInfo.active_boosts.contains(reward)) {
         val isBoosterActive =
-            !isTimeOver(userInfo.activeBoosts.getOrDefault(reward, "9999-09-09-09-09"))
+            !isTimeOver(userInfo.active_boosts.getOrDefault(reward, "9999-09-09-09-09"))
         if (isBoosterActive) removeInactiveBooster()
         return isBoosterActive
     }
@@ -95,7 +95,7 @@ fun User.isBoosterActive(reward: Rewards): Boolean {
 
 }
 
-fun User.addItemsToInventory(items: HashMap<Rewards, Int>){
+fun User.addItemsToInventory(items: HashMap<InventoryItem, Int>){
     items.forEach {
         userInfo.inventory.put(it.key,it.value+getInventoryItemCount(it.key))
     }
@@ -109,11 +109,11 @@ fun User.saveUserInfo(){
 }
 
 
-fun User.getInventoryItemCount(item: Rewards): Int{
+fun User.getInventoryItemCount(item: InventoryItem): Int{
     return userInfo.inventory.getOrDefault(item,0)
 }
 
-fun User.useInventoryItem(item: Rewards,count:Int = 1){
+fun User.useInventoryItem(item: InventoryItem, count:Int = 1){
     if(userInfo.inventory.getOrDefault(item,0) > 0){
         userInfo.inventory.put(item,getInventoryItemCount(item)-count)
         if(getInventoryItemCount(item) == 0){

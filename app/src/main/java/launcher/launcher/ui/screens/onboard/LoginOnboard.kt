@@ -12,17 +12,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.edit
 import androidx.navigation.NavHostController
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.account.ForgotPasswordScreen
 import launcher.launcher.ui.screens.account.LoginScreen
 import launcher.launcher.ui.screens.account.LoginStep
+import launcher.launcher.ui.screens.account.SetupProfileScreen
 import launcher.launcher.ui.screens.account.SignUpScreen
 import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.isOnline
 import launcher.launcher.utils.triggerSync
+import kotlin.math.log
 
 @Composable
 fun LoginOnboard(isNextEnabled: MutableState<Boolean>, navController: NavHostController){
@@ -31,58 +35,52 @@ fun LoginOnboard(isNextEnabled: MutableState<Boolean>, navController: NavHostCon
     val data = context.getSharedPreferences("onboard", MODE_PRIVATE)
 
     val loginStep = remember { mutableStateOf(LoginStep.SIGNUP) }
-    isNextEnabled.value = Supabase.supabase.auth.currentUserOrNull().let { it != null }
 
-    val isUserLoggedIn = remember { mutableStateOf(false) }
+//    LaunchedEffect(Unit ) {
+//        val isUserLoggedIn = Supabase.supabase.auth.currentUserOrNull() != null
+//        isNextEnabled.value = isUserLoggedIn
+//        if (isUserLoggedIn) {
+//            loginStep.value = LoginStep.COMPLETE
+//        }
+//    }
 
-    val scope = rememberCoroutineScope()
-    LaunchedEffect(isUserLoggedIn.value,isNextEnabled.value ) {
-        isUserLoggedIn.value = Supabase.supabase.auth.currentUserOrNull().let { it != null }
-        if (isUserLoggedIn.value) {
-            isNextEnabled.value = true
-            loginStep.value = LoginStep.COMPLETE
-            isNextEnabled.value = true
+    LaunchedEffect(Unit) {
+        Supabase.supabase.auth.sessionStatus.collectLatest { authState ->
+            when (authState) {
+                is SessionStatus.Authenticated -> {
+                    loginStep.value = LoginStep.COMPLETE
+                    isNextEnabled.value = true
+                }
+
+                is SessionStatus.NotAuthenticated -> {
+                    isNextEnabled.value = false
+                }
+                is SessionStatus.Initializing -> {
+                    Log.d("Signup", "Initializing session...")
+                }
+
+                else -> {}
+            }
         }
     }
 
     when(loginStep.value) {
         LoginStep.LOGIN -> {
             LoginScreen(loginStep) {
-                data.edit { putBoolean("onboard", true) }
                 if(context.isOnline()){
                     triggerSync(context.applicationContext)
-                }
-                navController.navigate(Screen.HomeScreen.route) {
-                    popUpTo(Screen.OnBoard.route) { inclusive = true }
                 }
             }
         }
         LoginStep.SIGNUP -> {
-            SignUpScreen(loginStep) {
-                isNextEnabled.value = true
-                data.edit { putBoolean("new_user", true) }
-                val userId = Supabase.supabase.auth.currentUserOrNull()?.id
-                if(userId!=null){
-                    Log.d("Account","creating a user profile")
-                    scope.launch {
-                        Supabase.supabase.postgrest["profiles"].insert(
-                            mapOf(
-                                "id" to userId,
-                                "username" to "nethical_${userId.hashCode()}" ,
-                                "full_name" to "Cool User",
-                                "avatar_url" to "https://avatars.githubusercontent.com/u/79095297?v=4",
-                                "quests" to "{}"
-                            )
-                        )
-                    }
-                }
-            }
+            SignUpScreen(loginStep)
 
         }
         LoginStep.FORGOT_PASSWORD -> ForgotPasswordScreen(loginStep)
         LoginStep.COMPLETE ->
         {
-            StandardPageContent("A New Journey Begins Here!","Press Next to start the setup wizard!")
+            StandardPageContent(isNextEnabled,"A New Journey Begins Here!","Press Next to continue!")
         }
+
     }
 }

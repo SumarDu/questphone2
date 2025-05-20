@@ -26,6 +26,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,6 +36,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import kotlinx.coroutines.flow.first
+import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.screens.quest.QuestList
 import launcher.launcher.ui.screens.quest.setup.IntegrationsList
@@ -44,18 +47,20 @@ fun AddQuestsScreen(navController: NavController) {
 
     val dao = QuestDatabaseProvider.getInstance(LocalContext.current).questDao()
 
-    val questList by dao.getAllQuests().collectAsState(initial = emptyList())
+    var questList by remember { mutableStateOf(emptyList<CommonQuestInfo>()) }
+    val isUserAddingQuest = remember { mutableStateOf(true) }
 
-    val isUserAddingQuest = remember { mutableStateOf(questList.isEmpty()) }
 
-
-    LaunchedEffect(questList) {
-        Log.d(":",questList.toString())
+    LaunchedEffect(Unit) {
+        questList = dao.getAllQuests().first()
     }
-
+    LaunchedEffect(questList) {
+        isUserAddingQuest.value = questList.isEmpty()
+    }
     BackHandler(isUserAddingQuest.value) {
         isUserAddingQuest.value = false
     }
+
     Column(
         modifier = Modifier
             .padding(16.dp)

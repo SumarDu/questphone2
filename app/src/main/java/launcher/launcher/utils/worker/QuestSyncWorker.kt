@@ -24,61 +24,67 @@ class QuestSyncWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val dao = QuestDatabaseProvider.getInstance(applicationContext).questDao()
-        val userId = Supabase.supabase.auth.currentUserOrNull()?.id ?: return Result.success()
+        try {
+            val dao = QuestDatabaseProvider.getInstance(applicationContext).questDao()
+            val userId = Supabase.supabase.auth.currentUserOrNull()?.id ?: return Result.success()
 
-        Log.d("QuestSyncManager", "Starting sync for $userId")
-        showSyncNotification(applicationContext)
-        sendSyncBroadcast(applicationContext, SyncStatus.ONGOING)
+            Log.d("QuestSyncManager", "Starting sync for $userId")
+            showSyncNotification(applicationContext)
+            sendSyncBroadcast(applicationContext, SyncStatus.ONGOING)
 
-        val localQuests = dao.getAllQuests().first() // not just unsynced
-        val remoteQuests = Supabase.supabase
-            .postgrest["quests"]
-            .select()
-            .decodeList<CommonQuestInfo>()
+            val localQuests = dao.getAllQuests().first() // not just unsynced
+            val remoteQuests = Supabase.supabase
+                .postgrest["quests"]
+                .select()
+                .decodeList<CommonQuestInfo>()
 
-        val localMap = localQuests.associateBy { it.id }
-        val remoteMap = remoteQuests.associateBy { it.id }
+            val localMap = localQuests.associateBy { it.id }
+            val remoteMap = remoteQuests.associateBy { it.id }
 
-        // Merge both directions
-        val allIds = (localMap.keys + remoteMap.keys)
+            // Merge both directions
+            val allIds = (localMap.keys + remoteMap.keys)
 
-        for (id in allIds) {
-            val local = localMap[id]
-            val remote = remoteMap[id]
+            for (id in allIds) {
+                val local = localMap[id]
+                val remote = remoteMap[id]
 
-            when {
-                local != null && remote == null -> {
-                    // New local quest not on server yet
-                    Supabase.supabase.postgrest["quests"].upsert(local)
-                }
+                when {
+                    local != null && remote == null -> {
+                        // New local quest not on server yet
+                        Supabase.supabase.postgrest["quests"].upsert(local)
+                    }
 
-                local == null && remote != null -> {
-                    // Remote quest not in local DB
-                    dao.upsertQuest(remote)
-                }
+                    local == null && remote != null -> {
+                        // Remote quest not in local DB
+                        dao.upsertQuest(remote)
+                    }
 
-                local != null && remote != null -> {
-                    // Compare timestamps
-                    when {
-                        local.last_updated > remote.last_updated -> {
-                            Supabase.supabase.postgrest["quests"].upsert(local)
-                        }
+                    local != null && remote != null -> {
+                        // Compare timestamps
+                        when {
+                            local.last_updated > remote.last_updated -> {
+                                Supabase.supabase.postgrest["quests"].upsert(local)
+                            }
 
-                        remote.last_updated > local.last_updated -> {
-                            dao.upsertQuest(remote)
+                            remote.last_updated > local.last_updated -> {
+                                dao.upsertQuest(remote)
+                            }
                         }
                     }
                 }
+
+                if (local != null) dao.markAsSynced(id)
+                val manager =
+                    applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                manager.cancel(1001)
+
             }
 
-            if (local != null) dao.markAsSynced(id)
-            val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.cancel(1001)
-
+            return Result.success()
+        }catch (e: Exception){
+            Log.e("SyncError",e.stackTraceToString())
+            return Result.failure()
         }
-
-        return Result.success()
     }
 }
 enum class SyncStatus{

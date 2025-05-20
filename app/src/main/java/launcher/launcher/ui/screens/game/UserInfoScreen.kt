@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -20,7 +19,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -36,23 +34,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import launcher.launcher.data.game.Rewards
+import launcher.launcher.data.game.InventoryItem
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.User.userInfo
-import launcher.launcher.data.game.UserInfo
 import launcher.launcher.data.game.getStreakInfo
-import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.isBoosterActive
 import launcher.launcher.data.game.useInventoryItem
 import launcher.launcher.data.game.xpToLevelUp
 import launcher.launcher.utils.CoinHelper
 import launcher.launcher.utils.formatRemainingTime
 import launcher.launcher.utils.getFullFormattedTime
-import java.text.SimpleDateFormat
-import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,7 +59,7 @@ fun UserInfoScreen() {
     val xpProgress = (userInfo.xp - totalXpForCurrentLevel).toFloat() /
             (totalXpForNextLevel - totalXpForCurrentLevel)
 
-    val selectedInventoryItem = remember { mutableStateOf<Rewards?>(null) }
+    val selectedInventoryItem = remember { mutableStateOf<InventoryItem?>(null) }
 
     if(selectedInventoryItem.value!=null){
         InventoryItemInfoDialog(selectedInventoryItem.value!!, onDismissRequest = {
@@ -152,7 +145,7 @@ fun UserInfoScreen() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (userInfo.activeBoosts.isNotEmpty()) {
+            if (userInfo.active_boosts.isNotEmpty()) {
                 Text(
                     "🚀 Active Boosts",
                     style = MaterialTheme.typography.titleMedium,
@@ -165,7 +158,7 @@ fun UserInfoScreen() {
                     elevation = CardDefaults.cardElevation(4.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        userInfo.activeBoosts.forEach {
+                        userInfo.active_boosts.forEach {
                             Text(it.key.simpleName + ": " + formatRemainingTime(it.value))
                         }
                     }
@@ -269,7 +262,7 @@ fun UserInfoScreen() {
 
 @Composable
 fun InventoryItemInfoDialog(
-    reward: Rewards,
+    reward: InventoryItem,
     onDismissRequest: () -> Unit = {}
 ) {
     Dialog(
@@ -309,9 +302,9 @@ fun InventoryItemInfoDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                if(User.isBoosterActive(Rewards.XP_BOOSTER)){
-                    Text("XP booster active until: "  + userInfo.activeBoosts.getOrDefault(
-                        Rewards.XP_BOOSTER,getFullFormattedTime()))
+                if(User.isBoosterActive(InventoryItem.XP_BOOSTER)){
+                    Text("XP booster active until: "  + userInfo.active_boosts.getOrDefault(
+                        InventoryItem.XP_BOOSTER,getFullFormattedTime()))
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -320,10 +313,10 @@ fun InventoryItemInfoDialog(
                     TextButton(onClick = onDismissRequest) {
                         Text("Close")
                     }
-                    if(reward.isUsableFromInventory && !User.isBoosterActive(Rewards.XP_BOOSTER)){
+                    if(reward.isUsableFromInventory && !User.isBoosterActive(InventoryItem.XP_BOOSTER)){
                         Button(onClick = {
                             reward.onUse()
-                            User.useInventoryItem(Rewards.XP_BOOSTER)
+                            User.useInventoryItem(InventoryItem.XP_BOOSTER)
                             onDismissRequest()
                         }) {
                             Text("Use")
