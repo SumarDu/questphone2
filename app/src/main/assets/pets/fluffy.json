@@ -1,0 +1,104 @@
+{
+  "id": "custom_pet",
+  "imageResource": "pet_fluffy",
+  "personality": {
+    "speakingStyle": {
+      "typingSpeed": 1.2,
+      "punctuation": "!!!",
+      "catchphrases": [
+        "Woof woof!",
+        "Let's have fun",
+        "I'm so excited"
+      ],
+      "emojis": [
+        "🐶", "💕", "✨", "🎉", "🦴"
+      ]
+    },
+    "animations": {
+      "bounceHeight": 1.2,
+      "bounceSpeed": 1.5,
+      "extraAnimations": ["spin", "wiggle"]
+    }
+  },
+  "dialogSequences": {
+    "welcome": {
+      "steps": [
+        {
+          "message": "Hey there {user}!!! 🐶 I’m your new habit buddy, reporting for duty! 🎉",
+          "nextStepId": "ask_pet_name"
+        },
+        {
+          "message": "Buuut... I don’t have a name yet 😳 Wanna give me one?",
+          "expectsInput": true,
+          "inputKey": "petName",
+          "nextStepId": "confirm_pet_name"
+        },
+        {
+          "message": "{petName}? 🦴 That’s *pawsitively* perfect!!! 💕",
+          "nextStepId": "offer_tutorial"
+        },
+        {
+          "message": "Wanna see how I, {petName}, can help you crush your habits? ✨",
+          "choices": [
+            {
+              "text": "Yes, show me!",
+              "storeValue": "yes",
+              "nextStepId": "tutorial_start"
+            },
+            {
+              "text": "Nope, I’ll explore myself",
+              "storeValue": "no",
+              "nextStepId": "skip_tutorial"
+            }
+          ],
+          "inputKey": "wantsTutorial"
+        }
+      ],
+      "nextSequence": "tutorial"
+    },
+    "tutorial": {
+      "steps": [
+        {
+          "message": "Awesome! Let’s do this 💪",
+          "conditions": [
+            {
+              "key": "wantsTutorial",
+              "value": "no",
+              "nextStepId": "skip_tutorial"
+            }
+          ],
+          "nextStepId": "tutorial_habits"
+        },
+        {
+          "message": "I’ll help you stay on track with your habits each day!",
+          "nextStepId": "tutorial_cheer"
+        },
+        {
+          "message": "When you complete habits, I get happier 🐶💕 I’ll cheer you on every step of the way!",
+          "nextStepId": "ask_goal"
+        },
+        {
+          "message": "What’s your main goal with habit building?",
+          "expectsInput": true,
+          "inputKey": "mainGoal",
+          "nextStepId": "tutorial_end"
+        }
+      ],
+      "nextSequence": "conclusion"
+    },
+    "conclusion": {
+      "steps": [
+        {
+          "message": "Got it! Your big goal is: {mainGoal} 💫"
+        },
+        {
+          "message": "I’m here every day to help you get there, buddy! Let’s do this!!! 🎉"
+        },
+        {
+          "message": "Let's kick off your habit journey with {petName} by your side 🐾"
+        }
+      ]
+    }
+  },
+  "defaultSequence": "welcome"
+}

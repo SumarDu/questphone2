@@ -1,11 +1,10 @@
 package launcher
 
 import android.app.Application
-import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
+import launcher.launcher.data.game.Pet
 import launcher.launcher.data.game.User
-import launcher.launcher.data.game.saveUserInfo
 import launcher.launcher.utils.VibrationHelper
 import launcher.launcher.utils.isOnline
 import launcher.launcher.utils.triggerSync
@@ -19,7 +18,7 @@ class MyApp : Application() {
         super.onCreate()
         User.init(this)
         VibrationHelper.init(this)
-
+        Pet.init(this)
 
         connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
 

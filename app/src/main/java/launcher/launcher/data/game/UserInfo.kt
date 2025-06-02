@@ -1,10 +1,12 @@
 package launcher.launcher.data.game
 
 import android.content.Context
-import kotlinx.serialization.Serializable
-import launcher.launcher.utils.json
 import androidx.core.content.edit
+import kotlinx.serialization.Serializable
+import launcher.launcher.data.game.User.lastRewards
+import launcher.launcher.data.game.User.lastXpEarned
 import launcher.launcher.utils.isTimeOver
+import launcher.launcher.utils.json
 
 
 /**
@@ -22,7 +24,11 @@ data class UserInfo(
     val inventory: HashMap<InventoryItem, Int> = hashMapOf(Pair(InventoryItem.STREAK_FREEZER,2)),
     val achievements: List<Achievements> = listOf(Achievements.THE_DISCIPLINED,Achievements.MONTH_STREAK),
     var active_boosts: HashMap<InventoryItem,String> = hashMapOf()
-)
+){
+    fun getFirstName(): String {
+        return full_name.trim().split(" ").firstOrNull() ?: ""
+    }
+}
 
 
 /**

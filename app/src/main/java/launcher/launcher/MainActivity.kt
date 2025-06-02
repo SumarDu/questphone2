@@ -1,8 +1,5 @@
 package launcher.launcher
 
-import android.content.Context
-import android.net.ConnectivityManager
-import android.net.Network
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -16,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -31,6 +29,7 @@ import launcher.launcher.ui.screens.game.UserInfoScreen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.HomeScreen
 import launcher.launcher.ui.screens.onboard.OnBoardScreen
+import launcher.launcher.ui.screens.pet.PetDialog
 import launcher.launcher.ui.screens.quest.ListAllQuests
 import launcher.launcher.ui.screens.quest.RewardDialogMaker
 import launcher.launcher.ui.screens.quest.ViewQuest
@@ -60,12 +59,20 @@ class MainActivity : ComponentActivity() {
             }
             LauncherTheme {
                 Surface {
-                    RewardDialogMaker()
                     val navController = rememberNavController()
+                    val currentRoute = navController.currentBackStackEntryAsState()
+
                     val dao = QuestDatabaseProvider.getInstance(applicationContext).questDao()
 
                     val unSyncedItems = remember { dao.getUnSyncedQuests() }
                     val context = LocalContext.current
+
+                    RewardDialogMaker()
+                    PetDialog(
+                        petId = "fluffy",
+                        onDismiss = {  },
+                    )
+
                     LaunchedEffect(Unit) {
                         unSyncedItems.collect {
                             if(context.isOnline()){
