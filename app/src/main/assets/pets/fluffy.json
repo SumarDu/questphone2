@@ -1,104 +1,227 @@
 {
-  "id": "custom_pet",
-  "imageResource": "pet_fluffy",
+  "id": "turtie",
+  "imageResource": "turtie_happy",
+  "defaultSequence": "greeting",
   "personality": {
     "speakingStyle": {
-      "typingSpeed": 1.2,
-      "punctuation": "!!!",
-      "catchphrases": [
-        "Woof woof!",
-        "Let's have fun",
-        "I'm so excited"
-      ],
-      "emojis": [
-        "🐶", "💕", "✨", "🎉", "🦴"
-      ]
+      "typingSpeed": 11.1,
+      "punctuation": "...",
+      "catchphrases": ["Hmm?", "Oh my!", "Well now..."],
+      "emojis": ["🐢", "🤔"]
     },
     "animations": {
-      "bounceHeight": 1.2,
-      "bounceSpeed": 1.5,
-      "extraAnimations": ["spin", "wiggle"]
+      "bounceHeight": 0.6,
+      "bounceSpeed": 0.9,
+      "extraAnimations": []
     }
   },
   "dialogSequences": {
-    "welcome": {
+    "greeting": {
       "steps": [
         {
-          "message": "Hey there {user}!!! 🐶 I’m your new habit buddy, reporting for duty! 🎉",
-          "nextStepId": "ask_pet_name"
-        },
-        {
-          "message": "Buuut... I don’t have a name yet 😳 Wanna give me one?",
+          "emotion": "happy",
+          "message": "Hello there, {user}! I'm the Wise Old Turtle 🐢. What brings you to my little pond today?",
           "expectsInput": true,
-          "inputKey": "petName",
-          "nextStepId": "confirm_pet_name"
+          "inputKey": "userReason"
         },
         {
-          "message": "{petName}? 🦴 That’s *pawsitively* perfect!!! 💕",
-          "nextStepId": "offer_tutorial"
-        },
-        {
-          "message": "Wanna see how I, {petName}, can help you crush your habits? ✨",
+          "emotion": "curious",
+          "message": "Ahh... {userReason}, is it? Fascinating 🤔. Now tell me—would you like some advice or perhaps hear a story?",
           "choices": [
-            {
-              "text": "Yes, show me!",
-              "storeValue": "yes",
-              "nextStepId": "tutorial_start"
-            },
-            {
-              "text": "Nope, I’ll explore myself",
-              "storeValue": "no",
-              "nextStepId": "skip_tutorial"
-            }
-          ],
-          "inputKey": "wantsTutorial"
+            {"text": "Some advice, please!", "nextStepId": "adviceSequence"},
+            {"text": "Tell me a story!", "nextStepId": "storySequence"},
+            {"text": "Neither, thanks."}
+          ]
+        },
+        {
+          "emotion": "neutral",
+          "message": "Very well... sometimes silence carries the answers we seek. Until next time, {user}."
         }
       ],
-      "nextSequence": "tutorial"
+      "nextSequence": "askForTutorial"
     },
-    "tutorial": {
+    "askForTutorial": {
       "steps": [
         {
-          "message": "Awesome! Let’s do this 💪",
-          "conditions": [
-            {
-              "key": "wantsTutorial",
-              "value": "no",
-              "nextStepId": "skip_tutorial"
-            }
-          ],
-          "nextStepId": "tutorial_habits"
-        },
-        {
-          "message": "I’ll help you stay on track with your habits each day!",
-          "nextStepId": "tutorial_cheer"
-        },
-        {
-          "message": "When you complete habits, I get happier 🐶💕 I’ll cheer you on every step of the way!",
-          "nextStepId": "ask_goal"
-        },
-        {
-          "message": "What’s your main goal with habit building?",
-          "expectsInput": true,
-          "inputKey": "mainGoal",
-          "nextStepId": "tutorial_end"
-        }
-      ],
-      "nextSequence": "conclusion"
-    },
-    "conclusion": {
-      "steps": [
-        {
-          "message": "Got it! Your big goal is: {mainGoal} 💫"
-        },
-        {
-          "message": "I’m here every day to help you get there, buddy! Let’s do this!!! 🎉"
-        },
-        {
-          "message": "Let's kick off your habit journey with {petName} by your side 🐾"
+          "message": "Would you like me to show you around a bit?",
+          "choices": [
+            {"text": "Yea sure", "storeValue": ["isTutorialOnGoing", "true"], "nextStepId":"openListQuests"},
+            {"text": "Nah, I'm fine"}
+          ]
         }
       ]
+    },
+    "openListQuests": {
+      "steps": [
+        {
+          "message": "So... 'Quests' is just a cooler way to say 'habits'! Fancy, huh? 😄"
+        },
+        {
+          "message": "Alrighty! Just tap the 'List Quest' button to view your quests—or add brand new ones!"
+        }
+      ]
+    },
+    "adviceSequence": {
+      "steps": [
+        {
+          "emotion": "wise",
+          "message": "My advice for you, {user}, is this: Slow and steady wins the race 🐢. Rushing often leads to tripping over your own feet."
+        },
+        {
+          "emotion": "question",
+          "message": "Does that help you with what you said about '{userReason}'?",
+          "choices": [
+            {"text": "Yes, thank you!", "nextStepId": "greeting"},
+            {"text": "Not really."}
+          ]
+        },
+        {
+          "emotion": "smile",
+          "message": "Hmm... let it simmer in your mind. Wisdom doesn’t shout—it whispers over time."
+        }
+      ],
+      "nextSequence": "askForTutorial"
+    },
+    "storySequence": {
+      "steps": [
+        {
+          "emotion": "storytelling",
+          "message": "Once upon a ripple, {user}, in a pond much like this... there lived a tiny tadpole who dreamed of flying."
+        },
+        {
+          "emotion": "smile",
+          "message": "...and while he never grew wings, he learned to leap higher than any frog in the land! The end 🌿"
+        }
+      ],
+      "nextSequence": "askForTutorial"
+    },
+    "listQuests": {
+      "steps": [
+        {
+          "message": "Ready to add a quest? Just press that shiny little 'add' button!",
+          "choices": [
+            {"text": "Ohkay understood!", "storeValue": ["listQuestsTutorialShown", "true"]}
+          ]
+        }
+      ],
+      "eventType": "NAVIGATION",
+      "eventData": "list_quest/",
+      "conditions": {
+        "isTutorialOnGoing": "true",
+        "listQuestsTutorialShown": "false"
+      }
+    },
+    "setQuestIntegration": {
+      "steps": [
+        {
+          "message": "Integration is just a fancy word for: 'How do we make sure you actually did your quest?'"
+        },
+        {
+          "message": "Long press on any integration to get the full scoop—how it works and when to use it!"
+        },
+        {
+          "message": "Once you're familiar with them, you’re all set to create your next awesome quest 💪",
+          "choices": [
+            {"text": "Understood Sur!", "storeValue": ["setQuestIntegrationTutorialShown", "true"]}
+          ]
+        }
+      ],
+      "eventType": "NAVIGATION",
+      "eventData": "set_quest_integration/",
+      "conditions": {
+        "isTutorialOnGoing": "true",
+        "setQuestIntegrationTutorialShown": "false"
+      }
+    },
+    "openQuestSpecificTaskTutorial": {
+      "steps": [
+        {
+          "message": "Now that you've got quests, tap on any of them to see detailed stats just for that quest 📊",
+          "choices": [
+            {"text": "Ok I'll try!", "storeValue": ["openQuestSpecificTaskTutorialShown", "true"]}
+          ]
+        }
+      ],
+      "eventType": "NAVIGATION",
+      "eventData": "list_quest/",
+      "conditions": {
+        "isTutorialOnGoing": "true",
+        "listQuestsTutorialShown": "true",
+        "openQuestSpecificTaskTutorialShown": "false"
+      }
+    },
+    "openProfileTutorial": {
+      "steps": [
+        {
+          "message": "See that little person icon up top? Tap it to view your profile! 🧍",
+          "choices": [
+            {"text": "Ok I'll try!", "storeValue": ["openProfileTutorialShown", "true"]}
+          ]
+        }
+      ],
+      "eventType": "NAVIGATION",
+      "eventData": "quest_tracker/",
+      "conditions": {
+        "isTutorialOnGoing": "true",
+        "openProfileTutorialShown": "false",
+        "setQuestIntegrationTutorialShown": "true"
+      }
+    },
+    "openStatsTutorial": {
+      "steps": [
+        {
+          "message": "Tap the little arc-y icon at the top to see your overall stats. It's like a bird’s-eye view of your journey! 📈",
+          "choices": [
+            {"text": "Ok I'll try!", "storeValue": ["openStatsTutorialShown", "true"]}
+          ]
+        }
+      ],
+      "eventType": "NAVIGATION",
+      "eventData": "quest_tracker/",
+      "conditions": {
+        "isTutorialOnGoing": "true",
+        "openStatsTutorialShown": "false",
+        "setQuestIntegrationTutorialShown": "true",
+        "openProfileTutorialShown": "true"
+      }
+    },
+    "userInfo": {
+      "steps": [
+        {
+          "message": "Here's where you can check your profile, use items you've earned, and discover more goodies 🧰",
+          "choices": [
+            {
+              "text": "Understood sur!",
+              "storeValue": ["userInfoTutorialShown", "true"]
+            }
+          ]
+        }
+      ],
+      "eventType": "NAVIGATION",
+      "eventData": "userInfo/",
+      "conditions": {
+        "isTutorialOnGoing": "true",
+        "userInfoTutorialShown": "false"
+      }
+    },
+    "questStats": {
+      "steps": [
+        {
+          "message": "Welcome to the stats hub for a specific quest! 📊 Dive in and see how you're progressing.",
+          "choices": [
+            {
+              "text": "Understood sur!",
+              "storeValue": ["questStatsTutorialShown", "true"]
+            }
+          ]
+        }
+      ],
+      "eventType": "NAVIGATION",
+      "eventData": "questStats/{baseQuestInfo}",
+      "conditions": {
+        "isTutorialOnGoing": "true",
+        "questStatsTutorialShown": "false"
+      }
     }
-  },
-  "defaultSequence": "welcome"
+  }
 }

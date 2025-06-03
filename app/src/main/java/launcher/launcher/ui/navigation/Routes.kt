@@ -26,6 +26,6 @@ sealed class Screen(val route: String) {
  * @property route
  */
 sealed class SetupQuestScreen(val route: String) {
-    data object Integration : SetupQuestScreen("set_quest_integration")
+    data object Integration : SetupQuestScreen("set_quest_integration/")
 }
 

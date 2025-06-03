@@ -6,6 +6,11 @@ import kotlinx.serialization.Serializable
 import launcher.launcher.utils.json
 import java.io.IOException
 
+@Serializable
+enum class EventType{
+    NAVIGATION,
+    NORMAL
+}
 
 // Data models for pet configuration
 @Serializable
@@ -41,6 +46,9 @@ data class AnimationConfig(
 @Serializable
 data class DialogSequence(
     val steps: List<DialogStep>,
+    val eventType : EventType = EventType.NORMAL,
+    val eventData : String? = null,
+    val conditions: Map<String, String> = emptyMap<String, String>(),
     val nextSequence: String? = null // Can chain to another sequence when complete
 )
 
@@ -51,14 +59,15 @@ data class DialogStep(
     val inputKey: String? = null, // Key to store user input under
     val choices: List<DialogChoice> = emptyList(), // Optional choices for this step
     val conditions: List<DialogCondition>? = null, // Conditions to check before showing this step
-    val nextStepId: String? = null // Can override sequence to jump to a specific step
+    val emotion : String = "question",
+    val condition: Map<String, String> = emptyMap<String, String>()
 )
 
 @Serializable
 data class DialogChoice(
     val text: String,
     val nextStepId: String? = null, // Optional next step to jump to if this choice is selected
-    val storeValue: String? = null // Optional value to store if this choice is selected
+    val storeValue: List<String>? = null // Optional value to store if this choice is selected
 )
 
 @Serializable
@@ -84,16 +93,32 @@ object Pet {
     lateinit var petStateSp : SharedPreferences
     lateinit var petDialogState: PetDialogState
 
+    // Inside object Pet
     fun init(context: Context) {
         appContext = context.applicationContext
         val petInfo = appContext.getSharedPreferences("selected_pet_info", Context.MODE_PRIVATE)
-        petStateSp = appContext.getSharedPreferences(petInfo.getString("current_pet_id","fluffy"),Context.MODE_PRIVATE)
-        val petStateJson = petStateSp.getString("pet_state",null)
-        if(petStateJson!=null){
-            petDialogState = json.decodeFromString(petStateJson)
-        }else {
+        val currentPetId = petInfo.getString("current_pet_id", "fluffy") ?: "fluffy" // Ensure non-null
+
+        petStateSp = appContext.getSharedPreferences(currentPetId, Context.MODE_PRIVATE)
+        val petStateJson = petStateSp.getString("pet_state", null)
+
+        if (petStateJson != null) {
+            try {
+                petDialogState = json.decodeFromString(petStateJson)
+                // Further validation of petDialogState.currentSequenceId and currentStepIndex
+                // against the actual loaded pet script will happen in PetDialog's LaunchedEffect.
+            } catch (e: Exception) {
+                // Log error, initialize to a fresh state
+                android.util.Log.e("PetInit", "Failed to decode pet_state JSON: ${e.message}. Initializing fresh state.")
+                petDialogState = PetDialogState(
+                    currentSequenceId = "", // To be set by PetDialog from script's defaultSequence
+                    currentStepIndex = -1
+                )
+            }
+        } else {
             petDialogState = PetDialogState(
-                currentSequenceId = "welcome"
+                currentSequenceId = "", // Will be populated by PetDialog using the script's defaultSequence
+                currentStepIndex = -1  // Indicates to start from the beginning
             )
         }
     }
