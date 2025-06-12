@@ -249,7 +249,8 @@ fun PetDialog(
         // and requiring a re-fetch or recursive call.
 
         currentStep = step // Update currentStep to the new one
-
+        Pet.saveCurrentStep()
+        
         currentMessage =
             getProcessedMessage(currentStep!!, config, dialogState) // Pass non-null currentStep
         userInput = ""

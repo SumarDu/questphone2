@@ -2,6 +2,7 @@ package launcher.launcher.data.game
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import kotlinx.serialization.Serializable
 import launcher.launcher.utils.json
 import java.io.IOException
@@ -93,6 +94,14 @@ object Pet {
     lateinit var petStateSp : SharedPreferences
     lateinit var petDialogState: PetDialogState
 
+    fun saveCurrentStep(){
+        petStateSp.edit(commit = true) {
+            putString(
+                "pet_state",
+                json.encodeToString(petDialogState)
+            )
+        }
+    }
     // Inside object Pet
     fun init(context: Context) {
         appContext = context.applicationContext

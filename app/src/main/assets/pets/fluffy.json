@@ -1,10 +1,10 @@
 {
   "id": "turtie",
   "imageResource": "turtie_happy",
-  "defaultSequence": "greeting",
+  "defaultSequence": "introBeforeLogin",
   "personality": {
     "speakingStyle": {
-      "typingSpeed": 11.1,
+      "typingSpeed": 5.1,
       "punctuation": "...",
       "catchphrases": ["Hmm?", "Oh my!", "Well now..."],
       "emojis": ["🐢", "🤔"]
@@ -16,6 +16,23 @@
     }
   },
   "dialogSequences": {
+    "introBeforeLogin": {
+      "steps": [
+        {
+          "emotion": "happy",
+          "message": "Whoa—new footsteps? 👀 Didn’t think I’d meet someone today!"
+        },
+        {
+          "message": "You here to break some habits... or make new ones?"
+        },
+        {
+          "emotion": "cheeky",
+          "message": "I’m hiding in my shell on the home screen. Come find me when you're ready 🐢✨"
+        }
+      ],
+      "eventType": "NAVIGATION",
+      "eventData": "onboard/"
+    },
     "greeting": {
       "steps": [
         {
@@ -34,11 +51,16 @@
           ]
         },
         {
-          "emotion": "neutral",
           "message": "Very well... sometimes silence carries the answers we seek. Until next time, {user}."
         }
       ],
-      "nextSequence": "askForTutorial"
+      "eventType": "NAVIGATION",
+      "eventData": "quest_tracker/",
+      "nextSequence": "askForTutorial",
+      "conditions": {
+        "isTutorialOnGoing": "true",
+        "userReason": ""
+      }
     },
     "askForTutorial": {
       "steps": [
@@ -64,7 +86,7 @@
     "adviceSequence": {
       "steps": [
         {
-          "emotion": "wise",
+          "emotion": "peace",
           "message": "My advice for you, {user}, is this: Slow and steady wins the race 🐢. Rushing often leads to tripping over your own feet."
         },
         {
@@ -76,7 +98,7 @@
           ]
         },
         {
-          "emotion": "smile",
+          "emotion": "happy",
           "message": "Hmm... let it simmer in your mind. Wisdom doesn’t shout—it whispers over time."
         }
       ],
@@ -85,11 +107,11 @@
     "storySequence": {
       "steps": [
         {
-          "emotion": "storytelling",
+          "emotion": "peace",
           "message": "Once upon a ripple, {user}, in a pond much like this... there lived a tiny tadpole who dreamed of flying."
         },
         {
-          "emotion": "smile",
+          "emotion": "peace",
           "message": "...and while he never grew wings, he learned to leap higher than any frog in the land! The end 🌿"
         }
       ],

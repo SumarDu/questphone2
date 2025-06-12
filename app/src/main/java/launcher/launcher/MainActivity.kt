@@ -69,12 +69,14 @@ class MainActivity : ComponentActivity() {
                     val context = LocalContext.current
 
                     RewardDialogMaker()
-                    PetDialog(
-                        petId = "fluffy",
-                        isPetDialogVisible,
-                        navController
-                    )
+                    if(currentRoute != Screen.OnBoard){
 
+                        PetDialog(
+                            petId = "fluffy",
+                            isPetDialogVisible,
+                            navController
+                        )
+                    }
                     LaunchedEffect(Unit) {
                         unSyncedItems.collect {
                             if(context.isOnline()){
