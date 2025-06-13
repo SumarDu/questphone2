@@ -51,7 +51,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -64,7 +63,9 @@ import kotlinx.coroutines.delay
 import launcher.launcher.R.drawable
 import launcher.launcher.data.game.Category
 import launcher.launcher.data.game.InventoryItem
-import launcher.launcher.utils.CoinHelper
+import launcher.launcher.data.game.User
+import launcher.launcher.data.game.addItemsToInventory
+import launcher.launcher.data.game.getInventoryItemCount
 
 
 // View model for the store
@@ -92,20 +93,10 @@ class StoreViewModel {
     }
 
     // Purchase an item
-    fun purchaseItem(itemId: String): Boolean {
-        val itemIndex = _items.indexOfFirst { it.name == itemId }
-        if (itemIndex == -1) return false
-
-        val item = _items[itemIndex]
-
-
-        // Check if user has enough coins
-//        if (User.userInfo. < item.price) return false
-
-        // Process the purchase
-//        userCoins -= item.price
-//        _items[itemIndex] = item.copy(isOwned = true)
-
+    fun purchaseItem(item: InventoryItem): Boolean {
+        var itemMap = hashMapOf<InventoryItem, Int>()
+        itemMap.put(item,1)
+        User.addItemsToInventory(itemMap)
         return true
     }
 
@@ -121,7 +112,6 @@ fun StoreScreen(
     var showPurchaseDialog by remember { mutableStateOf<InventoryItem?>(null) }
     var showSuccessMessage by remember { mutableStateOf<String?>(null) }
 
-    val coinHelper = CoinHelper(LocalContext.current)
     // Success snackbar
     showSuccessMessage?.let { message ->
         LaunchedEffect(message) {
@@ -161,7 +151,7 @@ fun StoreScreen(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "${coinHelper.getCoinCount()}",
+                            text = "${User.userInfo.coins}",
                             color = Color.White,
                             fontWeight = FontWeight.Bold
                         )
@@ -197,10 +187,9 @@ fun StoreScreen(
             showPurchaseDialog?.let { item ->
                 PurchaseDialog(
                     item = item,
-                    userCoins = coinHelper.getCoinCount(),
                     onDismiss = { showPurchaseDialog = null },
                     onPurchase = {
-                        if (viewModel.purchaseItem(item.name)) {
+                        if (viewModel.purchaseItem(item)) {
                             showSuccessMessage = "Successfully purchased ${item.name}!"
                             showPurchaseDialog = null
                         }
@@ -409,10 +398,10 @@ fun StoreItemCard(
 @Composable
 fun PurchaseDialog(
     item: InventoryItem,
-    userCoins: Int,
     onDismiss: () -> Unit,
     onPurchase: () -> Unit
 ) {
+    val userCoins = User.userInfo.coins
     val hasEnoughCoins = userCoins >= item.price
 
     Dialog(onDismissRequest = onDismiss) {
@@ -484,6 +473,20 @@ fun PurchaseDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "${item.price}",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Icon(
+                        painter = painterResource(drawable.baseline_inventory_24),
+                        contentDescription = "Inventory",
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${User.getInventoryItemCount(item)}",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp

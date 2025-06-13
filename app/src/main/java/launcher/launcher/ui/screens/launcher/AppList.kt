@@ -5,7 +5,15 @@ import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -23,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -30,14 +39,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import launcher.launcher.data.AppInfo
+import launcher.launcher.data.game.User
+import launcher.launcher.data.game.useCoins
 import launcher.launcher.services.INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN
 import launcher.launcher.ui.screens.launcher.components.AppItem
 import launcher.launcher.ui.screens.launcher.components.CoinDialog
-import launcher.launcher.utils.CoinHelper
+import launcher.launcher.ui.screens.launcher.components.LowCoinsDialog
 import launcher.launcher.utils.getCachedApps
 import launcher.launcher.utils.reloadApps
-import androidx.core.content.edit
-import launcher.launcher.ui.screens.launcher.components.LowCoinsDialog
 
 data class AppGroup(val letter: Char, val apps: List<AppInfo>)
 
@@ -51,7 +60,6 @@ fun AppList() {
     val errorState = remember { mutableStateOf<String?>(null) }
     val showCoinDialog = remember { mutableStateOf(false) }
     val selectedPackage = remember { mutableStateOf("") }
-    val coinHelper = CoinHelper(context)
 
     val sp = context.getSharedPreferences("distractions", Context.MODE_PRIVATE)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -105,9 +113,9 @@ fun AppList() {
         )
 
         if (showCoinDialog.value) {
-            if(coinHelper.canUserAffordPurchase(5)) {
+            if(User.userInfo.coins>=5) {
                 CoinDialog(
-                    coins = coinHelper.getCoinCount(),
+                    coins = User.userInfo.coins,
                     onDismiss = { showCoinDialog.value = false },
                     onConfirm = {
                         // Set cooldown time (10 minutes = 10 * 60 * 1000 milliseconds)
@@ -125,7 +133,7 @@ fun AppList() {
                         }
                         context.sendBroadcast(intent)
 
-                        coinHelper.decrementCoinCount(5)
+                        User.useCoins(5)
                         launchApp(context, selectedPackage.value)
                         showCoinDialog.value = false
                     },
@@ -138,7 +146,7 @@ fun AppList() {
                 )
             } else {
                 LowCoinsDialog(
-                    coins = coinHelper.getCoinCount(),
+                    coins = User.userInfo.coins,
                     onDismiss = { showCoinDialog.value = false }
                 )
             }

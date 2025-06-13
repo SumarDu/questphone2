@@ -42,13 +42,11 @@ import launcher.launcher.data.game.InventoryItem
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.getInventoryItemCount
 import launcher.launcher.data.game.useInventoryItem
-import launcher.launcher.utils.CoinHelper
 import launcher.launcher.utils.VibrationHelper
 
 @Composable
 fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: Boolean = false, onQuestStarted: () -> Unit, loadingAnimationDuration: Int = 3000,isFailed: MutableState<Boolean> = mutableStateOf(false), progress:MutableFloatState = mutableFloatStateOf(0f),onQuestCompleted: ()->Unit = {}, isQuestCompleted: MutableState<Boolean> = mutableStateOf(false), questViewBody : @Composable () -> Unit,) {
     val context = LocalContext.current
-    val coinHelper = CoinHelper(context)
 
     val scrollState = rememberScrollState()
     val animatedProgress by animateFloatAsState(
@@ -158,7 +156,7 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
 
                 // Coins display
                 Text(
-                    text = "${coinHelper.getCoinCount()} coins",
+                    text = "${User.userInfo.coins} coins",
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier
                         .padding(24.dp)

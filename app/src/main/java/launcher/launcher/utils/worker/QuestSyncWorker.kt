@@ -4,7 +4,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
@@ -13,10 +12,10 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.first
 import launcher.launcher.R
+import launcher.launcher.data.game.User
 import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.utils.Supabase
-import launcher.launcher.utils.json
 
 class QuestSyncWorker(
     context: Context,
@@ -74,6 +73,10 @@ class QuestSyncWorker(
                 }
 
                 if (local != null) dao.markAsSynced(id)
+
+                Supabase.supabase.postgrest["profiles"].upsert(
+                    User.userInfo
+                )
                 val manager =
                     applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 manager.cancel(1001)

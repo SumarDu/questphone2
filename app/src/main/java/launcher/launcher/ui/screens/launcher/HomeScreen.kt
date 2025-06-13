@@ -58,7 +58,6 @@ import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.launcher.components.LiveClock
 import launcher.launcher.ui.screens.quest.DialogState
 import launcher.launcher.ui.screens.quest.RewardDialogInfo
-import launcher.launcher.utils.CoinHelper
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.VibrationHelper
 import launcher.launcher.utils.formatHour
@@ -74,7 +73,6 @@ fun HomeScreen(navController: NavController) {
     val questHelper = QuestHelper(context)
     val questList by dao.getAllQuests().collectAsState(initial = emptyList())
 
-    val coinHelper = CoinHelper(context)
 
     val completedQuests = remember { SnapshotStateList<String>() }
     val progress = (completedQuests.size.toFloat() / questList.size.toFloat()).coerceIn(0f,1f)
@@ -168,7 +166,7 @@ fun HomeScreen(navController: NavController) {
                     }
             )
             Text(
-                text = "${coinHelper.getCoinCount()}",
+                text = "${User.userInfo.coins}",
                 style = MaterialTheme.typography.bodyLarge,
             )
             Spacer(Modifier.size(8.dp))

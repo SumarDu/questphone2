@@ -44,6 +44,7 @@ import launcher.launcher.data.game.StreakCheckReturn
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.User.streakData
 import launcher.launcher.data.game.User.userInfo
+import launcher.launcher.data.game.addCoins
 import launcher.launcher.data.game.addLevelUpRewards
 import launcher.launcher.data.game.addXp
 import launcher.launcher.data.game.xpFromStreak
@@ -51,6 +52,8 @@ import launcher.launcher.data.game.xpToRewardForQuest
 import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.ui.screens.game.StreakFailedDialog
 import launcher.launcher.ui.screens.game.StreakUpDialog
+import launcher.launcher.ui.screens.quest.RewardDialogInfo.currentCommonQuestInfo
+import launcher.launcher.ui.screens.quest.RewardDialogInfo.isRewardDialogVisible
 import launcher.launcher.utils.VibrationHelper
 
 enum class DialogState { COINS, LEVEL_UP, STREAK_UP, STREAK_FAILED, NONE }
@@ -107,7 +110,7 @@ fun RewardDialogMaker(  ) {
             val xp = if(isTriggeredViaQuestCompletion) xpToRewardForQuest(userInfo.level) else xpFromStreak(streakData.currentStreak)
             User.addXp(xp)
             User.lastXpEarned = xp
-
+            User.addCoins(coinsEarned)
 
             didUserLevelUp = oldLevel != userInfo.level
 

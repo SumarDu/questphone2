@@ -20,10 +20,12 @@ data class UserInfo(
     var full_name: String = "",
     var has_profile: Boolean = false,
     var xp : Int= 0,
+    var coins: Int = 0,
     var level : Int = 1,
     val inventory: HashMap<InventoryItem, Int> = hashMapOf(Pair(InventoryItem.STREAK_FREEZER,2)),
     val achievements: List<Achievements> = listOf(Achievements.THE_DISCIPLINED,Achievements.MONTH_STREAK),
-    var active_boosts: HashMap<InventoryItem,String> = hashMapOf()
+    var active_boosts: HashMap<InventoryItem,String> = hashMapOf(),
+    var lastUpdated: Long = System.currentTimeMillis()
 ){
     fun getFirstName(): String {
         return full_name.trim().split(" ").firstOrNull() ?: ""
@@ -111,6 +113,7 @@ fun User.addItemsToInventory(items: HashMap<InventoryItem, Int>){
 
 fun User.saveUserInfo(){
     val sharedPreferences = appContext.getSharedPreferences("user_info", Context.MODE_PRIVATE)
+    userInfo.lastUpdated = System.currentTimeMillis()
     sharedPreferences.edit { putString("user_info", json.encodeToString(userInfo)) }
 }
 
@@ -137,4 +140,12 @@ fun getUserInfo(context: Context): UserInfo {
     } else {
         UserInfo()
     }
+}
+fun User.useCoins(coins: Int){
+    userInfo.coins-=coins
+    saveUserInfo()
+}
+fun User.addCoins(coins:Int){
+    userInfo.coins+=coins
+    saveUserInfo()
 }

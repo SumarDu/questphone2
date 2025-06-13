@@ -50,7 +50,6 @@ import launcher.launcher.data.game.getStreakInfo
 import launcher.launcher.data.game.isBoosterActive
 import launcher.launcher.data.game.useInventoryItem
 import launcher.launcher.data.game.xpToLevelUp
-import launcher.launcher.utils.CoinHelper
 import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.formatRemainingTime
 import launcher.launcher.utils.getFullFormattedTime
@@ -59,7 +58,6 @@ import launcher.launcher.utils.getFullFormattedTime
 @Composable
 fun UserInfoScreen() {
     val context = LocalContext.current
-    val coinHelper = CoinHelper(context)
     val streakData = getStreakInfo(context)
 
     val totalXpForNextLevel = xpToLevelUp(userInfo.level + 1)
@@ -175,7 +173,7 @@ fun UserInfoScreen() {
 
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "💰 Coins: ${coinHelper.getCoinCount()}",
+                        "💰 Coins: ${userInfo.coins}",
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Spacer(modifier = Modifier.height(4.dp))
