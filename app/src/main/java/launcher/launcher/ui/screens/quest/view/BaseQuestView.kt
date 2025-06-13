@@ -4,6 +4,8 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,10 +35,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import launcher.launcher.R
 import launcher.launcher.data.game.InventoryItem
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.getInventoryItemCount
@@ -69,19 +72,19 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
             containerColor = Color.Transparent,
             floatingActionButton = {
                     Row(
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         if(!isQuestCompleted.value && User.getInventoryItemCount(InventoryItem.QUEST_SKIPPER) > 0){
-                            OutlinedButton(
-                                onClick = {
-                                    VibrationHelper.vibrate(50)
-                                    isUseQuestSkipperDialogVisible.value = true
-                                },
-                                modifier = Modifier.padding(bottom = 16.dp)
-
-                            ) {
-                                Text(text = ">>")
-                            }
+                            Image(
+                                painter = painterResource(R.drawable.quest_skipper),
+                                contentDescription = "use quest skipper",
+                                modifier = Modifier.size(50.dp)
+                                    .clickable{
+                                        VibrationHelper.vibrate(50)
+                                        isUseQuestSkipperDialogVisible.value = true
+                                    }
+                            )
 
                         }
                         if(!hideStartQuestBtn) {

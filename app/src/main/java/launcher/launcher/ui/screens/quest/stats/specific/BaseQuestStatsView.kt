@@ -44,6 +44,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,11 +56,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import kotlinx.coroutines.launch
 import launcher.launcher.R
 import launcher.launcher.data.game.InventoryItem
 import launcher.launcher.data.game.User
+import launcher.launcher.data.game.getInventoryItemCount
 import launcher.launcher.data.game.useInventoryItem
 import launcher.launcher.data.quest.CommonQuestInfo
+import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.QuestStats
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.formatHour
@@ -74,7 +78,7 @@ import java.util.Locale
 
 @Composable
 fun BaseQuestStatsView(baseData: CommonQuestInfo) {
-    // Calculate statistics
+    val context = LocalContext.current
     val questHelper = QuestHelper(LocalContext.current)
     val questStats = questHelper.getQuestStats(baseData)
     val completedQuests = questStats.size
@@ -113,7 +117,8 @@ fun BaseQuestStatsView(baseData: CommonQuestInfo) {
     val scrollState = rememberScrollState()
 
     val isQuestEditorInfoDialogVisible = remember { mutableStateOf(false) }
-
+    val isQuestDeleterInfoDialogVisible = remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
@@ -145,56 +150,15 @@ fun BaseQuestStatsView(baseData: CommonQuestInfo) {
             )
 
             // Quest Details
-            QuestDetailsCard(baseData,isQuestEditorInfoDialogVisible)
+            QuestDetailsCard(baseData,isQuestEditorInfoDialogVisible,isQuestDeleterInfoDialogVisible)
 
-            if(isQuestEditorInfoDialogVisible.value) {
-                Dialog(onDismissRequest = {
-                    isQuestEditorInfoDialogVisible.value = false
-                }) {
-
-                    Surface(
-                        shape = MaterialTheme.shapes.medium,
-                        tonalElevation = 8.dp,
-                        modifier = Modifier
-                            .padding(24.dp)
-                            .wrapContentSize()
-                    ) {
-
-                        Column(
-                            modifier = Modifier.padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Image(
-                                painter = painterResource(InventoryItem.QUEST_EDITOR.icon),
-                                contentDescription = InventoryItem.QUEST_EDITOR.simpleName,
-                                modifier = Modifier.size(60.dp)
-                            )
-                            if (User.userInfo.inventory.contains(InventoryItem.QUEST_EDITOR)) {
-                                Text("Do You Want to Spend 1 Quest Editor to edit this quest?")
-                            } else {
-                                Text("You currently have no quest editor. Please buy one from the shop to edit this quest")
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End
-                            ) {
-                                TextButton(onClick = { isQuestEditorInfoDialogVisible.value = false }) {
-                                    Text("Close")
-                                }
-
-                                Button(onClick = {
-                                    User.useInventoryItem(InventoryItem.XP_BOOSTER)
-                                    isQuestEditorInfoDialogVisible.value = false
-                                }) {
-                                    Text("Use")
-                                }
-                            }
-
-                        }
-                    }
+            UseItemDialog(InventoryItem.QUEST_EDITOR,isQuestEditorInfoDialogVisible)
+            UseItemDialog(InventoryItem.QUEST_DELETER,isQuestDeleterInfoDialogVisible){
+                val dao = QuestDatabaseProvider.getInstance(context).questDao()
+                coroutineScope.launch {
+                    val quest = dao.getQuest(baseData.title)
+                    quest!!.is_destroyed = true
+                    dao.upsertQuest(quest)
                 }
             }
 
@@ -548,7 +512,7 @@ fun CalendarSection(
 }
 
 @Composable
-fun QuestDetailsCard(baseData: CommonQuestInfo, isQuestEditorInfoDialogVisible: MutableState<Boolean>) {
+fun QuestDetailsCard(baseData: CommonQuestInfo, isQuestEditorInfoDialogVisible: MutableState<Boolean>,isQuestDeleterInfoDialogVisible: MutableState<Boolean>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -561,6 +525,22 @@ fun QuestDetailsCard(baseData: CommonQuestInfo, isQuestEditorInfoDialogVisible: 
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+
+            QuestInfoRow(label = "Days Active", value = baseData.selected_days.toString())
+            QuestInfoRow(
+                label = "Time Range",
+                value = "${formatHour(baseData.time_range[0])} - ${formatHour(baseData.time_range[1])}"
+            )
+            QuestInfoRow(label = "Created", value = baseData.created_on)
+            QuestInfoRow(label = "Expires", value = baseData.auto_destruct)
+            QuestInfoRow(label = "Integration", value = baseData.integration_id.name)
+            QuestInfoRow(
+                label = "Reward",
+                value = "${baseData.reward} coins",
+                highlight = true
+            )
+
+            Spacer(Modifier.size(12.dp))
 
             OutlinedButton(onClick ={
                 isQuestEditorInfoDialogVisible.value = true
@@ -585,22 +565,33 @@ fun QuestDetailsCard(baseData: CommonQuestInfo, isQuestEditorInfoDialogVisible: 
                     )
                 }
             }
+            Spacer(Modifier.size(4.dp))
+
+            OutlinedButton(onClick ={
+                isQuestDeleterInfoDialogVisible.value = true
+
+            }, modifier = Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center) {
+                    Image(
+                        painter = painterResource(R.drawable.quest_deletor),
+                        contentDescription = "quest_editor",
+                        modifier = Modifier
+                            .size(25.dp)
+                            .clickable {
+                            }
+                    )
+                    Text(
+                        text = "Delete Quest",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
 
 
 
-            QuestInfoRow(label = "Days Active", value = baseData.selected_days.toString())
-            QuestInfoRow(
-                label = "Time Range",
-                value = "${formatHour(baseData.time_range[0])} - ${formatHour(baseData.time_range[1])}"
-            )
-            QuestInfoRow(label = "Created", value = baseData.created_on)
-            QuestInfoRow(label = "Expires", value = baseData.auto_destruct)
-            QuestInfoRow(label = "Integration", value = baseData.integration_id.name)
-            QuestInfoRow(
-                label = "Reward",
-                value = "${baseData.reward} coins",
-                highlight = true
-            )
         }
     }
 }
@@ -899,6 +890,63 @@ fun CompletionDetailsDialog(
                     modifier = Modifier.align(Alignment.End)
                 ) {
                     Text("Close")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun UseItemDialog(item: InventoryItem,isDialogVisible: MutableState<Boolean>,onUse: ()-> Unit = {}){
+    if(isDialogVisible.value){
+        Dialog(onDismissRequest = {
+            isDialogVisible.value = false
+        }) {
+            val doesUserOwnEditor = User.getInventoryItemCount(item)>0
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                tonalElevation = 8.dp,
+                modifier = Modifier
+                    .padding(24.dp)
+                    .wrapContentSize()
+            ) {
+
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Image(
+                        painter = painterResource(item.icon),
+                        contentDescription = InventoryItem.QUEST_EDITOR.simpleName,
+                        modifier = Modifier.size(60.dp)
+                    )
+                    if (doesUserOwnEditor) {
+                        Text("Do You Want to Spend 1 ${item.simpleName} to perform this action?")
+                    } else {
+                        Text("You currently have no ${item.simpleName}. Please buy one from the shop to edit this quest")
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { isDialogVisible.value = false }) {
+                            Text("Close")
+                        }
+
+                        if(doesUserOwnEditor){
+                            Button(onClick = {
+                                User.useInventoryItem(item)
+                                onUse()
+                                isDialogVisible.value = false
+                            }) {
+                                Text("Use")
+                            }
+                        }
+                    }
+
                 }
             }
         }
