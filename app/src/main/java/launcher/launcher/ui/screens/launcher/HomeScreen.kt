@@ -2,8 +2,8 @@ package launcher.launcher.ui.screens.launcher
 
 import android.content.Context.MODE_PRIVATE
 import android.util.Log
-import launcher.launcher.R
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -33,40 +33,36 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
-import launcher.launcher.data.quest.CommonQuestInfo
-import launcher.launcher.ui.navigation.Screen
-import launcher.launcher.ui.screens.launcher.components.LiveClock
-import launcher.launcher.utils.CoinHelper
-import launcher.launcher.utils.QuestHelper
-import launcher.launcher.utils.getCurrentDate
-
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import kotlinx.coroutines.flow.first
+import launcher.launcher.R
 import launcher.launcher.data.game.StreakCheckReturn
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.checkIfStreakFailed
 import launcher.launcher.data.game.continueStreak
 import launcher.launcher.data.game.getStreakInfo
+import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
+import launcher.launcher.ui.navigation.Screen
+import launcher.launcher.ui.screens.launcher.components.LiveClock
 import launcher.launcher.ui.screens.quest.DialogState
 import launcher.launcher.ui.screens.quest.RewardDialogInfo
+import launcher.launcher.utils.CoinHelper
+import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.VibrationHelper
-import launcher.launcher.utils.filterQuestsForToday
 import launcher.launcher.utils.formatHour
-import kotlin.collections.forEach
+import launcher.launcher.utils.getCurrentDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -161,12 +157,50 @@ fun HomeScreen(navController: NavController) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Coins display on the left
+            Image(
+                painter = painterResource(R.drawable.coin_icon),
+                contentDescription = "Streak",
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(20.dp)
+                    .clickable{
+                        navController.navigate(Screen.Store.route)
+                    }
+            )
             Text(
-                text = "${coinHelper.getCoinCount()} coins | Streak: ${streakInfo.value.currentStreak}D",
+                text = "${coinHelper.getCoinCount()}",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Spacer(Modifier.size(8.dp))
+
+            Image(
+                painter = painterResource(R.drawable.streak),
+                contentDescription = "Streak",
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(30.dp)
+                    .clickable{
+                        navController.navigate(Screen.Store.route)
+                    }
+            )
+            Text(
+                text = "${streakInfo.value.currentStreak}D",
                 style = MaterialTheme.typography.bodyLarge,
             )
 
+
             Spacer(modifier = Modifier.weight(1f)) // Pushes the Icon to the right
+
+            Icon(
+                painter = painterResource(R.drawable.outline_store_24),
+                contentDescription = "Shop",
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(30.dp)
+                    .clickable{
+                    navController.navigate(Screen.Store.route)
+                }
+            )
 
             Icon(
                 painter = painterResource(id = R.drawable.outline_progress_activity_24),

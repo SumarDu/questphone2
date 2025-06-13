@@ -42,7 +42,6 @@
           "inputKey": "userReason"
         },
         {
-          "emotion": "curious",
           "message": "Ahh... {userReason}, is it? Fascinating 🤔. Now tell me—would you like some advice or perhaps hear a story?",
           "choices": [
             {"text": "Some advice, please!", "nextStepId": "adviceSequence"},
@@ -90,7 +89,6 @@
           "message": "My advice for you, {user}, is this: Slow and steady wins the race 🐢. Rushing often leads to tripping over your own feet."
         },
         {
-          "emotion": "question",
           "message": "Does that help you with what you said about '{userReason}'?",
           "choices": [
             {"text": "Yes, thank you!", "nextStepId": "greeting"},

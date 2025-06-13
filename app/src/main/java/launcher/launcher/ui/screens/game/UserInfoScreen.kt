@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -30,12 +31,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
+import io.github.jan.supabase.auth.auth
+import launcher.launcher.R
 import launcher.launcher.data.game.InventoryItem
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.User.userInfo
@@ -44,6 +51,7 @@ import launcher.launcher.data.game.isBoosterActive
 import launcher.launcher.data.game.useInventoryItem
 import launcher.launcher.data.game.xpToLevelUp
 import launcher.launcher.utils.CoinHelper
+import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.formatRemainingTime
 import launcher.launcher.utils.getFullFormattedTime
 
@@ -78,6 +86,46 @@ fun UserInfoScreen() {
             Spacer(modifier = Modifier.height(32.dp))
 
 
+            // Level and XP Section
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "${userInfo.username}}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        userInfo.full_name,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    Image(
+                        painter = rememberAsyncImagePainter(
+
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(
+                                    if (userInfo.has_profile)
+                                        "https://hplszhlnchhfwngbojnc.supabase.co/storage/v1/object/public/profile/${Supabase.supabase.auth.currentUserOrNull()!!.id}/profile"
+                                    else R.drawable.baseline_person_24
+                                )
+                                .crossfade(true)
+                                .error(R.drawable.baseline_person_24)
+                                .placeholder(R.drawable.baseline_person_24)
+                                .build(),
+                        ),
+                        contentDescription = "Avatar",
+                        modifier = Modifier
+                            .size(96.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
             // Level and XP Section
             Card(
                 modifier = Modifier.fillMaxWidth(),

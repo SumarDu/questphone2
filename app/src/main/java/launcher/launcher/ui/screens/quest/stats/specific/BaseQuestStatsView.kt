@@ -1,10 +1,23 @@
 package launcher.launcher.ui.screens.quest.stats.specific
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,8 +26,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,6 +55,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import launcher.launcher.R
+import launcher.launcher.data.game.InventoryItem
+import launcher.launcher.data.game.User
+import launcher.launcher.data.game.useInventoryItem
 import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestStats
 import launcher.launcher.utils.QuestHelper
@@ -36,8 +70,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.ChronoUnit
 import java.time.temporal.WeekFields
-import java.util.*
-import launcher.launcher.R
+import java.util.Locale
 
 @Composable
 fun BaseQuestStatsView(baseData: CommonQuestInfo) {
@@ -79,6 +112,8 @@ fun BaseQuestStatsView(baseData: CommonQuestInfo) {
 
     val scrollState = rememberScrollState()
 
+    val isQuestEditorInfoDialogVisible = remember { mutableStateOf(false) }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
@@ -110,7 +145,59 @@ fun BaseQuestStatsView(baseData: CommonQuestInfo) {
             )
 
             // Quest Details
-            QuestDetailsCard(baseData)
+            QuestDetailsCard(baseData,isQuestEditorInfoDialogVisible)
+
+            if(isQuestEditorInfoDialogVisible.value) {
+                Dialog(onDismissRequest = {
+                    isQuestEditorInfoDialogVisible.value = false
+                }) {
+
+                    Surface(
+                        shape = MaterialTheme.shapes.medium,
+                        tonalElevation = 8.dp,
+                        modifier = Modifier
+                            .padding(24.dp)
+                            .wrapContentSize()
+                    ) {
+
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(InventoryItem.QUEST_EDITOR.icon),
+                                contentDescription = InventoryItem.QUEST_EDITOR.simpleName,
+                                modifier = Modifier.size(60.dp)
+                            )
+                            if (User.userInfo.inventory.contains(InventoryItem.QUEST_EDITOR)) {
+                                Text("Do You Want to Spend 1 Quest Editor to edit this quest?")
+                            } else {
+                                Text("You currently have no quest editor. Please buy one from the shop to edit this quest")
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = { isQuestEditorInfoDialogVisible.value = false }) {
+                                    Text("Close")
+                                }
+
+                                Button(onClick = {
+                                    User.useInventoryItem(InventoryItem.XP_BOOSTER)
+                                    isQuestEditorInfoDialogVisible.value = false
+                                }) {
+                                    Text("Use")
+                                }
+                            }
+
+                        }
+                    }
+                }
+            }
+
         }
 
         // Calendar Dialog
@@ -461,7 +548,7 @@ fun CalendarSection(
 }
 
 @Composable
-fun QuestDetailsCard(baseData: CommonQuestInfo) {
+fun QuestDetailsCard(baseData: CommonQuestInfo, isQuestEditorInfoDialogVisible: MutableState<Boolean>) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -474,12 +561,32 @@ fun QuestDetailsCard(baseData: CommonQuestInfo) {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "Quest Details",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+
+            OutlinedButton(onClick ={
+                isQuestEditorInfoDialogVisible.value = true
+
+            }, modifier = Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center) {
+                    Image(
+                        painter = painterResource(R.drawable.quest_editor),
+                        contentDescription = "quest_editor",
+                        modifier = Modifier
+                            .size(25.dp)
+                            .clickable {
+                            }
+                    )
+                    Spacer(Modifier.size(4.dp))
+                    Text(
+                        text = "Edit Quest",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+
 
             QuestInfoRow(label = "Days Active", value = baseData.selected_days.toString())
             QuestInfoRow(
@@ -620,8 +727,14 @@ fun CalendarDialog(
                                             .clip(CircleShape)
                                             .background(
                                                 when {
-                                                    stats?.isSuccessful == true -> MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                                                    stats != null -> MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                                                    stats?.isSuccessful == true -> MaterialTheme.colorScheme.primary.copy(
+                                                        alpha = 0.8f
+                                                    )
+
+                                                    stats != null -> MaterialTheme.colorScheme.error.copy(
+                                                        alpha = 0.8f
+                                                    )
+
                                                     isToday -> MaterialTheme.colorScheme.surfaceVariant
                                                     else -> Color.Transparent
                                                 }
@@ -651,7 +764,9 @@ fun CalendarDialog(
                                     }
                                 } else {
                                     // Empty space for days not in this month
-                                    Box(modifier = Modifier.weight(1f).aspectRatio(1f))
+                                    Box(modifier = Modifier
+                                        .weight(1f)
+                                        .aspectRatio(1f))
                                 }
                             }
                         }

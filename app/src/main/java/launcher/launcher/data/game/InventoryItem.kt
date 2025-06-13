@@ -1,8 +1,8 @@
 package launcher.launcher.data.game
 
 import kotlinx.serialization.Serializable
-import launcher.launcher.utils.getFullTimeAfter
 import launcher.launcher.R
+import launcher.launcher.utils.getFullTimeAfter
 
 @Serializable
 enum class Availability(val displayName: String, val rarityValue: Int) {
@@ -17,17 +17,16 @@ enum class Availability(val displayName: String, val rarityValue: Int) {
 @Serializable
 enum class Category(val simpleName: String){
     BOOSTERS("Boosters"),
-    CHESTS("Chests"),
     TOOLS("Tools"),
-    CUSTOMIZATION("Customization")
 }
 
 @Serializable
 enum class InventoryItem(val simpleName: String, val description: String, val icon: Int, val isUsableFromInventory : Boolean = false, val onUse: () -> Unit = {}, val availability: Availability = Availability.UNCOMMON, val price: Int = 0, val category: Category = Category.TOOLS) {
-    STREAK_FREEZER("Streak Freezer", description = "Automatically freezes your streak in case you fail to complete all quests on a day", icon = R.drawable.streak_freezer),
-    QUEST_SKIPPER("Quest Skipper", description = "This item can be used to mark a quest as complete if you fail to do it in time (must be used the same day of failure) or skip it in case you feel like not performing one.", icon = R.drawable.quest_skipper),
-
-    XP_BOOSTER ("XP Booster", description = "Get 2x more xp for the next 5 hours.", isUsableFromInventory = true,onUse = ::onUseXpBooster, icon = R.drawable.xp_booster, category = Category.BOOSTERS)
+    STREAK_FREEZER("Streak Freezer", description = "Automatically freezes your streak in case you fail to complete all quests on a day", icon = R.drawable.streak_freezer, price = 20),
+    QUEST_SKIPPER("Quest Skipper", description = "Mar a quest as complete if you fail to do it in time (must be used the same day of failure) or skip it in case you feel like not performing one.", icon = R.drawable.quest_skipper, price = 5),
+    QUEST_EDITOR("Quest Editor", description = "Edit information about a quest", icon = R.drawable.quest_editor, price = 20),
+    QUEST_DELETER ("Quest Deleter", description = "Permanently delete a quest.", isUsableFromInventory = true,onUse = ::onUseXpBooster, icon = R.drawable.quest_deletor, category = Category.TOOLS, price = 100),
+    XP_BOOSTER ("XP Booster", description = "Get 2x more xp for the next 5 hours.", isUsableFromInventory = true,onUse = ::onUseXpBooster, icon = R.drawable.xp_booster, category = Category.BOOSTERS, price = 10),
 }
 
 fun onUseXpBooster(){
