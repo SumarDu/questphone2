@@ -93,8 +93,7 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
                                 onClick = {
                                     VibrationHelper.vibrate(100)
                                     onQuestStarted()
-                                },
-                                modifier = Modifier.padding(bottom = 16.dp)
+                                }
                             ) {
                                 Text(text = startButtonTitle)
                             }

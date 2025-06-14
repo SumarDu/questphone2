@@ -188,13 +188,24 @@ private fun QuestItem(
                         color = Color.White
                     )
 
-                    Text(
-                        text = if(quest.selected_days.size == 7) "Everyday" else quest.selected_days.joinToString(", ") { it.name },
-                        fontSize = 14.sp,
-                        color = Color.Gray,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    if(quest.is_destroyed){
+                        Text(
+                            text = "Destroyed",
+                            fontSize = 14.sp,
+                            color = Color.Gray,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    } else {
+                        Text(
+                            text = if(quest.selected_days.size == 7) "Everyday" else quest.selected_days.joinToString(", ") { it.name },
+                            fontSize = 14.sp,
+                            color = Color.Gray,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
                 }
 
             }

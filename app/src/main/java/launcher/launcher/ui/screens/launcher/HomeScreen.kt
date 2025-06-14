@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -62,6 +63,7 @@ import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.VibrationHelper
 import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
+import launcher.launcher.utils.getCurrentDay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,8 +73,8 @@ fun HomeScreen(navController: NavController) {
     val dao = QuestDatabaseProvider.getInstance(context).questDao()
 
     val questHelper = QuestHelper(context)
-    val questList by dao.getAllQuests().collectAsState(initial = emptyList())
-
+    val questListUnfiltered by dao.getAllQuests().collectAsState(initial = emptyList())
+    val questList = remember { mutableStateListOf<CommonQuestInfo>() }
 
     val completedQuests = remember { SnapshotStateList<String>() }
     val progress = (completedQuests.size.toFloat() / questList.size.toFloat()).coerceIn(0f,1f)
@@ -81,6 +83,12 @@ fun HomeScreen(navController: NavController) {
 
     BackHandler {  }
 
+    LaunchedEffect(questListUnfiltered) {
+        val todayDay = getCurrentDay()
+        val list = questListUnfiltered.filter { !it.is_destroyed && it.selected_days.contains(todayDay)}
+        questList.clear()
+        questList.addAll(list)
+    }
     fun streakFailResultHandler(streakCheckReturn: StreakCheckReturn?){
         if(streakCheckReturn!=null){
             RewardDialogInfo.streakData = streakCheckReturn
@@ -281,7 +289,7 @@ fun HomeScreen(navController: NavController) {
                 }
                 item {
                     QuestItem(
-                        text = "List quests",
+                        text = "Manage Quests",
                         modifier = Modifier.clickable {
                             navController.navigate(Screen.ListAllQuest.route)
                         }

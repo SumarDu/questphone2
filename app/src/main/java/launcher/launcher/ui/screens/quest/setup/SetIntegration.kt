@@ -111,6 +111,7 @@ fun SetIntegration(navController: NavHostController) {
 
                                     Box(
                                         modifier = Modifier
+                                            .clip(RoundedCornerShape(12.dp))
                                             .size(60.dp)
                                     ) {
                                         Image(
