@@ -185,14 +185,13 @@ private fun QuestItem(
                         text = quest.title,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
                     )
 
                     if(quest.is_destroyed){
                         Text(
                             text = "Destroyed",
                             fontSize = 14.sp,
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.outline,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -200,7 +199,7 @@ private fun QuestItem(
                         Text(
                             text = if(quest.selected_days.size == 7) "Everyday" else quest.selected_days.joinToString(", ") { it.name },
                             fontSize = 14.sp,
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.outline,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )

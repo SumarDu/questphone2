@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,7 +29,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -80,7 +78,7 @@ fun SetIntegration(navController: NavHostController) {
                             Text(
                                 modifier = Modifier
                                     .fillMaxWidth(),
-                                text = "Select Integration",
+                                text = "Set Integration",
                                 style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                             )
                         }
@@ -124,7 +122,6 @@ fun SetIntegration(navController: NavHostController) {
 
                                     Spacer(modifier = Modifier.width(16.dp))
 
-                                    // ✅ Text & Reward Content
                                     Column(
                                         modifier = Modifier.weight(1f)
                                     ) {
@@ -138,7 +135,7 @@ fun SetIntegration(navController: NavHostController) {
                                             text = item.description,
                                             fontSize = 14.sp,
                                             color = MaterialTheme.colorScheme.outline,
-                                            maxLines = 2,
+                                            maxLines = 3,
                                             overflow = TextOverflow.Ellipsis
                                         )
                                     }
@@ -156,7 +153,6 @@ fun SetIntegration(navController: NavHostController) {
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
                                             text = "${item.rewardCoins}",
-                                            color = Color.White,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 16.sp
                                         )
@@ -172,104 +168,3 @@ fun SetIntegration(navController: NavHostController) {
     }
 
 }
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun IntegrationsList(
-    onSelected: (IntegrationId)-> Unit,
-) {
-    val currentDocLink = remember { mutableStateOf<String?>(null) }
-
-    BackHandler(currentDocLink.value!=null) {
-        currentDocLink.value = null
-    }
-    if(currentDocLink.value !=null){
-        QuestTutorial(url = currentDocLink.value!!)
-    }else{
-
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-
-            items(IntegrationId.entries) { item ->
-
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .combinedClickable(
-                            onClick = { onSelected(item) },
-                            onLongClick = {
-                                VibrationHelper.vibrate(100)
-                                currentDocLink.value = item.docLink
-                            }
-                        )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Item preview/icon
-                        Box(
-                            modifier = Modifier
-                                .size(60.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF2A2A2A)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Image(
-                                painter = painterResource(item.icon),
-                                contentDescription = item.name
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        // Item details
-                        Column(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = item.label,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-
-                            Text(
-                                text = item.description,
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.outline,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        // Price or actions
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Image(
-                                painter = painterResource(drawable.coin_icon),
-                                contentDescription = "Coins",
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "${item.rewardCoins}",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
