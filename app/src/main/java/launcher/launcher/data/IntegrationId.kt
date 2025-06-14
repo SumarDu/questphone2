@@ -16,6 +16,7 @@ enum class IntegrationId(
     val setupScreen: @Composable (String?, NavHostController) -> Unit = { id, navController -> SetDeepFocus(id,navController) },
     val viewScreen: @Composable (CommonQuestInfo) -> Unit = { baseQuest -> DeepFocusQuestView(baseQuest) },
     val isLoginRequired: Boolean = false,
+    val rewardCoins: Int = 5,
     val docLink : String = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/AiSnap.md"
 ) {
     /**
@@ -24,7 +25,7 @@ enum class IntegrationId(
      * Useful when user wants to block access to his phone and focus on some irl task like studying
      */
     DEEP_FOCUS(
-        icon = R.drawable.baseline_timer_24,
+        icon = R.drawable.deep_focus_icon,
         label = "Deep Focus",
         description = "Block all apps except the essential ones for a set period, allowing you to stay focused on your work.",
         setupScreen = {id,navController -> SetDeepFocus(id,navController) },
@@ -34,7 +35,7 @@ enum class IntegrationId(
 
 
     HEALTH_CONNECT(
-        icon = R.drawable.baseline_directions_run_24,
+        icon = R.drawable.health_icon,
         label = "Health Connect",
         description = "Earn coins for performing health related stuff like steps, water intake and more",
         setupScreen = { id,navController ->
@@ -51,7 +52,7 @@ enum class IntegrationId(
     ),
 
     SWIFT_MARK(
-        icon = R.drawable.baseline_bolt_24,
+        icon = R.drawable.swift_mark_icon,
         label = "Swift Mark",
         description = "Just mark it as done and earn coins instantly. No verification needed—your honesty is the key!",
         setupScreen = {id,navController ->
@@ -64,11 +65,12 @@ enum class IntegrationId(
                 baseQuest
             )
         },
+        rewardCoins = 1,
         docLink = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/SwiftMark.md"
     ),
 
     AI_SNAP(
-        icon = R.drawable.baseline_camera_24,
+        icon = R.drawable.ai_snap_icon,
         label = "AI verified Snap",
         description = "Complete the task, snap a pic, and let AI verify your progress!",
         setupScreen = {id, navController ->
