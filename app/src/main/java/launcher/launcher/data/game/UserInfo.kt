@@ -25,7 +25,7 @@ data class UserInfo(
     val inventory: HashMap<InventoryItem, Int> = hashMapOf(Pair(InventoryItem.STREAK_FREEZER,2)),
     val achievements: List<Achievements> = listOf(Achievements.THE_DISCIPLINED,Achievements.MONTH_STREAK),
     var active_boosts: HashMap<InventoryItem,String> = hashMapOf(),
-    var lastUpdated: Long = System.currentTimeMillis()
+    var last_updated: Long = System.currentTimeMillis(),
 ){
     fun getFirstName(): String {
         return full_name.trim().split(" ").firstOrNull() ?: ""
@@ -111,9 +111,11 @@ fun User.addItemsToInventory(items: HashMap<InventoryItem, Int>){
 }
 
 
-fun User.saveUserInfo(){
+fun User.saveUserInfo(isSetLastUpdated: Boolean = true){
     val sharedPreferences = appContext.getSharedPreferences("user_info", Context.MODE_PRIVATE)
-    userInfo.lastUpdated = System.currentTimeMillis()
+    if(isSetLastUpdated){
+        userInfo.last_updated = System.currentTimeMillis()
+    }
     sharedPreferences.edit { putString("user_info", json.encodeToString(userInfo)) }
 }
 

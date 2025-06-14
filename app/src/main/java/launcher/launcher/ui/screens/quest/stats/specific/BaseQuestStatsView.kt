@@ -56,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import launcher.launcher.R
 import launcher.launcher.data.game.InventoryItem
@@ -77,7 +78,7 @@ import java.time.temporal.WeekFields
 import java.util.Locale
 
 @Composable
-fun BaseQuestStatsView(baseData: CommonQuestInfo) {
+fun BaseQuestStatsView(baseData: CommonQuestInfo, navController: NavHostController) {
     val context = LocalContext.current
     val questHelper = QuestHelper(LocalContext.current)
     val questStats = questHelper.getQuestStats(baseData)
@@ -152,7 +153,10 @@ fun BaseQuestStatsView(baseData: CommonQuestInfo) {
             // Quest Details
             QuestDetailsCard(baseData,isQuestEditorInfoDialogVisible,isQuestDeleterInfoDialogVisible)
 
-            UseItemDialog(InventoryItem.QUEST_EDITOR,isQuestEditorInfoDialogVisible)
+            UseItemDialog(InventoryItem.QUEST_EDITOR,isQuestEditorInfoDialogVisible){
+                navController.navigate(baseData.integration_id.name + "/${baseData.title}")
+            }
+
             UseItemDialog(InventoryItem.QUEST_DELETER,isQuestDeleterInfoDialogVisible){
                 val dao = QuestDatabaseProvider.getInstance(context).questDao()
                 coroutineScope.launch {
@@ -160,6 +164,7 @@ fun BaseQuestStatsView(baseData: CommonQuestInfo) {
                     quest!!.is_destroyed = true
                     dao.upsertQuest(quest)
                 }
+                navController.popBackStack()
             }
 
         }
@@ -526,13 +531,18 @@ fun QuestDetailsCard(baseData: CommonQuestInfo, isQuestEditorInfoDialogVisible: 
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
+            if(!baseData.is_destroyed){
+                QuestInfoRow(label = "Expires", value = baseData.auto_destruct)
+            }else{
+                QuestInfoRow(label = "Current Status", value = "Destroyed")
+            }
             QuestInfoRow(label = "Days Active", value = baseData.selected_days.toString())
             QuestInfoRow(
                 label = "Time Range",
                 value = "${formatHour(baseData.time_range[0])} - ${formatHour(baseData.time_range[1])}"
             )
             QuestInfoRow(label = "Created", value = baseData.created_on)
-            QuestInfoRow(label = "Expires", value = baseData.auto_destruct)
+
             QuestInfoRow(label = "Integration", value = baseData.integration_id.name)
             QuestInfoRow(
                 label = "Reward",
@@ -542,54 +552,59 @@ fun QuestDetailsCard(baseData: CommonQuestInfo, isQuestEditorInfoDialogVisible: 
 
             Spacer(Modifier.size(12.dp))
 
-            OutlinedButton(onClick ={
-                isQuestEditorInfoDialogVisible.value = true
+            if(!baseData.is_destroyed) {
+                OutlinedButton(onClick = {
+                    isQuestEditorInfoDialogVisible.value = true
 
-            }, modifier = Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center) {
-                    Image(
-                        painter = painterResource(R.drawable.quest_editor),
-                        contentDescription = "quest_editor",
-                        modifier = Modifier
-                            .size(25.dp)
-                            .clickable {
-                            }
-                    )
-                    Spacer(Modifier.size(4.dp))
-                    Text(
-                        text = "Edit Quest",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                }, modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.quest_editor),
+                            contentDescription = "quest_editor",
+                            modifier = Modifier
+                                .size(25.dp)
+                                .clickable {
+                                }
+                        )
+                        Spacer(Modifier.size(4.dp))
+                        Text(
+                            text = "Edit Quest",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+                Spacer(Modifier.size(4.dp))
+
+                OutlinedButton(onClick = {
+                    isQuestDeleterInfoDialogVisible.value = true
+
+                }, modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.quest_deletor),
+                            contentDescription = "quest_editor",
+                            modifier = Modifier
+                                .size(25.dp)
+                                .clickable {
+                                }
+                        )
+                        Text(
+                            text = "Delete Quest",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
-            Spacer(Modifier.size(4.dp))
-
-            OutlinedButton(onClick ={
-                isQuestDeleterInfoDialogVisible.value = true
-
-            }, modifier = Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center) {
-                    Image(
-                        painter = painterResource(R.drawable.quest_deletor),
-                        contentDescription = "quest_editor",
-                        modifier = Modifier
-                            .size(25.dp)
-                            .clickable {
-                            }
-                    )
-                    Text(
-                        text = "Delete Quest",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-
 
 
         }

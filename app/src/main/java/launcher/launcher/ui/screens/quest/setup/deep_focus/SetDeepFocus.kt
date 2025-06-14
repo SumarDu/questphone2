@@ -1,13 +1,32 @@
 package launcher.launcher.ui.screens.quest.setup.deep_focus
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Done
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -17,24 +36,25 @@ import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import launcher.launcher.data.AppInfo
 import launcher.launcher.data.IntegrationId
+import launcher.launcher.data.quest.QuestDatabaseProvider
+import launcher.launcher.data.quest.QuestInfoState
 import launcher.launcher.data.quest.focus.DeepFocus
 import launcher.launcher.data.quest.focus.FocusTimeConfig
-import launcher.launcher.data.quest.QuestInfoState
-import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.screens.quest.setup.ReviewDialog
 import launcher.launcher.ui.screens.quest.setup.components.SetBaseQuest
 import launcher.launcher.ui.screens.quest.setup.components.SetFocusTimeUI
 import launcher.launcher.utils.QuestHelper
+import launcher.launcher.utils.json
 import launcher.launcher.utils.reloadApps
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
-fun SetDeepFocus(navController: NavHostController) {
+fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
     val context = LocalContext.current
     val apps = remember { mutableStateOf(emptyList<AppInfo>()) }
 
     val showDialog = remember { mutableStateOf(false) }
-    val selectedApps = remember { mutableStateListOf<String>() }
+    var selectedApps = remember { mutableStateListOf<String>() }
     val questInfoState = remember { QuestInfoState(initialIntegrationId = IntegrationId.DEEP_FOCUS) }
     val focusTimeConfig = remember { mutableStateOf(FocusTimeConfig()) }
 
@@ -45,6 +65,16 @@ fun SetDeepFocus(navController: NavHostController) {
 
     val scope = rememberCoroutineScope()
 
+    LaunchedEffect(Unit) {
+        if(editQuestId!=null){
+            val dao = QuestDatabaseProvider.getInstance(context).questDao()
+            val quest = dao.getQuest(editQuestId)
+            questInfoState.fromBaseQuest(quest!!)
+            val deepFocus = json.decodeFromString<DeepFocus>(quest.quest_json)
+            focusTimeConfig.value = deepFocus.focusTimeConfig
+            selectedApps.addAll(deepFocus.unrestrictedApps)
+        }
+    }
     LaunchedEffect(apps) {
         apps.value = reloadApps(context.packageManager,context).getOrNull() ?: emptyList()
     }
@@ -137,7 +167,7 @@ fun SetDeepFocus(navController: NavHostController) {
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Create Quest",
+                                text = if(editQuestId==null) "Create Quest" else "Save Changes",
                                 style = MaterialTheme.typography.labelLarge
                             )
                         }

@@ -13,7 +13,7 @@ enum class IntegrationId(
     val icon: Int = R.drawable.baseline_extension_24,
     val label: String = "",
     val description: String = "",
-    val setupScreen: @Composable (NavHostController) -> Unit = { navController -> SetDeepFocus(navController) },
+    val setupScreen: @Composable (String?, NavHostController) -> Unit = { id, navController -> SetDeepFocus(id,navController) },
     val viewScreen: @Composable (CommonQuestInfo) -> Unit = { baseQuest -> DeepFocusQuestView(baseQuest) },
     val isLoginRequired: Boolean = false,
     val docLink : String = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/AiSnap.md"
@@ -27,7 +27,7 @@ enum class IntegrationId(
         icon = R.drawable.baseline_timer_24,
         label = "Deep Focus",
         description = "Block all apps except the essential ones for a set period, allowing you to stay focused on your work.",
-        setupScreen = {navController -> SetDeepFocus(navController) },
+        setupScreen = {id,navController -> SetDeepFocus(id,navController) },
         viewScreen = { baseQuest ->  DeepFocusQuestView(baseQuest) },
         docLink = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/DeepFocus.md"
     ),
@@ -37,9 +37,9 @@ enum class IntegrationId(
         icon = R.drawable.baseline_directions_run_24,
         label = "Health Connect",
         description = "Earn coins for performing health related stuff like steps, water intake and more",
-        setupScreen = { navController ->
+        setupScreen = { id,navController ->
             launcher.launcher.ui.screens.quest.setup.health_connect.SetHealthConnect(
-                navController
+                id,navController
             )
         },
         viewScreen = { baseQuest ->
@@ -54,8 +54,8 @@ enum class IntegrationId(
         icon = R.drawable.baseline_bolt_24,
         label = "Swift Mark",
         description = "Just mark it as done and earn coins instantly. No verification needed—your honesty is the key!",
-        setupScreen = {navController ->
-            launcher.launcher.ui.screens.quest.setup.swift_mark.SetSwiftMark(
+        setupScreen = {id,navController ->
+            launcher.launcher.ui.screens.quest.setup.swift_mark.SetSwiftMark(id,
                 navController
             )
         },
@@ -71,8 +71,9 @@ enum class IntegrationId(
         icon = R.drawable.baseline_camera_24,
         label = "AI verified Snap",
         description = "Complete the task, snap a pic, and let AI verify your progress!",
-        setupScreen = { navController ->
+        setupScreen = {id, navController ->
             launcher.launcher.ui.screens.quest.setup.ai_snap.SetAiSnap(
+                id,
                 navController
             )
         },

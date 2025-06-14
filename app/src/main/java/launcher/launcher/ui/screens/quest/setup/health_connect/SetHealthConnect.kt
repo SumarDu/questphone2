@@ -1,14 +1,38 @@
 package launcher.launcher.ui.screens.quest.setup.health_connect
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Done
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -17,20 +41,19 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import launcher.launcher.data.IntegrationId
-import launcher.launcher.data.quest.QuestInfoState
 import launcher.launcher.data.quest.QuestDatabaseProvider
+import launcher.launcher.data.quest.QuestInfoState
 import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.data.quest.health.HealthTaskType
 import launcher.launcher.data.quest.health.getUnitForType
 import launcher.launcher.ui.screens.quest.setup.ReviewDialog
 import launcher.launcher.ui.screens.quest.setup.components.SetBaseQuest
-import launcher.launcher.utils.QuestHelper
+import launcher.launcher.utils.json
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
-fun SetHealthConnect(navController: NavHostController) {
+fun SetHealthConnect(editQuestId:String? = null,navController: NavHostController) {
     val scrollState = rememberScrollState()
-    val sp = QuestHelper(LocalContext.current)
 
     val questInfoState = remember { QuestInfoState(initialIntegrationId = IntegrationId.HEALTH_CONNECT) }
     val healthQuest = remember { mutableStateOf(HealthQuest()) }
@@ -38,6 +61,16 @@ fun SetHealthConnect(navController: NavHostController) {
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        if(editQuestId!=null){
+            val dao = QuestDatabaseProvider.getInstance(context).questDao()
+            val quest = dao.getQuest(editQuestId)
+            questInfoState.fromBaseQuest(quest!!)
+            healthQuest.value = json.decodeFromString<HealthQuest>(quest.quest_json)
+        }
+    }
+
     if (isReviewDialogVisible.value) {
         val baseQuest = questInfoState.toBaseQuest(healthQuest.value)
         ReviewDialog(
@@ -146,7 +179,7 @@ fun SetHealthConnect(navController: NavHostController) {
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Create Quest",
+                                text = if(editQuestId==null) "Create Quest" else "Save Changes",
                                 style = MaterialTheme.typography.labelLarge
                             )
                         }

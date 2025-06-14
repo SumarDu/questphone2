@@ -42,6 +42,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -66,11 +67,12 @@ import launcher.launcher.data.game.InventoryItem
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.addItemsToInventory
 import launcher.launcher.data.game.getInventoryItemCount
+import launcher.launcher.data.game.useCoins
 
 
 // View model for the store
 class StoreViewModel {
-
+    var coins by mutableIntStateOf(User.userInfo.coins)
     // Currently selected category
     var selectedCategory by mutableStateOf<Category>(Category.BOOSTERS)
         private set
@@ -97,6 +99,8 @@ class StoreViewModel {
         var itemMap = hashMapOf<InventoryItem, Int>()
         itemMap.put(item,1)
         User.addItemsToInventory(itemMap)
+        User.useCoins(item.price)
+        coins = User.userInfo.coins
         return true
     }
 
@@ -151,7 +155,7 @@ fun StoreScreen(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "${User.userInfo.coins}",
+                            text = "${viewModel.coins}",
                             color = Color.White,
                             fontWeight = FontWeight.Bold
                         )

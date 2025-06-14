@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -32,8 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import launcher.launcher.data.IntegrationId
-import launcher.launcher.data.quest.QuestInfoState
 import launcher.launcher.data.quest.QuestDatabaseProvider
+import launcher.launcher.data.quest.QuestInfoState
 import launcher.launcher.ui.screens.quest.setup.ReviewDialog
 import launcher.launcher.ui.screens.quest.setup.components.SetBaseQuest
 import launcher.launcher.utils.QuestHelper
@@ -41,7 +42,7 @@ import launcher.launcher.utils.QuestHelper
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
-fun SetSwiftMark(navController: NavHostController) {
+fun SetSwiftMark(editQuestId:String? = null,navController: NavHostController) {
 
     val questInfoState =
         remember { QuestInfoState(initialIntegrationId = IntegrationId.SWIFT_MARK,
@@ -53,6 +54,13 @@ fun SetSwiftMark(navController: NavHostController) {
     val context = LocalContext.current
     val isReviewDialogVisible = remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit){
+        if(editQuestId!=null){
+            val dao = QuestDatabaseProvider.getInstance(context).questDao()
+            val quest = dao.getQuest(editQuestId)
+            questInfoState.fromBaseQuest(quest!!)
+        }
+    }
 
     if (isReviewDialogVisible.value) {
         val baseQuest =
@@ -115,7 +123,7 @@ fun SetSwiftMark(navController: NavHostController) {
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Create Quest",
+                                text = if(editQuestId==null) "Create Quest" else "Save Changes",
                                 style = MaterialTheme.typography.labelLarge
                             )
                         }

@@ -129,8 +129,13 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             IntegrationId.entries.forEach{item ->
-                                composable(route=item.name) {
-                                    item.setupScreen.invoke(navController)
+                                composable(route=item.name + "/{id}",
+                                    arguments = listOf(navArgument("id") { type = NavType.StringType })) { backstack->
+                                    var id = backstack.arguments?.getString("id")
+                                    if(id=="ntg"){
+                                        id = null
+                                    }
+                                    item.setupScreen.invoke(id,navController)
                                 }
                             }
                         }
@@ -141,7 +146,7 @@ class MainActivity : ComponentActivity() {
                             val json = backStackEntry.arguments?.getString("baseQuestInfo")
                             val commonQuestInfo = json?.let { Json.decodeFromString<CommonQuestInfo>(it) }
 
-                            BaseQuestStatsView(commonQuestInfo!!)
+                            BaseQuestStatsView(commonQuestInfo!!,navController)
                         }
                     }
                 }

@@ -9,10 +9,13 @@ import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.first
 import launcher.launcher.R
 import launcher.launcher.data.game.User
+import launcher.launcher.data.game.UserInfo
+import launcher.launcher.data.game.saveUserInfo
 import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.utils.Supabase
@@ -24,12 +27,36 @@ class QuestSyncWorker(
 
     override suspend fun doWork(): Result {
         try {
+
             val dao = QuestDatabaseProvider.getInstance(applicationContext).questDao()
             val userId = Supabase.supabase.auth.currentUserOrNull()?.id ?: return Result.success()
+
 
             Log.d("QuestSyncManager", "Starting sync for $userId")
             showSyncNotification(applicationContext)
             sendSyncBroadcast(applicationContext, SyncStatus.ONGOING)
+
+            val profileRemote =  Supabase.supabase.from("profiles")
+                .select{
+                    filter {
+                        eq("id",userId) }
+                }
+                .decodeSingleOrNull<UserInfo>()
+
+            if(profileRemote!=null){
+                if(profileRemote.last_updated < User.userInfo.last_updated){
+                    Supabase.supabase.postgrest["profiles"].upsert(
+                        User.userInfo
+                    )
+                }else {
+                    User.userInfo = profileRemote
+                    User.saveUserInfo()
+                    Supabase.supabase.postgrest["profiles"].upsert(
+                        User.userInfo
+                    )
+
+                }
+            }
 
             val localQuests = dao.getAllQuests().first() // not just unsynced
             val remoteQuests = Supabase.supabase
@@ -74,9 +101,7 @@ class QuestSyncWorker(
 
                 if (local != null) dao.markAsSynced(id)
 
-                Supabase.supabase.postgrest["profiles"].upsert(
-                    User.userInfo
-                )
+
                 val manager =
                     applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 manager.cancel(1001)

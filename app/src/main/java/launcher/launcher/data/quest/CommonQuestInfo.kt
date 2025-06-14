@@ -18,10 +18,8 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import kotlinx.coroutines.flow.Flow
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
-import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 import launcher.launcher.data.DayOfWeek
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.utils.getCurrentDate
@@ -73,6 +71,7 @@ class QuestInfoState(
     initialAutoDestruct: String = "9999-12-31",
     initialTimeRange: List<Int> = listOf(0,24),
 ) {
+    var id = UUID.randomUUID().toString()
     var title by mutableStateOf(initialTitle)
     var reward by mutableIntStateOf(initialReward)
     var integrationId by mutableStateOf(initialIntegrationId)
@@ -81,6 +80,7 @@ class QuestInfoState(
     var initialAutoDestruct by mutableStateOf(initialAutoDestruct)
     var initialTimeRange by mutableStateOf(initialTimeRange)
     inline fun < reified T : Any> toBaseQuest(questInfo: T? = null) = CommonQuestInfo(
+        id = id,
         title = title,
         reward = reward,
         integration_id = integrationId,
@@ -90,6 +90,16 @@ class QuestInfoState(
         instructions = instructions,
         quest_json = if(questInfo!=null) json.encodeToString(questInfo) else ""
     )
+    fun fromBaseQuest(commonQuestInfo: CommonQuestInfo){
+        id = commonQuestInfo.id
+        title = commonQuestInfo.title
+        reward = commonQuestInfo.reward
+        integrationId = commonQuestInfo.integration_id
+        selectedDays = commonQuestInfo.selected_days
+        initialAutoDestruct = commonQuestInfo.auto_destruct
+        instructions = commonQuestInfo.instructions
+        initialTimeRange = commonQuestInfo.time_range
+    }
 }
 
 
