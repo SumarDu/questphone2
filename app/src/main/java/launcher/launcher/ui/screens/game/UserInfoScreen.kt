@@ -1,6 +1,7 @@
 package launcher.launcher.ui.screens.game
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,14 +13,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -32,17 +34,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import io.github.jan.supabase.auth.auth
 import launcher.launcher.R
+import launcher.launcher.R.drawable
 import launcher.launcher.data.game.InventoryItem
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.User.userInfo
@@ -51,8 +56,8 @@ import launcher.launcher.data.game.isBoosterActive
 import launcher.launcher.data.game.useInventoryItem
 import launcher.launcher.data.game.xpToLevelUp
 import launcher.launcher.utils.Supabase
+import launcher.launcher.utils.formatNumber
 import launcher.launcher.utils.formatRemainingTime
-import launcher.launcher.utils.getFullFormattedTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,234 +79,340 @@ fun UserInfoScreen() {
     }
 
     Scaffold { innerPadding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp)
                 .verticalScroll(rememberScrollState())
+                .padding(innerPadding)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
+            // Profile Header
+            Text(
+                text = "Profile",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 32.dp)
+            )
 
-
-            // Level and XP Section
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(4.dp)
+            // Avatar
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(RoundedCornerShape(12.dp))
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        "${userInfo.username}}",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        userInfo.full_name,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                Image(
+                    painter = rememberAsyncImagePainter(
 
-                    Image(
-                        painter = rememberAsyncImagePainter(
-
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(
-                                    if (userInfo.has_profile)
-                                        "https://hplszhlnchhfwngbojnc.supabase.co/storage/v1/object/public/profile/${Supabase.supabase.auth.currentUserOrNull()!!.id}/profile"
-                                    else R.drawable.baseline_person_24
-                                )
-                                .crossfade(true)
-                                .error(R.drawable.baseline_person_24)
-                                .placeholder(R.drawable.baseline_person_24)
-                                .build(),
-                        ),
-                        contentDescription = "Avatar",
-                        modifier = Modifier
-                            .size(96.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(
+                                if (userInfo.has_profile)
+                                    "https://hplszhlnchhfwngbojnc.supabase.co/storage/v1/object/public/profile/${Supabase.supabase.auth.currentUserOrNull()!!.id}/profile"
+                                else R.drawable.baseline_person_24
+                            )
+                            .crossfade(true)
+                            .error(R.drawable.baseline_person_24)
+                            .placeholder(R.drawable.baseline_person_24)
+                            .build(),
+                    ),
+                    contentDescription = "Avatar",
+                    Modifier.fillMaxSize()
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            // Level and XP Section
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(4.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        "🎚 Level ${userInfo.level}",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(40.dp)
-                            .padding(bottom = 32.dp)
-                            .align(Alignment.CenterHorizontally)
-                    ) {
-                        LinearProgressIndicator(
-                            progress = { xpProgress.coerceIn(0f, 1f) },
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
+            // Username
+            Text(
+                "@${userInfo.username}",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Text(
+                userInfo.full_name,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+
+
+            // Level Progress Bar
+            Column(
+                modifier = Modifier.width(250.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Level ${userInfo.level}",
+                        color = MaterialTheme.colorScheme.outline,
+                        fontSize = 12.sp
+                    )
                     Text(
                         "XP: ${userInfo.xp} / $totalXpForNextLevel",
-                        style = MaterialTheme.typography.bodyMedium
+                        color = MaterialTheme.colorScheme.outline,
+                        fontSize = 12.sp
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            // Stats Section
-            Text(
-                "📊 Stats",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(4.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "💰 Coins: ${userInfo.coins}",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "🔥 Current Streak: ${streakData.currentStreak} days",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "🔥 Longest Streak: ${streakData.longestStreak} days",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (userInfo.active_boosts.isNotEmpty()) {
-                Text(
-                    "🚀 Active Boosts",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Card(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    elevation = CardDefaults.cardElevation(4.dp)
+                        .height(12.dp)
+                        .align(Alignment.CenterHorizontally)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        userInfo.active_boosts.forEach {
-                            Text(it.key.simpleName + ": " + formatRemainingTime(it.value))
-                        }
-                    }
-                    }
+                    LinearProgressIndicator(
+                        progress = { xpProgress.coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Inventory Section
-            Text(
-                "🎁 Inventory",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            // Stats Box
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
-                elevation = CardDefaults.cardElevation(4.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(16.dp)) {
-                    if (userInfo.inventory.isEmpty()) {
-                        Text("Your inventory is empty.")
-                    } else {
-                        userInfo.inventory.forEach { (reward, count) ->
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.clickable{
-                                    selectedInventoryItem.value = reward
-                                }
-                            ) {
-                                Image(
-                                    painter = painterResource(reward.icon),
-                                    contentDescription = reward.simpleName,
-                                    modifier = Modifier.size(30.dp)
-                                )
-                                Spacer(Modifier.size(4.dp))
-                                Text(
-                                    " ${reward.simpleName} × $count",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.padding(vertical = 2.dp)
-
-                                )
-                            }
-
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Achievements Section
-            Text(
-                "🏆 Achievements",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (userInfo.achievements.isEmpty()) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(2.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("No achievements yet. Keep playing to earn rewards!")
-                    }
-                }
-            } else {
-                userInfo.achievements.forEach {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        elevation = CardDefaults.cardElevation(4.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                "🥇 ${it.name}",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                it.message,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
+                    StatItem(
+                        value = formatNumber( userInfo.coins),
+                        label = "coins"
+                    )
+
+                    StatItem(
+                        value = "${formatNumber( streakData.currentStreak)}d",
+                        label = "Streak"
+                    )
+
+                    StatItem(
+                        value = "${formatNumber( streakData.longestStreak)}d",
+                        label = "Top Streak"
+                    )
                 }
             }
 
-            // Add some bottom padding
-            Spacer(modifier = Modifier.height(24.dp))
+            if(userInfo.active_boosts.isNotEmpty()) {
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Active Boosts",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        userInfo.active_boosts.forEach { it ->
+                            ActiveBoostsItem(it.key, formatRemainingTime(it.value))
+                        }
+                    }
+
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Inventory Section
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Inventory",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    userInfo.inventory.forEach {it ->
+                        InventoryItemCard(it.key,it.value) { item ->
+                            selectedInventoryItem.value = item
+                        }
+
+                    }
+                }
+
+            }
+        }
+    }
+}
+
+
+
+@Composable
+fun StatItem(
+    value: String,
+    label: String
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.headlineLarge
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.outline,
+
+        )
+    }
+}
+
+@Composable
+fun InventoryItemCard(
+    item: InventoryItem,
+    quantity: Int,
+    onClick: (InventoryItem) -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick(item) }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Item preview/icon
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF2A2A2A)),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(item.icon),
+                    contentDescription = item.simpleName
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Item details
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = item.simpleName,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+
+                Text(
+                    text = item.description,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.outline,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Price or actions
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(drawable.baseline_inventory_24),
+                    contentDescription = "Coins",
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "$quantity",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ActiveBoostsItem(
+    item: InventoryItem,
+    remaining: String,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Item preview/icon
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF2A2A2A)),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(item.icon),
+                    contentDescription = item.simpleName
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Item details
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = item.simpleName,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(drawable.baseline_timer_24),
+                        contentDescription = "Remaining Time",
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = remaining,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
+            }
+
+
         }
     }
 }
@@ -348,10 +459,6 @@ fun InventoryItemInfoDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                if(User.isBoosterActive(InventoryItem.XP_BOOSTER)){
-                    Text("XP booster active until: "  + userInfo.active_boosts.getOrDefault(
-                        InventoryItem.XP_BOOSTER,getFullFormattedTime()))
-                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
@@ -359,7 +466,7 @@ fun InventoryItemInfoDialog(
                     TextButton(onClick = onDismissRequest) {
                         Text("Close")
                     }
-                    if(reward.isUsableFromInventory && !User.isBoosterActive(InventoryItem.XP_BOOSTER)){
+                    if(reward.isDirectlyUsableFromInventory && !User.isBoosterActive(InventoryItem.XP_BOOSTER)){
                         Button(onClick = {
                             reward.onUse()
                             User.useInventoryItem(InventoryItem.XP_BOOSTER)

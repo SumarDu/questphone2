@@ -60,7 +60,6 @@ fun SetIntegration(navController: NavHostController) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp)
-
             ) {
 
                 val currentDocLink = remember { mutableStateOf<String?>(null) }
