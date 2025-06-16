@@ -18,6 +18,7 @@ import launcher.launcher.ui.screens.account.LoginStep
 import launcher.launcher.ui.screens.account.SignUpScreen
 import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.isOnline
+import launcher.launcher.utils.triggerProfileSync
 import launcher.launcher.utils.triggerQuestSync
 import launcher.launcher.utils.triggerStatsSync
 
@@ -63,6 +64,7 @@ fun LoginOnboard(isNextEnabled: MutableState<Boolean>, navController: NavHostCon
                 if(context.isOnline()){
                     triggerQuestSync(context.applicationContext,true)
                     triggerStatsSync(context,true)
+                    triggerProfileSync(context)
                 }
             }
         }

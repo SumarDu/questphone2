@@ -74,7 +74,7 @@ class MainActivity : ComponentActivity() {
                     if(currentRoute != Screen.OnBoard){
 
                         PetDialog(
-                            petId = "fluffy",
+                            petId = "turtie",
                             isPetDialogVisible,
                             navController
                         )

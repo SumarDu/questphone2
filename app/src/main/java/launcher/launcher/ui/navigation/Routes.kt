@@ -6,7 +6,7 @@ package launcher.launcher.ui.navigation
  * @property route
  */
 sealed class Screen(val route: String) {
-    data object HomeScreen : Screen("quest_tracker/")
+    data object HomeScreen : Screen("home_screen/")
     data object AppList : Screen("app_list/")
     data object ViewQuest : Screen("view_quest/")
     data object AddNewQuest : Screen("add_quest/")

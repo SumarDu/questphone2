@@ -95,7 +95,6 @@ fun PetDialog(
         }
         return
     }
-
     // Holds the current logical step of the dialog
     var currentStep by remember { mutableStateOf<DialogStep?>(null) }
     // Holds the step whose UI (buttons, input) is currently displayed or animating out.
@@ -331,6 +330,7 @@ fun PetDialog(
             ?.map { it.key }
 
         Log.d("matching sequences", matchingKeys.toString())
+        Log.d("User Data", dialogState.userData.toString())
 
         if(matchingKeys?.isNotEmpty() == true) jumpToSequence(matchingKeys[0])
         // You can trigger other effects or UI changes here

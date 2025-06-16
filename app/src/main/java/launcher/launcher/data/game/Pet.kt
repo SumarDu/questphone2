@@ -82,7 +82,8 @@ data class DialogCondition(
 @Serializable
 data class PetDialogState(
     val userData: MutableMap<String, String> = mutableMapOf<String,String>(
-        Pair("user",User.userInfo.getFirstName())
+        Pair("user",User.userInfo.getFirstName()),
+        Pair("isTutorialOnGoing","true")
     ),
     var currentSequenceId: String = "",
     var currentStepIndex: Int = -1

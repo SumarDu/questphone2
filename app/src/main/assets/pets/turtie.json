@@ -27,13 +27,19 @@
         },
         {
           "emotion": "cheeky",
-          "message": "I’m hiding in my shell on the home screen. Come find me when you're ready 🐢✨"
+          "message": "I’m hiding in my shell on the home screen. Come find me when you're ready 🐢✨",
+          "choices": [
+            {"text": "Ohkay!", "storeValue": ["isOnboarded", "true"]}
+          ]
         }
       ],
       "eventType": "NAVIGATION",
-      "eventData": "onboard/"
+      "eventData": "onboard/",
+      "conditions":{
+        "isTutorialOnGoing": "true"
+      }
     },
-    "greeting": {
+    "greetings": {
       "steps": [
         {
           "emotion": "happy",
@@ -42,9 +48,15 @@
           "inputKey": "userReason"
         },
         {
-          "message": "Ahh... {userReason}, is it? Fascinating 🤔. Now tell me—would you like some advice or perhaps hear a story?",
+          "message": "Ahh... is it? Fascinating 🤔.?",
           "choices": [
-            {"text": "Some advice, please!", "nextStepId": "adviceSequence"},
+            {"text": "Continue","storeValue": ["isGreeted", "true"]}
+          ]
+        },
+        {
+          "message": "Now tell me—would you like some advice or perhaps hear a story?",
+          "choices": [
+            {"text": "Some advice, please!", "nextStepId": "adviceSequence" },
             {"text": "Tell me a story!", "nextStepId": "storySequence"},
             {"text": "Neither, thanks."}
           ]
@@ -54,10 +66,12 @@
         }
       ],
       "eventType": "NAVIGATION",
-      "eventData": "quest_tracker/",
+      "eventData": "home_screen/",
       "nextSequence": "askForTutorial",
       "conditions": {
-        "isTutorialOnGoing": "true"
+        "isOnboarded" : "true",
+        "isGreeted" : "false",
+        "isTutorialOnGoing" : "true"
       }
     },
     "askForTutorial": {
@@ -66,7 +80,7 @@
           "message": "Would you like me to show you around a bit?",
           "choices": [
             {"text": "Yea sure", "storeValue": ["isTutorialOnGoing", "true"], "nextStepId":"openListQuests"},
-            {"text": "Nah, I'm fine"}
+            {"text": "Nah, I'm fine","storeValue": ["isTutorialOnGoing", "false"]}
           ]
         }
       ]
@@ -179,31 +193,14 @@
         }
       ],
       "eventType": "NAVIGATION",
-      "eventData": "quest_tracker/",
+      "eventData": "home_screen/",
       "conditions": {
         "isTutorialOnGoing": "true",
         "openProfileTutorialShown": "false",
         "setQuestIntegrationTutorialShown": "true"
       }
     },
-    "openStatsTutorial": {
-      "steps": [
-        {
-          "message": "Tap the little arc-y icon at the top to see your overall stats. It's like a bird’s-eye view of your journey! 📈",
-          "choices": [
-            {"text": "Ok I'll try!", "storeValue": ["openStatsTutorialShown", "true"]}
-          ]
-        }
-      ],
-      "eventType": "NAVIGATION",
-      "eventData": "quest_tracker/",
-      "conditions": {
-        "isTutorialOnGoing": "true",
-        "openStatsTutorialShown": "false",
-        "setQuestIntegrationTutorialShown": "true",
-        "openProfileTutorialShown": "true"
-      }
-    },
+
     "userInfo": {
       "steps": [
         {
@@ -211,7 +208,7 @@
           "choices": [
             {
               "text": "Understood sur!",
-              "storeValue": ["userInfoTutorialShown", "true"]
+              "storeValue": ["isTutorialOnGoing", "false"]
             }
           ]
         }
