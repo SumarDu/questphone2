@@ -2,6 +2,7 @@ package launcher.launcher.utils
 
 import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.isoDayNumber
@@ -199,4 +200,24 @@ fun LocalDate.getStartOfWeek(): LocalDate {
     // ISO 8601 week starts on Monday
     val dayOfWeek = this.dayOfWeek.isoDayNumber // Monday = 1, Sunday = 7
     return this.minus(dayOfWeek - 1, DateTimeUnit.DAY)
+}
+
+fun calculateMonthsPassedAndRoundedStart(input: Instant): LocalDate?{
+    val now = Clock.System.now()
+
+    // Convert both to LocalDate in UTC
+    val today = now.toLocalDateTime(TimeZone.UTC).date
+    val startDate = input.toLocalDateTime(TimeZone.UTC).date
+
+    // Calculate how many months have passed
+    val monthsPassed = ((today.year - startDate.year) * 12) + (today.monthNumber - startDate.monthNumber)
+
+    // If more than 12 months, return rounded start date (next Jan 1)
+    val roundedStart = if (monthsPassed > 12) {
+        LocalDate(startDate.year + 1, 1, 1)
+    } else {
+        null // No need to round
+    }
+
+    return roundedStart
 }

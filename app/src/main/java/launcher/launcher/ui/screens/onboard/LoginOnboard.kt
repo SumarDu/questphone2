@@ -7,26 +7,19 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.edit
 import androidx.navigation.NavHostController
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
-import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.account.ForgotPasswordScreen
 import launcher.launcher.ui.screens.account.LoginScreen
 import launcher.launcher.ui.screens.account.LoginStep
-import launcher.launcher.ui.screens.account.SetupProfileScreen
 import launcher.launcher.ui.screens.account.SignUpScreen
 import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.isOnline
-import launcher.launcher.utils.triggerSync
-import kotlin.math.log
+import launcher.launcher.utils.triggerQuestSync
+import launcher.launcher.utils.triggerStatsSync
 
 @Composable
 fun LoginOnboard(isNextEnabled: MutableState<Boolean>, navController: NavHostController){
@@ -68,7 +61,8 @@ fun LoginOnboard(isNextEnabled: MutableState<Boolean>, navController: NavHostCon
         LoginStep.LOGIN -> {
             LoginScreen(loginStep) {
                 if(context.isOnline()){
-                    triggerSync(context.applicationContext)
+                    triggerQuestSync(context.applicationContext,true)
+                    triggerStatsSync(context,true)
                 }
             }
         }

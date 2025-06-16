@@ -22,6 +22,7 @@ import kotlinx.serialization.json.Json
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
+import launcher.launcher.data.quest.stats.StatsDatabaseProvider
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
 import launcher.launcher.ui.screens.game.StoreScreen
@@ -38,7 +39,7 @@ import launcher.launcher.ui.screens.quest.stats.specific.BaseQuestStatsView
 import launcher.launcher.ui.theme.LauncherTheme
 import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.isOnline
-import launcher.launcher.utils.triggerSync
+import launcher.launcher.utils.triggerQuestSync
 
 
 class MainActivity : ComponentActivity() {
@@ -62,9 +63,11 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     val currentRoute = navController.currentBackStackEntryAsState()
 
-                    val dao = QuestDatabaseProvider.getInstance(applicationContext).questDao()
+                    val questDao = QuestDatabaseProvider.getInstance(applicationContext).questDao()
+                    val statsDao = StatsDatabaseProvider.getInstance(applicationContext).statsDao()
 
-                    val unSyncedItems = remember { dao.getUnSyncedQuests() }
+                    val unSyncedQuestItems = remember { questDao.getUnSyncedQuests() }
+                    val unSyncedStatsItems = remember { statsDao.getAllUnSyncedStats() }
                     val context = LocalContext.current
 
                     RewardDialogMaker()
@@ -77,9 +80,14 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     LaunchedEffect(Unit) {
-                        unSyncedItems.collect {
+                        unSyncedQuestItems.collect {
                             if(context.isOnline()){
-                                triggerSync(applicationContext)
+                                triggerQuestSync(applicationContext)
+                            }
+                        }
+                        unSyncedStatsItems.collect {
+                            if(context.isOnline()){
+                                triggerQuestSync(applicationContext)
                             }
                         }
                     }

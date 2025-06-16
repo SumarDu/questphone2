@@ -2,11 +2,15 @@ package launcher.launcher.data.game
 
 import android.content.Context
 import androidx.core.content.edit
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import launcher.launcher.data.game.User.lastRewards
 import launcher.launcher.data.game.User.lastXpEarned
 import launcher.launcher.utils.isTimeOver
 import launcher.launcher.utils.json
+import launcher.launcher.utils.triggerProfileSync
 
 
 /**
@@ -26,6 +30,9 @@ data class UserInfo(
     val achievements: List<Achievements> = listOf(Achievements.THE_DISCIPLINED,Achievements.MONTH_STREAK),
     var active_boosts: HashMap<InventoryItem,String> = hashMapOf(),
     var last_updated: Long = System.currentTimeMillis(),
+    var created_on: Instant = Clock.System.now(),
+    @Transient
+    var needsSync: Boolean = true
 ){
     fun getFirstName(): String {
         return full_name.trim().split(" ").firstOrNull() ?: ""
@@ -115,6 +122,8 @@ fun User.saveUserInfo(isSetLastUpdated: Boolean = true){
     val sharedPreferences = appContext.getSharedPreferences("user_info", Context.MODE_PRIVATE)
     if(isSetLastUpdated){
         userInfo.last_updated = System.currentTimeMillis()
+        userInfo.needsSync = true
+        triggerProfileSync(appContext)
     }
     sharedPreferences.edit { putString("user_info", json.encodeToString(userInfo)) }
 }

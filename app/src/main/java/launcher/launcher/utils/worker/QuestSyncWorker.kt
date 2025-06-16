@@ -9,16 +9,12 @@ import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.first
 import launcher.launcher.R
-import launcher.launcher.data.game.User
-import launcher.launcher.data.game.UserInfo
-import launcher.launcher.data.game.saveUserInfo
+import launcher.launcher.data.SyncStatus
 import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
-import launcher.launcher.data.quest.stats.StatsDatabaseProvider
 import launcher.launcher.utils.Supabase
 
 class QuestSyncWorker(
@@ -31,99 +27,89 @@ class QuestSyncWorker(
 
             val dao = QuestDatabaseProvider.getInstance(applicationContext).questDao()
             val userId = Supabase.supabase.auth.currentUserOrNull()?.id ?: return Result.success()
-
+            val isFirstTimeSync = inputData.getBoolean("is_first_time",false)
 
             Log.d("QuestSyncManager", "Starting sync for $userId")
             showSyncNotification(applicationContext)
             sendSyncBroadcast(applicationContext, SyncStatus.ONGOING)
 
-            val profileRemote =  Supabase.supabase.from("profiles")
-                .select{
-                    filter {
-                        eq("id",userId) }
-                }
-                .decodeSingleOrNull<UserInfo>()
+            if(isFirstTimeSync){
+                val remoteQuests = Supabase.supabase
+                    .postgrest["quests"]
+                    .select()
+                    {
+                        filter {
+                            eq("user_id",userId)
+                        }
+                    }
+                    .decodeList<CommonQuestInfo>()
 
-            if(profileRemote!=null){
-                if(profileRemote.last_updated < User.userInfo.last_updated){
-                    Supabase.supabase.postgrest["profiles"].upsert(
-                        User.userInfo
-                    )
-                }else {
-                    User.userInfo = profileRemote
-                    User.saveUserInfo()
-                    Supabase.supabase.postgrest["profiles"].upsert(
-                        User.userInfo
-                    )
-
+                remoteQuests.forEach {
+                    dao.upsertQuest(it.copy(synced = true))
                 }
+                return Result.success()
             }
 
-
-            val statsDao = StatsDatabaseProvider.getInstance(applicationContext).statsDao()
-            val unSyncedStats = statsDao.getAllUnSyncedStats().first()
-            unSyncedStats.forEach {
-                Supabase.supabase.postgrest["quest_stats"].upsert(
-                    it
-                )
+            val unSyncedQuests = dao.getUnSyncedQuests().first()
+            unSyncedQuests.forEach {
+                Supabase.supabase.postgrest["quests"].upsert(it)
                 dao.markAsSynced(it.id)
             }
 
-            val localQuests = dao.getAllQuests().first() // not just unsynced
-            val remoteQuests = Supabase.supabase
-                .postgrest["quests"]
-                .select()
-                {
-                    filter {
-                        eq("user_id",userId)
-                }
-                }
-                .decodeList<CommonQuestInfo>()
+//
+//            val localQuests = dao.getAllQuests().first() // not just unsynced
+//            val remoteQuests = Supabase.supabase
+//                .postgrest["quests"]
+//                .select()
+//                {
+//                    filter {
+//                        eq("user_id",userId)
+//                }
+//                }
+//                .decodeList<CommonQuestInfo>()
+//
+//            val localMap = localQuests.associateBy { it.id }
+//            val remoteMap = remoteQuests.associateBy { it.id }
+//
+//            // Merge both directions
+//            val allIds = (localMap.keys + remoteMap.keys)
+//
+//            for (id in allIds) {
+//                val local = localMap[id]
+//                val remote = remoteMap[id]
+//
+//                when {
+//                    local != null && remote == null -> {
+//                        // New local quest not on server yet
+//                        Supabase.supabase.postgrest["quests"].upsert(local)
+//                    }
+//
+//                    local == null && remote != null -> {
+//                        // Remote quest not in local DB
+//                        dao.upsertQuest(remote)
+//                    }
+//
+//                    local != null && remote != null -> {
+//                        // Compare timestamps
+//                        when {
+//                            local.last_updated > remote.last_updated -> {
+//                                Supabase.supabase.postgrest["quests"].upsert(local)
+//                            }
+//
+//                            remote.last_updated > local.last_updated -> {
+//                                dao.upsertQuest(remote)
+//                            }
+//                        }
+//                    }
+//                }
+//
+//                if (local != null) dao.markAsSynced(id)
+//            }
 
-            val localMap = localQuests.associateBy { it.id }
-            val remoteMap = remoteQuests.associateBy { it.id }
 
-            // Merge both directions
-            val allIds = (localMap.keys + remoteMap.keys)
-
-            for (id in allIds) {
-                val local = localMap[id]
-                val remote = remoteMap[id]
-
-                when {
-                    local != null && remote == null -> {
-                        // New local quest not on server yet
-                        Supabase.supabase.postgrest["quests"].upsert(local)
-                    }
-
-                    local == null && remote != null -> {
-                        // Remote quest not in local DB
-                        dao.upsertQuest(remote)
-                    }
-
-                    local != null && remote != null -> {
-                        // Compare timestamps
-                        when {
-                            local.last_updated > remote.last_updated -> {
-                                Supabase.supabase.postgrest["quests"].upsert(local)
-                            }
-
-                            remote.last_updated > local.last_updated -> {
-                                dao.upsertQuest(remote)
-                            }
-                        }
-                    }
-                }
-
-                if (local != null) dao.markAsSynced(id)
-
-
-                val manager =
-                    applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                manager.cancel(1001)
-
-            }
-
+        val manager =
+            applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancel(1001)
             return Result.success()
         }catch (e: Exception){
             Log.e("SyncError",e.stackTraceToString())
@@ -131,10 +117,7 @@ class QuestSyncWorker(
         }
     }
 }
-enum class SyncStatus{
-    ONGOING,
-    OVER
-}
+
 private fun sendSyncBroadcast(context: Context,msg:SyncStatus) {
     val intent = Intent("launcher.launcher.quest_sync")
     intent.putExtra("status", msg.ordinal)
@@ -161,6 +144,6 @@ private fun showSyncNotification(context: Context) {
         .setOngoing(true)
         .build()
 
-    manager.notify(1001, notification)
+    manager.notify(1043, notification)
 }
 

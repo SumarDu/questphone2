@@ -7,7 +7,8 @@ import launcher.launcher.data.game.Pet
 import launcher.launcher.data.game.User
 import launcher.launcher.utils.VibrationHelper
 import launcher.launcher.utils.isOnline
-import launcher.launcher.utils.triggerSync
+import launcher.launcher.utils.triggerQuestSync
+import launcher.launcher.utils.triggerStatsSync
 
 class MyApp : Application() {
 
@@ -26,13 +27,14 @@ class MyApp : Application() {
             override fun onAvailable(network: Network) {
                 super.onAvailable(network)
                 // Trigger sync when network becomes available
-                triggerSync(applicationContext)
+                triggerQuestSync(applicationContext)
+                triggerStatsSync(applicationContext)
             }
         }
 
         connectivityManager.registerDefaultNetworkCallback(networkCallback)
         if (isOnline()) {
-            triggerSync(applicationContext)
+            triggerQuestSync(applicationContext)
         }
     }
 }

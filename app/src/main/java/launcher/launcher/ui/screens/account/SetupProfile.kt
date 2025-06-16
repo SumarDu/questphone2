@@ -3,24 +3,43 @@ package launcher.launcher.ui.screens.account
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import android.webkit.MimeTypeMap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -65,28 +84,31 @@ fun SetupProfileScreen() {
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        if(uri!=null){
+        if (uri != null) {
             profileUri = uri
             profileUrl = null
         }
     }
     val context = LocalContext.current
 
+
     LaunchedEffect(Unit) {
         val userId = Supabase.supabase.auth.currentUserOrNull()!!.id
 
         val profile = Supabase.supabase.from("profiles")
-            .select{
+            .select {
                 filter {
-                    eq("id",userId) }
+                    eq("id", userId)
+                }
             }
             .decodeSingleOrNull<UserInfo>()
-        if(profile!=null){
+        if (profile != null) {
             User.userInfo = profile
-            if(profile.has_profile){
-                profileUrl = "https://hplszhlnchhfwngbojnc.supabase.co/storage/v1/object/public/profile/$userId/profile"
+            if (profile.has_profile) {
+                profileUrl =
+                    "https://hplszhlnchhfwngbojnc.supabase.co/storage/v1/object/public/profile/$userId/profile"
             }
-        }else{
+        } else {
             User.userInfo.username = squashUserIdToUsername(userId)
             Supabase.supabase.postgrest["profiles"].upsert(
                 User.userInfo
@@ -95,6 +117,7 @@ fun SetupProfileScreen() {
         User.saveUserInfo()
         name = User.userInfo.full_name
         username = User.userInfo.username
+        isLoading = false
     }
 
     Box(
@@ -110,6 +133,18 @@ fun SetupProfileScreen() {
             verticalArrangement = Arrangement.Center
         ) {
 
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f)), // dim background
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        strokeWidth = 4.dp
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(32.dp))
 
 
@@ -118,9 +153,9 @@ fun SetupProfileScreen() {
 
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(
-                            if(profileUrl!=null)
+                            if (profileUrl != null)
                                 profileUrl
-                            else if (profileUri!=null) profileUri
+                            else if (profileUri != null) profileUri
                             else R.drawable.baseline_person_24
                         )
                         .crossfade(true)
@@ -138,7 +173,7 @@ fun SetupProfileScreen() {
                     .clickable {
                         launcher.launch("image/*")
                     },
-                colorFilter = if (profileUri == null&&profileUrl==null)
+                colorFilter = if (profileUri == null && profileUrl == null)
                     ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
                 else
                     null,
@@ -191,12 +226,12 @@ fun SetupProfileScreen() {
                         isLoading = true
                         coroutineScope.launch {
                             val userId = Supabase.supabase.auth.currentUserOrNull()!!.id
-                            if (isUsernameTaken(username,userId)) {
+                            if (isUsernameTaken(username, userId)) {
                                 errorMessage = "This username has already been taken"
                                 isLoading = false
                                 return@launch
                             }
-                            val avatarUrlResult: FileUploadResponse? = if (profileUri!=null){
+                            val avatarUrlResult: FileUploadResponse? = if (profileUri != null) {
                                 val avatarBytes = getBytesFromUri(context, profileUri!!)
                                 if (avatarBytes == null) {
                                     errorMessage = "Failed to read image"
@@ -210,11 +245,14 @@ fun SetupProfileScreen() {
                                     return@launch
                                 }
 
-                                 Supabase.supabase.storage
+                                Supabase.supabase.storage
                                     .from("profile")
-                                    .upload(path = "$userId/profile", data = avatarBytes, options = {
-                                        upsert = true
-                                    })
+                                    .upload(
+                                        path = "$userId/profile",
+                                        data = avatarBytes,
+                                        options = {
+                                            upsert = true
+                                        })
                             } else {
                                 null
                             }
@@ -222,11 +260,11 @@ fun SetupProfileScreen() {
                             User.userInfo = UserInfo(
                                 username = username,
                                 full_name = name,
-                                has_profile = profileUri!=null || profileUrl!= null
+                                has_profile = profileUri != null || profileUrl != null
                             )
                             User.saveUserInfo()
 
-                            Log.d("SetupProfile",User.userInfo.toString())
+                            Log.d("SetupProfile", User.userInfo.toString())
                             Supabase.supabase.postgrest["profiles"].upsert(
                                 User.userInfo
                             )
