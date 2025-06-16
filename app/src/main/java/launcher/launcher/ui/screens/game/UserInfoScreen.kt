@@ -29,6 +29,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -46,6 +48,8 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.flow.first
 import launcher.launcher.R
 import launcher.launcher.R.drawable
 import launcher.launcher.data.game.InventoryItem
@@ -55,6 +59,9 @@ import launcher.launcher.data.game.getStreakInfo
 import launcher.launcher.data.game.isBoosterActive
 import launcher.launcher.data.game.useInventoryItem
 import launcher.launcher.data.game.xpToLevelUp
+import launcher.launcher.data.quest.stats.StatsDatabaseProvider
+import launcher.launcher.data.quest.stats.StatsInfo
+import launcher.launcher.ui.screens.quest.stats.components.HeatMapChart
 import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.formatNumber
 import launcher.launcher.utils.formatRemainingTime
@@ -71,6 +78,32 @@ fun UserInfoScreen() {
             (totalXpForNextLevel - totalXpForCurrentLevel)
 
     val selectedInventoryItem = remember { mutableStateOf<InventoryItem?>(null) }
+
+    val successfulDates = remember { mutableStateMapOf<kotlinx.datetime.LocalDate, List<String>>() }
+
+    LaunchedEffect (Unit) {
+        val userId = Supabase.supabase.auth.currentUserOrNull()!!.id
+
+        var stats = Supabase.supabase
+            .postgrest["quest_stats"]
+            .select {
+                filter {
+                    eq("user_id",userId)
+                }
+            }
+            .decodeList<StatsInfo>()
+
+        val dao = StatsDatabaseProvider.getInstance(context).statsDao()
+
+        stats = stats.toMutableList()
+        stats.addAll(dao.getAllUnSyncedStats().first())
+
+        stats.forEach {
+            val prevList = (successfulDates[it.date]?: emptyList()).toMutableList()
+            prevList.add(it.quest_id)
+            successfulDates[it.date] = prevList
+        }
+    }
 
     if(selectedInventoryItem.value!=null){
         InventoryItemInfoDialog(selectedInventoryItem.value!!, onDismissRequest = {
@@ -201,6 +234,15 @@ fun UserInfoScreen() {
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            HeatMapChart(
+                questMap = successfulDates,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            )
 
             if(userInfo.active_boosts.isNotEmpty()) {
 

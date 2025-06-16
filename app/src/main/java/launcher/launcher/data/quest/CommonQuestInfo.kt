@@ -137,6 +137,10 @@ interface QuestDao {
     @Query("SELECT * FROM CommonQuestInfo WHERE title = :title")
     suspend fun getQuest(title: String): CommonQuestInfo?
 
+
+    @Query("SELECT * FROM CommonQuestInfo WHERE id = :id")
+    suspend fun getQuestById(id: String): CommonQuestInfo?
+
     @Query("SELECT * FROM CommonQuestInfo")
     fun getAllQuests(): Flow<List<CommonQuestInfo>>
 

@@ -34,7 +34,6 @@ import launcher.launcher.ui.screens.quest.ListAllQuests
 import launcher.launcher.ui.screens.quest.RewardDialogMaker
 import launcher.launcher.ui.screens.quest.ViewQuest
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
-import launcher.launcher.ui.screens.quest.stats.OverallStatsView
 import launcher.launcher.ui.screens.quest.stats.specific.BaseQuestStatsView
 import launcher.launcher.ui.theme.LauncherTheme
 import launcher.launcher.utils.Supabase
@@ -138,9 +137,6 @@ class MainActivity : ComponentActivity() {
                                     item.setupScreen.invoke(id,navController)
                                 }
                             }
-                        }
-                        composable(Screen.OverallStats.route) {
-                            OverallStatsView()
                         }
                         composable("${Screen.QuestStats.route}{baseQuestInfo}") { backStackEntry ->
                             val json = backStackEntry.arguments?.getString("baseQuestInfo")

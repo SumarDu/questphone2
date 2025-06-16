@@ -209,16 +209,6 @@ fun HomeScreen(navController: NavController) {
                 }
             )
 
-            Icon(
-                painter = painterResource(id = R.drawable.outline_progress_activity_24),
-                contentDescription = "user info and stats",
-                modifier = Modifier
-                    .padding(8.dp)
-                    .size(30.dp)
-                    .clickable {
-                        navController.navigate(Screen.OverallStats.route)
-                    }
-            )
             // Profile icon on the right
             Icon(
                 imageVector = Icons.Default.Person,

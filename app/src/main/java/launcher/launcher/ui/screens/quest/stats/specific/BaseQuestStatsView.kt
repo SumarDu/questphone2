@@ -77,7 +77,6 @@ import launcher.launcher.data.game.getInventoryItemCount
 import launcher.launcher.data.game.useInventoryItem
 import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
-import launcher.launcher.data.quest.QuestStats
 import launcher.launcher.data.quest.stats.StatsDatabaseProvider
 import launcher.launcher.data.quest.stats.StatsInfo
 import launcher.launcher.utils.Supabase
@@ -88,10 +87,7 @@ import launcher.launcher.utils.toJavaDayOfWeek
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import java.time.temporal.ChronoUnit
-import java.time.temporal.WeekFields
 import java.util.Locale
 
 @Composable
@@ -144,7 +140,6 @@ fun BaseQuestStatsView(baseData: CommonQuestInfo, navController: NavHostControll
 
     var showCalendarDialog by remember { mutableStateOf(false) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
-    var selectedDateStats by remember { mutableStateOf<QuestStats?>(null) }
 
     val currentYearMonth = remember { mutableStateOf(YearMonth.now()) }
 
@@ -883,97 +878,6 @@ fun UseItemDialog(item: InventoryItem,isDialogVisible: MutableState<Boolean>,onU
         }
     }
 }
-
-fun calculateCurrentQuestStreak(questStats: Map<String, QuestStats>): Int {
-    if (questStats.isEmpty()) return 0
-
-    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-    val sortedStats = questStats.mapKeys { LocalDate.parse(it.key, formatter) }
-        .toSortedMap(reverseOrder()) // Go from latest to earliest
-
-    var streak = 0
-    var expectedDate: LocalDate? = null
-
-    for ((date, stats) in sortedStats) {
-        if (!stats.isSuccessful) break
-
-        if (expectedDate == null) {
-            // Start from the latest date
-            expectedDate = date
-            streak++
-        } else {
-            val expectedPrev = expectedDate.minusDays(1)
-            if (date == expectedPrev) {
-                streak++
-                expectedDate = date
-            } else {
-                break // missed a day
-            }
-        }
-    }
-
-    return streak
-}
-
-fun calculateLongestQuestStreak(questStats: Map<String, QuestStats>): Int {
-    if (questStats.isEmpty()) return 0
-
-    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-    val sortedStats = questStats.mapKeys { LocalDate.parse(it.key, formatter) }
-        .toSortedMap()
-
-    var longestStreak = 0
-    var currentStreak = 0
-    var prevDate: LocalDate? = null
-
-    for ((date, stats) in sortedStats) {
-        if (!stats.isSuccessful) {
-            currentStreak = 0
-            prevDate = null
-            continue
-        }
-
-        if (prevDate == null) {
-            currentStreak = 1
-        } else {
-            val daysBetween = ChronoUnit.DAYS.between(prevDate, date)
-            currentStreak = if (daysBetween == 1L) {
-                currentStreak + 1
-            } else {
-                1 // streak broken, start new
-            }
-        }
-
-        longestStreak = maxOf(longestStreak, currentStreak)
-        prevDate = date
-    }
-
-    return longestStreak
-}
-fun calculateWeeklyAverageSuccess(questStats: Map<String, QuestStats>): Double {
-    if (questStats.isEmpty()) return 0.0
-
-    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-    val weekMap = mutableMapOf<Pair<Int, Int>, MutableList<QuestStats>>() // Pair<Year, Week>
-
-    for ((dateStr, stats) in questStats) {
-        val date = LocalDate.parse(dateStr, formatter)
-        val weekFields = WeekFields.of(Locale.getDefault())
-        val weekOfYear = date.get(weekFields.weekOfWeekBasedYear())
-        val year = date.get(weekFields.weekBasedYear())
-
-        val key = year to weekOfYear
-        weekMap.getOrPut(key) { mutableListOf() }.add(stats)
-    }
-
-    val weeklySuccessCounts = weekMap.values.map { week ->
-        week.count { it.isSuccessful }
-    }
-
-    return if (weeklySuccessCounts.isEmpty()) 0.0
-    else weeklySuccessCounts.average()
-}
-
 
 fun calculateCurrentStreak(
     completed: Collection<StatsInfo>,

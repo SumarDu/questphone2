@@ -14,24 +14,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.toLowerCase
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
@@ -41,6 +42,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.todayIn
+import launcher.launcher.data.quest.QuestDatabaseProvider
 
 // --- Data class to hold daily quest information ---
 data class DailyQuestInfo(
@@ -70,16 +72,20 @@ fun HeatMapChart(
 
     // Determine the date range and pad with empty days
     val dateRange = remember(questMap) {
-        val minDate = questMap.keys.minOrNull() ?: Clock.System.todayIn(currentSystemTimeZone)
-        val maxDate = questMap.keys.maxOrNull() ?: Clock.System.todayIn(currentSystemTimeZone)
+        val today = Clock.System.todayIn(currentSystemTimeZone)
 
-        // Start from the beginning of the week (Monday) containing the first contribution
+        // The start date is still calculated from the first data point or today.
+        val minDate = questMap.keys.minOrNull() ?: today
         val daysFromMondayStart = minDate.dayOfWeek.value - DayOfWeek.MONDAY.value
         val startDate = minDate.minus(daysFromMondayStart, DateTimeUnit.DAY)
 
-        // End at the end of the week (Sunday) containing the last contribution
-        val daysToSundayEnd = DayOfWeek.SUNDAY.value - maxDate.dayOfWeek.value
-        val endDate = maxDate.plus(daysToSundayEnd, DateTimeUnit.DAY)
+        // The end date is now forced to extend to the start of the next year.
+        val nextYear = today.year + 1
+        val endOfYearTarget = LocalDate(nextYear, Month.JANUARY, 1)
+
+        // We still pad the final week to the following Sunday for a complete grid.
+        val daysToSundayEnd = DayOfWeek.SUNDAY.value - endOfYearTarget.dayOfWeek.value
+        val endDate = endOfYearTarget.plus(daysToSundayEnd, DateTimeUnit.DAY)
 
         startDate to endDate
     }
@@ -116,7 +122,7 @@ fun HeatMapChart(
     }
 
     val horizontalScrollState = rememberScrollState()
-    var selectedDayInfo by remember { mutableStateOf<DailyQuestInfo?>(null) }
+    var selectedDayInfo = remember { mutableStateOf<DailyQuestInfo?>(null) }
 
     Column(modifier = modifier) {
         Row(
@@ -131,28 +137,16 @@ fun HeatMapChart(
                 Spacer(modifier = Modifier.height(4.dp))
                 ContributionGrid(
                     weeksData = weeksData,
-                    onCellClick = { selectedDayInfo = it }
+                    onCellClick = { selectedDayInfo.value = it }
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        QuestTooltip(
+            dailyInfo = selectedDayInfo
+        )
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            selectedDayInfo?.let { dayInfo ->
-                // Show tooltip only for non-placeholder days
-                if (!dayInfo.isPlaceholder) {
-                    QuestTooltip(dailyInfo = dayInfo)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         ContributionLegend(modifier = Modifier.padding(horizontal = 16.dp))
     }
@@ -252,6 +246,7 @@ private fun ContributionGrid(
                     ContributionCell(day = dayData, onClick = onCellClick)
                 }
             }
+
         }
     }
 }
@@ -333,61 +328,71 @@ fun ContributionLegend(modifier: Modifier = Modifier) {
 
 
 @Composable
-fun QuestTooltip(dailyInfo: DailyQuestInfo) {
-    Card(
-        modifier = Modifier.padding(8.dp),
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            // Format date string manually
-            val dayName =
-                dailyInfo.date.dayOfWeek.name.toLowerCase(Locale.current)
-                    .replaceFirstChar { it.titlecase() }
-            val monthName =
-                dailyInfo.date.month.name.toLowerCase(Locale.current)
-                    .replaceFirstChar { it.titlecase() }
-            val dateText =
-                "$dayName, $monthName ${dailyInfo.date.dayOfMonth}, ${dailyInfo.date.year}"
+fun QuestTooltip(dailyInfo: MutableState<DailyQuestInfo?>) {
+    val context = LocalContext.current
+    val questList = remember { mutableStateListOf<String>()}
 
-            val questCount = dailyInfo.quests.size
-
-            Text(
-                text = dateText,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-
-            val questText = if (questCount == 0) {
-                "No quests attempted."
-            } else {
-                "$questCount ${if (questCount == 1) "Quest" else "Quests"} Attempted"
+    LaunchedEffect(dailyInfo.value) {
+        if(dailyInfo.value!=null){
+            val dao = QuestDatabaseProvider.getInstance(context).questDao()
+            dailyInfo.value!!.quests.forEach {
+                questList.add(dao.getQuestById(it)?.title ?: it)
             }
+        }
+    }
 
-            Text(
-                text = questText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+    if (dailyInfo.value != null) {
 
-            // Optionally, list the quests if there are any
-            if (dailyInfo.quests.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                dailyInfo.quests.forEach { questName ->
+        Dialog(onDismissRequest = {
+            dailyInfo.value = null
+        }) {
+            Card(
+                modifier = Modifier.padding(8.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Format date string manually
+                    val dayName =
+                        dailyInfo.value!!.date.dayOfWeek.name.toLowerCase(Locale.current)
+                            .replaceFirstChar { it.titlecase() }
+                    val monthName =
+                        dailyInfo.value!!.date.month.name.toLowerCase(Locale.current)
+                            .replaceFirstChar { it.titlecase() }
+                    val dateText =
+                        "$dayName, $monthName ${dailyInfo.value!!.date.dayOfMonth}, ${dailyInfo.value!!.date.year}"
+
+                    val questCount = dailyInfo.value!!.quests.size
+
                     Text(
-                        text = "• $questName", // Bullet point for each quest
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                        text = dateText,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
                     )
+
+                    val questText = if (questCount == 0) {
+                        "No quests attempted."
+                    } else {
+                        "$questCount ${if (questCount == 1) "Quest" else "Quests"} Attempted"
+                    }
+
+                    Text(
+                        text = questText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    questList.forEach { questName ->
+                        Text(
+                            text = "• $questName",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                    }
                 }
             }
         }
+
     }
 }
