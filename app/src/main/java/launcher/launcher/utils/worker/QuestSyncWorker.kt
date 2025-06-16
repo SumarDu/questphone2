@@ -18,6 +18,7 @@ import launcher.launcher.data.game.UserInfo
 import launcher.launcher.data.game.saveUserInfo
 import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
+import launcher.launcher.data.quest.stats.StatsDatabaseProvider
 import launcher.launcher.utils.Supabase
 
 class QuestSyncWorker(
@@ -58,10 +59,25 @@ class QuestSyncWorker(
                 }
             }
 
+
+            val statsDao = StatsDatabaseProvider.getInstance(applicationContext).statsDao()
+            val unSyncedStats = statsDao.getAllUnSyncedStats().first()
+            unSyncedStats.forEach {
+                Supabase.supabase.postgrest["quest_stats"].upsert(
+                    it
+                )
+                dao.markAsSynced(it.id)
+            }
+
             val localQuests = dao.getAllQuests().first() // not just unsynced
             val remoteQuests = Supabase.supabase
                 .postgrest["quests"]
                 .select()
+                {
+                    filter {
+                        eq("user_id",userId)
+                }
+                }
                 .decodeList<CommonQuestInfo>()
 
             val localMap = localQuests.associateBy { it.id }

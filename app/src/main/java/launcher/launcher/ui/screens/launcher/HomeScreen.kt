@@ -83,12 +83,7 @@ fun HomeScreen(navController: NavController) {
 
     BackHandler {  }
 
-    LaunchedEffect(questListUnfiltered) {
-        val todayDay = getCurrentDay()
-        val list = questListUnfiltered.filter { !it.is_destroyed && it.selected_days.contains(todayDay)}
-        questList.clear()
-        questList.addAll(list)
-    }
+
     fun streakFailResultHandler(streakCheckReturn: StreakCheckReturn?){
         if(streakCheckReturn!=null){
             RewardDialogInfo.streakData = streakCheckReturn
@@ -102,7 +97,13 @@ fun HomeScreen(navController: NavController) {
 
         }
     }
-    LaunchedEffect(questList) {
+
+    LaunchedEffect(questListUnfiltered) {
+        val todayDay = getCurrentDay()
+        val list = questListUnfiltered.filter { !it.is_destroyed && it.selected_days.contains(todayDay)}
+        questList.clear()
+        questList.addAll(list)
+
 
         questList.forEach { item ->
             if (item.last_completed_on == getCurrentDate()) {

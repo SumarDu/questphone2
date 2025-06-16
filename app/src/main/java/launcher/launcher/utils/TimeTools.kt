@@ -1,5 +1,13 @@
 package launcher.launcher.utils
 
+import kotlinx.datetime.Clock
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.isoDayNumber
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
 import launcher.launcher.data.DayOfWeek
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
@@ -131,6 +139,18 @@ fun java.time.DayOfWeek.convertToDayOfWeek(): DayOfWeek{
     }
 }
 
+fun DayOfWeek.toJavaDayOfWeek(): java.time.DayOfWeek {
+    return when (this) {
+        DayOfWeek.MON -> java.time.DayOfWeek.MONDAY
+        DayOfWeek.TUE -> java.time.DayOfWeek.TUESDAY
+        DayOfWeek.WED -> java.time.DayOfWeek.WEDNESDAY
+        DayOfWeek.THU -> java.time.DayOfWeek.THURSDAY
+        DayOfWeek.FRI -> java.time.DayOfWeek.FRIDAY
+        DayOfWeek.SAT -> java.time.DayOfWeek.SATURDAY
+        DayOfWeek.SUN -> java.time.DayOfWeek.SUNDAY
+    }
+}
+
 
 fun formatHour(hour: Int): String {
     return when (hour) {
@@ -150,4 +170,33 @@ fun getAllDatesBetween(startDate: Date, endDate: Date): List<Date> {
         cal.add(Calendar.DATE, 1)
     }
     return dates
+}
+
+
+fun daysSince(
+    dateString: String,
+    allowedDays: Set<java.time.DayOfWeek>
+): Int {
+    val inputDate = LocalDate.parse(dateString)
+    val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+
+    val start = minOf(inputDate, today)
+    val end = maxOf(inputDate, today)
+
+    var count = 0
+    var current = start
+
+    while (current <= end) {
+        if (current.dayOfWeek in allowedDays) {
+            count++
+        }
+        current = current.plus(1, DateTimeUnit.DAY)
+    }
+
+    return count
+}
+fun LocalDate.getStartOfWeek(): LocalDate {
+    // ISO 8601 week starts on Monday
+    val dayOfWeek = this.dayOfWeek.isoDayNumber // Monday = 1, Sunday = 7
+    return this.minus(dayOfWeek - 1, DateTimeUnit.DAY)
 }

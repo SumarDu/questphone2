@@ -23,14 +23,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,8 +37,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -57,7 +59,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
+import kotlinx.datetime.toKotlinLocalDate
+import kotlinx.datetime.toLocalDateTime
 import launcher.launcher.R
 import launcher.launcher.data.game.InventoryItem
 import launcher.launcher.data.game.User
@@ -66,8 +77,13 @@ import launcher.launcher.data.game.useInventoryItem
 import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.QuestStats
-import launcher.launcher.utils.QuestHelper
+import launcher.launcher.data.quest.stats.StatsDatabaseProvider
+import launcher.launcher.data.quest.stats.StatsInfo
+import launcher.launcher.utils.Supabase
+import launcher.launcher.utils.daysSince
 import launcher.launcher.utils.formatHour
+import launcher.launcher.utils.getStartOfWeek
+import launcher.launcher.utils.toJavaDayOfWeek
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -80,35 +96,49 @@ import java.util.Locale
 @Composable
 fun BaseQuestStatsView(baseData: CommonQuestInfo, navController: NavHostController) {
     val context = LocalContext.current
-    val questHelper = QuestHelper(LocalContext.current)
-    val questStats = questHelper.getQuestStats(baseData)
-    val completedQuests = questStats.size
-    val successfulQuests = questStats.filter { item -> item.value.isSuccessful }.size
-    val failedQuests = questStats.filter { item -> !item.value.isSuccessful }.size
-    val currentStreak = calculateCurrentQuestStreak(questStats)
-    val longestStreak = calculateLongestQuestStreak(questStats)
-    val failureRate = if (completedQuests > 0) (failedQuests.toFloat() / completedQuests) * 100 else 0f
-    val successRate = if (completedQuests > 0) (successfulQuests.toFloat() / completedQuests) * 100 else 0f
-    val totalCoins = successfulQuests * baseData.reward
+    var successfulDates = remember { mutableStateListOf<kotlinx.datetime.LocalDate>() }
 
-    // Find first and last completion dates
-    val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-    val sortedDates = if (questStats.isNotEmpty()) {
-        questStats.keys.map { LocalDate.parse(it, dateFormatter) }.sorted()
-    } else {
-        listOf()
+    /*
+    Total Amount of quests(including failed and successful) that could be performed since the creation of the quest
+     */
+    var totalPerformableQuests by remember { mutableIntStateOf(0) }
+    var totalSuccessfulQuests by remember { mutableIntStateOf(0) }
+    var totalFailedQuests by remember { mutableIntStateOf(0) }
+    var currentStreak by remember { mutableIntStateOf(0) }
+    var longestStreak by remember { mutableIntStateOf(0) }
+    var failureRate by remember { mutableFloatStateOf(0f) }
+    var successRate by remember { mutableFloatStateOf(0f) }
+    var totalCoins by remember { mutableIntStateOf(0) }
+    var weeklyAverageCompletions by remember { mutableDoubleStateOf(0.0) }
+
+    LaunchedEffect(Unit) {
+        var stats = Supabase.supabase
+            .postgrest["quest_stats"]
+            .select {
+                filter {
+                    eq("quest_id", baseData.id)
+                }
+            }
+            .decodeList<StatsInfo>()
+
+        val dao = StatsDatabaseProvider.getInstance(context).statsDao()
+        stats = stats.toMutableList()
+        stats.addAll(dao.getAllUnSyncedStats().first())
+
+        successfulDates.addAll(stats.map { it.date })
+        val allowedDays = baseData.selected_days.map { it.toJavaDayOfWeek() }.toSet()
+        totalPerformableQuests = daysSince(baseData.created_on, allowedDays)
+        totalSuccessfulQuests = stats.size
+        totalFailedQuests = totalPerformableQuests - totalFailedQuests
+        currentStreak = calculateCurrentStreak(stats,allowedDays)
+        longestStreak = calculateLongestStreak(stats,allowedDays)
+        failureRate = if (totalPerformableQuests > 0) (totalFailedQuests.toFloat() / totalPerformableQuests) * 100 else 0f
+        successRate = if (totalPerformableQuests > 0) (totalSuccessfulQuests.toFloat() / totalPerformableQuests) * 100 else 0f
+        totalCoins = totalSuccessfulQuests * baseData.reward
+        weeklyAverageCompletions = weeklyAverage(stats)
     }
 
-    val firstCompletionDate = sortedDates.firstOrNull()
-    val lastCompletionDate = sortedDates.lastOrNull()
-    val daysSinceStart = if (firstCompletionDate != null) {
-        ChronoUnit.DAYS.between(firstCompletionDate, LocalDate.now()) + 1
-    } else 0
 
-    // Calculate weekly stats
-    val weeklyAverageCompletions = calculateWeeklyAverageSuccess(questStats)
-
-    // Handle calendar state
     var showCalendarDialog by remember { mutableStateOf(false) }
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
     var selectedDateStats by remember { mutableStateOf<QuestStats?>(null) }
@@ -136,17 +166,16 @@ fun BaseQuestStatsView(baseData: CommonQuestInfo, navController: NavHostControll
             // Progress overview cards
             ProgressStatsSection(
                 successRate = successRate,
-                questStats = questStats,
-                currentStreak = currentStreak,
                 longestStreak = longestStreak,
                 weeklyAverage = weeklyAverageCompletions,
-                daysSinceStart = daysSinceStart,
-                totalCoins = totalCoins
+                totalCoins = totalCoins,
+                totalSuccessful = totalSuccessfulQuests,
+                totalPerformable = totalPerformableQuests
             )
 
             // Calendar preview showing last month's completions
             CalendarSection(
-                questStats = questStats,
+                questStats = successfulDates.toSet(),
                 onShowFullCalendar = { showCalendarDialog = true }
             )
 
@@ -172,27 +201,13 @@ fun BaseQuestStatsView(baseData: CommonQuestInfo, navController: NavHostControll
         // Calendar Dialog
         if (showCalendarDialog) {
             CalendarDialog(
-                questStats = questStats,
+                successfulDates = successfulDates.toSet(),
                 currentYearMonth = currentYearMonth,
-                onDismiss = { showCalendarDialog = false },
-                onDateSelected = { date, stats ->
-                    selectedDate = date
-                    selectedDateStats = stats
-                }
+                onDismiss = { showCalendarDialog = false }
             )
         }
 
-        // Details dialog for selected date
-        if (selectedDate != null && selectedDateStats != null) {
-            CompletionDetailsDialog(
-                date = selectedDate!!,
-                stats = selectedDateStats!!,
-                onDismiss = {
-                    selectedDate = null
-                    selectedDateStats = null
-                }
-            )
-        }
+
     }
 }
 
@@ -266,11 +281,10 @@ fun QuestHeader(baseData: CommonQuestInfo, currentStreak: Int) {
 @Composable
 fun ProgressStatsSection(
     successRate: Float,
-    questStats: Map<String, QuestStats>,
-    currentStreak: Int,
+    totalSuccessful: Int,
+    totalPerformable: Int,
     longestStreak: Int,
     weeklyAverage: Double,
-    daysSinceStart: Long,
     totalCoins: Int
 ) {
     Card(
@@ -350,7 +364,7 @@ fun ProgressStatsSection(
                 Triple("Total Earned", "$totalCoins coins", R.drawable.baseline_circle_24),
                 Triple(
                     "Days Active",
-                    "${questStats.size}/${daysSinceStart}",
+                    "${totalSuccessful}/${totalPerformable}",
                     R.drawable.baseline_calendar_month_24
                 )
             )
@@ -421,12 +435,14 @@ fun StatCard(title: String, value: String, icon: Int, modifier: Modifier = Modif
 }
 @Composable
 fun CalendarSection(
-    questStats: Map<String, QuestStats>,
+    questStats: Set<kotlinx.datetime.LocalDate>,
     onShowFullCalendar: () -> Unit
 ) {
-    val today = LocalDate.now()
-    val pastWeekDates = (0..6).map { today.minusDays(it.toLong()) }.reversed()
-    val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+    val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+
+    val pastWeekDates = (0..6).map { offset ->
+        today.minus(offset, DateTimeUnit.DAY)
+    }.reversed()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -463,18 +479,17 @@ fun CalendarSection(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 pastWeekDates.forEach { date ->
-                    val dateString = date.format(dateFormatter)
-                    val stats = questStats[dateString]
-                    val dayOfWeek = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
-                    val isToday = date.isEqual(today)
+                    val isCompleted = date in questStats
+                    val dayInitial = date.dayOfWeek.name.first().toString() // First letter: M, T, W, etc.
+                    val isToday = date == today
 
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        // Day of week
+                        // Day of week (1st letter)
                         Text(
-                            text = dayOfWeek.substring(0, 1),
+                            text = dayInitial,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -486,8 +501,7 @@ fun CalendarSection(
                                 .clip(CircleShape)
                                 .background(
                                     when {
-                                        stats?.isSuccessful == true -> MaterialTheme.colorScheme.primary
-                                        stats != null -> MaterialTheme.colorScheme.error
+                                        isCompleted -> MaterialTheme.colorScheme.primary
                                         isToday -> MaterialTheme.colorScheme.surfaceVariant
                                         else -> Color.Transparent
                                     }
@@ -503,8 +517,7 @@ fun CalendarSection(
                                 text = date.dayOfMonth.toString(),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = when {
-                                    stats?.isSuccessful == true -> MaterialTheme.colorScheme.onPrimary
-                                    stats != null -> MaterialTheme.colorScheme.onError
+                                    isCompleted -> MaterialTheme.colorScheme.onPrimary
                                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                                 }
                             )
@@ -515,6 +528,7 @@ fun CalendarSection(
         }
     }
 }
+
 
 @Composable
 fun QuestDetailsCard(baseData: CommonQuestInfo, isQuestEditorInfoDialogVisible: MutableState<Boolean>,isQuestDeleterInfoDialogVisible: MutableState<Boolean>) {
@@ -637,14 +651,13 @@ private fun QuestInfoRow(
     }
 }
 
+
 @Composable
 fun CalendarDialog(
-    questStats: Map<String, QuestStats>,
+    successfulDates: Set<kotlinx.datetime.LocalDate>,
     currentYearMonth: MutableState<YearMonth>,
-    onDismiss: () -> Unit,
-    onDateSelected: (LocalDate, QuestStats) -> Unit
+    onDismiss: () -> Unit
 ) {
-    val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -657,7 +670,7 @@ fun CalendarDialog(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Calendar header with month navigation
+                // Header with month navigation
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -690,7 +703,7 @@ fun CalendarDialog(
                 ) {
                     for (day in DayOfWeek.values()) {
                         Text(
-                            text = day.getDisplayName(TextStyle.SHORT, Locale.getDefault()).substring(0, 1),
+                            text = day.getDisplayName(TextStyle.SHORT, Locale.getDefault()).take(1),
                             modifier = Modifier.weight(1f),
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.bodySmall,
@@ -699,16 +712,12 @@ fun CalendarDialog(
                     }
                 }
 
-                // Calendar days
+                // Calendar grid
                 val firstOfMonth = currentYearMonth.value.atDay(1)
                 val daysInMonth = currentYearMonth.value.lengthOfMonth()
-                val firstDayOfWeekValue = firstOfMonth.dayOfWeek.value % 7 // Adjusting to make Sunday=0, Monday=1, etc.
-
-                val today = LocalDate.now()
-
-                // Calculate rows needed (include blank spaces and full weeks)
-                val totalDays = firstDayOfWeekValue + daysInMonth
-                val rows = (totalDays + 6) / 7 // Round up to full weeks
+                val firstDayOfWeekValue = firstOfMonth.dayOfWeek.value % 7
+                val today = java.time.LocalDate.now()
+                val rows = ((firstDayOfWeekValue + daysInMonth + 6) / 7)
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (row in 0 until rows) {
@@ -720,10 +729,10 @@ fun CalendarDialog(
                                 val dayIndex = row * 7 + col - firstDayOfWeekValue + 1
 
                                 if (dayIndex in 1..daysInMonth) {
-                                    val date = currentYearMonth.value.atDay(dayIndex)
-                                    val dateString = date.format(dateFormatter)
-                                    val stats = questStats[dateString]
-                                    val isToday = date.isEqual(today)
+                                    val javaDate = currentYearMonth.value.atDay(dayIndex)
+                                    val date = javaDate.toKotlinLocalDate()
+                                    val isSuccessful = date in successfulDates
+                                    val isToday = javaDate == today
 
                                     Box(
                                         modifier = Modifier
@@ -733,14 +742,7 @@ fun CalendarDialog(
                                             .clip(CircleShape)
                                             .background(
                                                 when {
-                                                    stats?.isSuccessful == true -> MaterialTheme.colorScheme.primary.copy(
-                                                        alpha = 0.8f
-                                                    )
-
-                                                    stats != null -> MaterialTheme.colorScheme.error.copy(
-                                                        alpha = 0.8f
-                                                    )
-
+                                                    isSuccessful -> MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
                                                     isToday -> MaterialTheme.colorScheme.surfaceVariant
                                                     else -> Color.Transparent
                                                 }
@@ -749,12 +751,6 @@ fun CalendarDialog(
                                                 width = if (isToday) 2.dp else 0.dp,
                                                 color = if (isToday) MaterialTheme.colorScheme.primary else Color.Transparent,
                                                 shape = CircleShape
-                                            )
-                                            .clickable(
-                                                enabled = stats != null,
-                                                onClick = {
-                                                    stats?.let { onDateSelected(date, it) }
-                                                }
                                             ),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -762,17 +758,13 @@ fun CalendarDialog(
                                             text = dayIndex.toString(),
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = when {
-                                                stats?.isSuccessful == true -> MaterialTheme.colorScheme.onPrimary
-                                                stats != null -> MaterialTheme.colorScheme.onError
+                                                isSuccessful -> MaterialTheme.colorScheme.onPrimary
                                                 else -> MaterialTheme.colorScheme.onSurface
                                             }
                                         )
                                     }
                                 } else {
-                                    // Empty space for days not in this month
-                                    Box(modifier = Modifier
-                                        .weight(1f)
-                                        .aspectRatio(1f))
+                                    Box(modifier = Modifier.weight(1f).aspectRatio(1f))
                                 }
                             }
                         }
@@ -786,8 +778,8 @@ fun CalendarDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     LegendItem(color = MaterialTheme.colorScheme.primary, text = "Completed")
-                    LegendItem(color = MaterialTheme.colorScheme.error, text = "Failed")
-                    if (today.month == currentYearMonth.value.month && today.year == currentYearMonth.value.year) {
+                    if (today.monthValue == currentYearMonth.value.monthValue &&
+                        today.year == currentYearMonth.value.year) {
                         LegendItem(borderColor = MaterialTheme.colorScheme.primary, text = "Today")
                     }
                 }
@@ -802,6 +794,8 @@ fun CalendarDialog(
         }
     }
 }
+
+
 
 @Composable
 fun LegendItem(color: Color? = null, borderColor: Color? = null, text: String) {
@@ -827,87 +821,6 @@ fun LegendItem(color: Color? = null, borderColor: Color? = null, text: String) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-    }
-}
-
-@Composable
-fun CompletionDetailsDialog(
-    date: LocalDate,
-    stats: QuestStats,
-    onDismiss: () -> Unit
-) {
-    val dateFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy")
-    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
-
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Header with date
-                Text(
-                    text = date.format(dateFormatter),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Divider()
-
-                // Status
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(if (stats.isSuccessful) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (stats.isSuccessful) Icons.Default.CheckCircle else Icons.Default.Info,
-                            contentDescription = null,
-                            tint = if (stats.isSuccessful) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onError,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column {
-                        Text(
-                            text = if (stats.isSuccessful) "Completed Successfully" else "Failed",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        if(stats.isSuccessful){
-                            Text(
-                                text = "At ${stats.completedTime}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Close")
-                }
-            }
-        }
     }
 }
 
@@ -1020,7 +933,7 @@ fun calculateLongestQuestStreak(questStats: Map<String, QuestStats>): Int {
         if (prevDate == null) {
             currentStreak = 1
         } else {
-            val daysBetween = java.time.temporal.ChronoUnit.DAYS.between(prevDate, date)
+            val daysBetween = ChronoUnit.DAYS.between(prevDate, date)
             currentStreak = if (daysBetween == 1L) {
                 currentStreak + 1
             } else {
@@ -1056,4 +969,77 @@ fun calculateWeeklyAverageSuccess(questStats: Map<String, QuestStats>): Double {
 
     return if (weeklySuccessCounts.isEmpty()) 0.0
     else weeklySuccessCounts.average()
+}
+
+
+fun calculateCurrentStreak(
+    completed: Collection<StatsInfo>,
+    questDays: Set<DayOfWeek>
+): Int {
+    val completedDates: HashSet<kotlinx.datetime.LocalDate> = completed.map { it.date }.toHashSet()
+
+    var streak = 0
+    var currentDate = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+
+    while (true) {
+        if (currentDate.dayOfWeek !in questDays) {
+            currentDate = currentDate.minus(1, DateTimeUnit.DAY)
+            continue
+        }
+
+        if (completedDates.contains(currentDate)) {
+            streak++
+            currentDate = currentDate.minus(1, DateTimeUnit.DAY)
+        } else {
+            break
+        }
+    }
+
+    return streak
+}
+
+
+
+fun calculateLongestStreak(
+    successStats: List<StatsInfo>,
+    allowedDays: Set<DayOfWeek>
+): Int {
+    if (successStats.isEmpty()) return 0
+
+    val completedDates = successStats.map { it.date }.toSet()
+
+    val startDate = completedDates.min()
+    val endDate = completedDates.max()
+
+    var currentDate = startDate
+    var currentStreak = 0
+    var longestStreak = 0
+
+    while (currentDate <= endDate) {
+        if (currentDate.dayOfWeek in allowedDays) {
+            if (currentDate in completedDates) {
+                currentStreak++
+                longestStreak = maxOf(longestStreak, currentStreak)
+            } else {
+                currentStreak = 0
+            }
+        }
+        while (currentDate <= endDate) {
+            currentDate = currentDate.plus(1, DateTimeUnit.DAY)
+        }
+    }
+
+    return longestStreak
+}
+
+fun weeklyAverage(stats: List<StatsInfo>): Double {
+    if (stats.isEmpty()) return 0.0
+
+    // Group by the start of the ISO week
+    val groupedByWeek = stats.groupBy { it.date.getStartOfWeek() }
+
+    val totalWeeks = groupedByWeek.size
+    val totalCompletions = stats.size
+
+    return totalCompletions.toDouble() / totalWeeks
 }

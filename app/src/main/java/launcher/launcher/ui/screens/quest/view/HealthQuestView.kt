@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
+import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
 import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.xpToRewardForQuest
@@ -28,14 +29,18 @@ import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.data.quest.health.HealthTaskType
 import launcher.launcher.data.quest.health.getUnitForType
+import launcher.launcher.data.quest.stats.StatsDatabaseProvider
+import launcher.launcher.data.quest.stats.StatsInfo
 import launcher.launcher.ui.screens.quest.checkForRewards
 import launcher.launcher.ui.screens.tutorial.HealthConnectScreen
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.HealthConnectManager
 import launcher.launcher.utils.HealthConnectPermissionManager
 import launcher.launcher.utils.QuestHelper
+import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.getCurrentDate
 import launcher.launcher.utils.json
+import java.util.UUID
 
 @SuppressLint("DefaultLocale")
 @Composable
@@ -83,6 +88,13 @@ fun HealthQuestView(commonQuestInfo: CommonQuestInfo) {
         commonQuestInfo.last_updated = System.currentTimeMillis()
         scope.launch {
             dao.upsertQuest(commonQuestInfo)
+            val userid = Supabase.supabase.auth.currentUserOrNull()!!.id
+            val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
+            statsDao.upsertStats(StatsInfo(
+                id =  UUID.randomUUID().toString(),
+                quest_id = commonQuestInfo.id,
+                user_id = userid,
+            ))
         }
         checkForRewards(commonQuestInfo)
         isQuestComplete.value = true

@@ -29,27 +29,33 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationCompat
+import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.jeziellago.compose.markdowntext.MarkdownText
+import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.delay
-import launcher.launcher.data.quest.CommonQuestInfo
-import launcher.launcher.data.quest.focus.DeepFocus
-import launcher.launcher.ui.theme.JetBrainsMonoFont
-import launcher.launcher.utils.QuestHelper
-import launcher.launcher.utils.formatHour
-import launcher.launcher.utils.getCurrentDate
-import androidx.core.content.edit
 import kotlinx.coroutines.launch
 import launcher.launcher.data.game.getUserInfo
 import launcher.launcher.data.game.xpToRewardForQuest
+import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
+import launcher.launcher.data.quest.focus.DeepFocus
+import launcher.launcher.data.quest.stats.StatsDatabaseProvider
+import launcher.launcher.data.quest.stats.StatsInfo
 import launcher.launcher.services.INTENT_ACTION_START_DEEP_FOCUS
 import launcher.launcher.services.INTENT_ACTION_STOP_DEEP_FOCUS
 import launcher.launcher.ui.screens.quest.checkForRewards
+import launcher.launcher.ui.theme.JetBrainsMonoFont
+import launcher.launcher.utils.QuestHelper
+import launcher.launcher.utils.Supabase
+import launcher.launcher.utils.formatHour
+import launcher.launcher.utils.getCurrentDate
 import launcher.launcher.utils.json
 import launcher.launcher.utils.sendRefreshRequest
+import java.time.LocalDate
+import java.util.UUID
 
 private const val PREF_NAME = "deep_focus_prefs"
 private const val KEY_START_TIME = "start_time_"
@@ -133,6 +139,14 @@ fun DeepFocusQuestView(
         commonQuestInfo.last_updated = System.currentTimeMillis()
         scope.launch {
             dao.upsertQuest(commonQuestInfo)
+
+            val userid = Supabase.supabase.auth.currentUserOrNull()!!.id
+            val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
+            statsDao.upsertStats(StatsInfo(
+                id =  UUID.randomUUID().toString(),
+                quest_id = commonQuestInfo.id,
+                user_id = userid,
+            ))
         }
 
         questHelper.setQuestRunning(commonQuestInfo.title, false)

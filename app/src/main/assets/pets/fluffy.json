@@ -57,8 +57,7 @@
       "eventData": "quest_tracker/",
       "nextSequence": "askForTutorial",
       "conditions": {
-        "isTutorialOnGoing": "true",
-        "userReason": ""
+        "isTutorialOnGoing": "true"
       }
     },
     "askForTutorial": {
