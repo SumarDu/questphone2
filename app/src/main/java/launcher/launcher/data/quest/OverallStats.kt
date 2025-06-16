@@ -1,7 +1,6 @@
 package launcher.launcher.data.quest
 
 import kotlinx.serialization.Serializable
-import java.time.LocalDate
 
 @Serializable
 data class OverallStats(
@@ -13,7 +12,7 @@ data class OverallStats(
  * Required because I was too lazy to figure out how to serialize local date in the [OverallStats] class
  */
 data class OverallStatsUs(
-    val date: LocalDate,
+    val date: kotlinx.datetime.LocalDate,
     val completedQuests: Int,
     val totalQuests: Int,
     val isPlaceholder: Boolean = false

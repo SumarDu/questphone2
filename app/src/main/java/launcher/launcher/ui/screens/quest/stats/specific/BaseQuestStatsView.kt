@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -112,10 +113,12 @@ fun BaseQuestStatsView(baseData: CommonQuestInfo, navController: NavHostControll
     var weeklyAverageCompletions by remember { mutableDoubleStateOf(0.0) }
 
     LaunchedEffect(Unit) {
+        val userId = Supabase.supabase.auth.currentUserOrNull()!!.id
         var stats = Supabase.supabase
             .postgrest["quest_stats"]
             .select {
                 filter {
+                    eq("user_id",userId)
                     eq("quest_id", baseData.id)
                 }
             }

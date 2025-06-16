@@ -3,11 +3,11 @@ package launcher.launcher.utils
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.core.content.edit
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.quest.CommonQuestInfo
-import androidx.core.content.edit
-import launcher.launcher.data.quest.OverallStatsUs
 import launcher.launcher.data.quest.OverallStats
+import launcher.launcher.data.quest.OverallStatsUs
 import launcher.launcher.data.quest.QuestStats
 import java.text.SimpleDateFormat
 import java.time.LocalDate
@@ -75,7 +75,6 @@ class QuestHelper(val context: Context) {
             Log.d("stats str", str.toString())
             if (str != null) {
                 val value = json.decodeFromString<OverallStats>(str)
-                statList.add(OverallStatsUs(LocalDate.parse(key, DateTimeFormatter.ofPattern("yyyy-MM-dd")), value.questsPerformed, value.totalQuests))
             }
         }
         Log.d("stats", statList.toString())
