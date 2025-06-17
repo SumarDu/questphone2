@@ -25,6 +25,7 @@ import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.stats.StatsDatabaseProvider
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
+import launcher.launcher.ui.screens.account.SetupNewPassword
 import launcher.launcher.ui.screens.game.StoreScreen
 import launcher.launcher.ui.screens.game.UserInfoScreen
 import launcher.launcher.ui.screens.launcher.AppList
@@ -48,15 +49,22 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         val data = getSharedPreferences("onboard", MODE_PRIVATE)
-        Supabase.supabase.handleDeeplinks(intent)
 
 
         setContent {
             val isUserOnboarded = remember {mutableStateOf(true)}
             val isPetDialogVisible = remember { mutableStateOf(true) }
+            val isLoginResetPassword = remember { mutableStateOf(false) }
             LaunchedEffect(Unit) {
                 isUserOnboarded.value = data.getBoolean("onboard",false)
                 Log.d("onboard", isUserOnboarded.value.toString())
+
+                Supabase.supabase.handleDeeplinks(intent){
+                    if(it.type == "recovery"){
+                        isLoginResetPassword.value = true
+                    }
+                    Log.d("Supabase Deeplink",it.type.toString())
+                }
             }
             LauncherTheme {
                 Surface {
@@ -94,7 +102,8 @@ class MainActivity : ComponentActivity() {
 
                     NavHost(
                         navController = navController,
-                        startDestination = if (!isUserOnboarded.value) Screen.OnBoard.route
+                        startDestination = if(isLoginResetPassword.value) Screen.ResetPass.route
+                            else if (!isUserOnboarded.value) Screen.OnBoard.route
                                 else Screen.HomeScreen.route,
                     ) {
 
@@ -103,6 +112,9 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Screen.OnBoard.route) {
                             OnBoardScreen(navController)
+                        }
+                        composable(Screen.ResetPass.route) {
+                            SetupNewPassword(navController)
                         }
 
                         composable(Screen.HomeScreen.route) {

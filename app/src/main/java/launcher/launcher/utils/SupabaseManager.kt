@@ -1,16 +1,10 @@
 package launcher.launcher.utils
 
-import android.content.Context
-import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
-import io.github.jan.supabase.auth.ExternalAuthAction
-import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.serializer.KotlinXSerializer
 import io.github.jan.supabase.storage.Storage
-import kotlinx.coroutines.flow.Flow
 
 object Supabase {
     const val SUPABASE_URL = "https://hplszhlnchhfwngbojnc.supabase.co"
@@ -21,7 +15,6 @@ object Supabase {
             install(Auth) {
                 host = "signup"
                 scheme = "blankphone"
-
 //                defaultExternalAuthAction = ExternalAuthAction.CustomTabs()
             }
             install(Storage)

@@ -36,7 +36,8 @@
       "eventType": "NAVIGATION",
       "eventData": "onboard/",
       "conditions":{
-        "isTutorialOnGoing": "true"
+        "isTutorialOnGoing": "true",
+        "isOnboarded": "false"
       }
     },
     "greetings": {

@@ -25,7 +25,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,38 +32,30 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.jan.supabase.auth.auth
-import launcher.launcher.R
+import kotlinx.coroutines.launch
 import launcher.launcher.utils.Supabase
-import kotlinx.coroutines.runBlocking
 
 enum class ForgotPasswordStep {
     EMAIL,
-    VERIFICATION,
-    NEW_PASSWORD
+    VERIFICATION
 }
 @Composable
 fun ForgotPasswordScreen(loginStep: MutableState<LoginStep>) {
     // States
     var email by remember { mutableStateOf("") }
-    var verificationCode by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var isPasswordVisible by remember { mutableStateOf(false) }
-    var isConfirmPasswordVisible by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var forgotPasswordStep by remember { mutableStateOf(ForgotPasswordStep.EMAIL) }
@@ -72,12 +63,9 @@ fun ForgotPasswordScreen(loginStep: MutableState<LoginStep>) {
     val focusManager = LocalFocusManager.current
     val scrollState = rememberScrollState()
 
+    val coroutineScope = rememberCoroutineScope()
     // Email validation
     val isEmailValid = email.contains("@") && email.contains(".")
-
-    // Password validation
-    val isPasswordValid = newPassword.length >= 8
-    val doPasswordsMatch = newPassword == confirmPassword
 
     // Function to handle email submission
     val handleEmailSubmit = {
@@ -89,58 +77,15 @@ fun ForgotPasswordScreen(loginStep: MutableState<LoginStep>) {
             errorMessage = null
             isLoading = true
 
-            runBlocking {
+            coroutineScope.launch {
                 Supabase.supabase.auth.resetPasswordForEmail(email)
             }
 
-            // Simulate API call for password reset request
-            // In a real app, this would be a call to your authentication service
             forgotPasswordStep = ForgotPasswordStep.VERIFICATION
             isLoading = false
         }
     }
 
-    // Function to handle verification
-    val handleVerification = {
-        if (verificationCode.length != 6) {
-            errorMessage = "Verification code must be 6 digits"
-        } else {
-            errorMessage = null
-            isLoading = true
-
-            // Simulate verification
-            // In a real app, this would validate the code with your authentication service
-            forgotPasswordStep = ForgotPasswordStep.NEW_PASSWORD
-            isLoading = false
-        }
-    }
-
-    // Function to handle password reset
-    val handlePasswordReset = {
-        when {
-            newPassword.isBlank() || confirmPassword.isBlank() -> {
-                errorMessage = "Please fill in all fields"
-            }
-
-            !isPasswordValid -> {
-                errorMessage = "Password must be at least 8 characters"
-            }
-
-            !doPasswordsMatch -> {
-                errorMessage = "Passwords don't match"
-            }
-
-            else -> {
-                errorMessage = null
-                isLoading = true
-
-                // Simulate API call for password reset
-                // In a real app, this would be a call to your authentication service
-                isLoading = false
-                loginStep.value = LoginStep.LOGIN
-            }
-        }
-    }
 
     BackHandler {
         loginStep.value = LoginStep.LOGIN
@@ -192,8 +137,7 @@ fun ForgotPasswordScreen(loginStep: MutableState<LoginStep>) {
             Text(
                 text = when (forgotPasswordStep) {
                     ForgotPasswordStep.EMAIL -> "Reset Password"
-                    ForgotPasswordStep.VERIFICATION -> "Verify your email"
-                    ForgotPasswordStep.NEW_PASSWORD -> "Create new password"
+                    ForgotPasswordStep.VERIFICATION -> "Check your email"
                 },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -218,7 +162,7 @@ fun ForgotPasswordScreen(loginStep: MutableState<LoginStep>) {
                 // Email step
                 ForgotPasswordStep.EMAIL -> {
                     Text(
-                        text = "Enter your email address and we'll send you a code to reset your password.",
+                        text = "Enter your email address and we'll send you a link to reset your password.",
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(bottom = 24.dp)
@@ -273,7 +217,7 @@ fun ForgotPasswordScreen(loginStep: MutableState<LoginStep>) {
                 // Verification step
                 ForgotPasswordStep.VERIFICATION -> {
                     Text(
-                        text = "We've sent a verification code to",
+                        text = "We've sent a verification link to",
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center
                     )
@@ -286,64 +230,15 @@ fun ForgotPasswordScreen(loginStep: MutableState<LoginStep>) {
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    // Verification code field
-                    OutlinedTextField(
-                        value = verificationCode,
-                        onValueChange = {
-                            if (it.length <= 6 && it.all { char -> char.isDigit() }) {
-                                verificationCode = it
-                                errorMessage = null
-                            }
-                        },
-                        label = { Text("6-digit code") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number,
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                focusManager.clearFocus()
-                                handleVerification()
-                            }
-                        ),
-                        isError = errorMessage != null
+                    Text(
+                        text = "Please make sure to check the spam folder in case you don't find any emails from us.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Resend code
-                    TextButton(
-                        onClick = { /* Handle resend code */ },
-                        modifier = Modifier.align(Alignment.End)
-                    ) {
-                        Text("Resend code")
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Verify button
-                    Button(
-                        onClick = handleVerification,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        enabled = !isLoading && verificationCode.length == 6
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        } else {
-                            Text("Verify")
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Back button
                     TextButton(
@@ -354,122 +249,6 @@ fun ForgotPasswordScreen(loginStep: MutableState<LoginStep>) {
                     }
                 }
 
-                // New password step
-                ForgotPasswordStep.NEW_PASSWORD -> {
-                    Text(
-                        text = "Create a new password for your account.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 24.dp)
-                    )
-
-                    // New password field
-                    OutlinedTextField(
-                        value = newPassword,
-                        onValueChange = { newPassword = it; errorMessage = null },
-                        label = { Text("New Password") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        visualTransformation = if (isPasswordVisible)
-                            VisualTransformation.None
-                        else
-                            PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Password,
-                            imeAction = ImeAction.Next
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                        ),
-                        trailingIcon = {
-                            IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                                Icon(
-                                    painter = if (isPasswordVisible)
-                                        painterResource(id = R.drawable.baseline_visibility_off_24)
-                                    else
-                                        painterResource(id = R.drawable.baseline_visibility_24),
-                                    contentDescription = if (isPasswordVisible)
-                                        "Hide password"
-                                    else
-                                        "Show password"
-                                )
-                            }
-                        },
-                        isError = errorMessage != null && (newPassword.isBlank() || !isPasswordValid)
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Confirm password field
-                    OutlinedTextField(
-                        value = confirmPassword,
-                        onValueChange = { confirmPassword = it; errorMessage = null },
-                        label = { Text("Confirm Password") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        visualTransformation = if (isConfirmPasswordVisible)
-                            VisualTransformation.None
-                        else
-                            PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Password,
-                            imeAction = ImeAction.Done
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                focusManager.clearFocus()
-                                handlePasswordReset()
-                            }
-                        ),
-                        trailingIcon = {
-                            IconButton(onClick = {
-                                isConfirmPasswordVisible = !isConfirmPasswordVisible
-                            }) {
-                                Icon(
-                                    painter = if (isConfirmPasswordVisible)
-                                        painterResource(id = R.drawable.baseline_visibility_off_24)
-                                    else
-                                        painterResource(id = R.drawable.baseline_visibility_24),
-                                    contentDescription = if (isConfirmPasswordVisible)
-                                        "Hide password"
-                                    else
-                                        "Show password"
-                                )
-                            }
-                        },
-                        isError = errorMessage != null && (confirmPassword.isBlank() || !doPasswordsMatch)
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Reset password button
-                    Button(
-                        onClick = { handlePasswordReset() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        enabled = !isLoading
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                        } else {
-                            Text("Reset Password")
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Back button
-                    TextButton(
-                        onClick = { forgotPasswordStep = ForgotPasswordStep.VERIFICATION },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Back to verification")
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
