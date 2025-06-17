@@ -2,17 +2,12 @@ package launcher.launcher.ui.screens.game
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -32,9 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import launcher.launcher.R
-import launcher.launcher.data.game.StreakData
 import launcher.launcher.data.game.User
 import launcher.launcher.ui.screens.quest.RewardDialogInfo
 import launcher.launcher.utils.VibrationHelper
@@ -81,7 +74,7 @@ fun StreakUpDialog( onDismiss: () -> Unit) {
                 Spacer(modifier = Modifier.size(8.dp))
 
                 Text(
-                    text = "New Streak: ${User.streakData.currentStreak} days",
+                    text = "New Streak: ${User.userInfo.streak.currentStreak} days",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     fontSize = 16.sp,

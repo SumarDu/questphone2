@@ -31,6 +31,7 @@ data class UserInfo(
     var active_boosts: HashMap<InventoryItem,String> = hashMapOf(),
     var last_updated: Long = System.currentTimeMillis(),
     var created_on: Instant = Clock.System.now(),
+    var streak : StreakData = StreakData(),
     @Transient
     var needsSync: Boolean = true
 ){
@@ -48,7 +49,6 @@ data class UserInfo(
 object User {
     lateinit var appContext: Context
     lateinit var userInfo: UserInfo
-    lateinit var streakData: StreakData
 
     var lastXpEarned: Int? = null
     var lastRewards: List<InventoryItem>? = null
@@ -56,7 +56,6 @@ object User {
     fun init(context: Context) {
         appContext = context.applicationContext
         userInfo = getUserInfo(appContext)
-        streakData = getStreakInfo(appContext)
     }
 }
 

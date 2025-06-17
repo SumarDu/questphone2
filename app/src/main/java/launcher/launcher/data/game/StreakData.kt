@@ -1,11 +1,8 @@
 package launcher.launcher.data.game
 
-import android.content.Context
 import android.util.Log
-import androidx.core.content.edit
 import kotlinx.serialization.Serializable
 import launcher.launcher.utils.getCurrentDate
-import launcher.launcher.utils.json
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -38,6 +35,7 @@ data class StreakCheckReturn(
  */
 fun User.checkIfStreakFailed(): StreakCheckReturn? {
     val today = LocalDate.now()
+    val streakData = User.userInfo.streak
     val lastCompleted = LocalDate.parse(streakData.lastCompletedDate)
     val daysSince = ChronoUnit.DAYS.between(lastCompleted, today)
     Log.d("streak day since",daysSince.toString())
@@ -61,14 +59,14 @@ fun User.checkIfStreakFailed(): StreakCheckReturn? {
                     xp
                 }
 
-                saveStreakInfo()
+                saveUserInfo()
                 return StreakCheckReturn(streakFreezersUsed = requiredStreakFreezers, streakDaysLost = null)
             }else{
                 // user has no streak freezer
                 val oldStreak = streakData.currentStreak
                 streakData.longestStreak = maxOf(streakData.currentStreak, streakData.longestStreak)
                 streakData.currentStreak = 0
-                saveStreakInfo()
+                saveUserInfo()
                 return StreakCheckReturn(
                     streakFreezersUsed = null, streakDaysLost = oldStreak
                 )
@@ -81,15 +79,17 @@ fun User.checkIfStreakFailed(): StreakCheckReturn? {
 
 fun User.continueStreak(): Boolean {
     val today = LocalDate.now()
+    val streakData = User.userInfo.streak
     val lastCompleted = LocalDate.parse(streakData.lastCompletedDate)
     val daysSince = ChronoUnit.DAYS.between(lastCompleted, today)
 
+    Log.d("daysSince",daysSince.toString())
     if(daysSince!=0L){
         streakData.currentStreak += 1
         streakData.longestStreak = maxOf(streakData.currentStreak, streakData.longestStreak)
         streakData.lastCompletedDate = getCurrentDate()
 
-        saveStreakInfo()
+        saveUserInfo()
         return true
     }
     return false
@@ -107,23 +107,6 @@ fun User.addLevelUpRewards(): HashMap<InventoryItem,Int>{
 
     addItemsToInventory(levelUpInventoryItem)
     return levelUpInventoryItem
-}
-
-
-fun User.saveStreakInfo(){
-    val sharedPreferences = appContext.getSharedPreferences("overall_streak", Context.MODE_PRIVATE)
-    sharedPreferences.edit(commit = true) { putString("info", json.encodeToString(streakData)) }
-}
-
-fun getStreakInfo(context: Context): StreakData {
-    val sharedPreferences = context.getSharedPreferences("overall_streak", Context.MODE_PRIVATE)
-    val streakInfoJson = sharedPreferences.getString("info", null)
-    Log.d("streak json", streakInfoJson.toString())
-    return if (streakInfoJson != null) {
-        json.decodeFromString<StreakData>(streakInfoJson)
-    } else {
-        StreakData()
-    }
 }
 
 

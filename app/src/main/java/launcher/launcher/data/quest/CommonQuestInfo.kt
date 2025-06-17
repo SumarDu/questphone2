@@ -159,6 +159,10 @@ interface QuestDao {
     @Query("DELETE FROM CommonQuestInfo")
     suspend fun clearAll()
 
+
+    @Query("SELECT COUNT(*) FROM CommonQuestInfo")
+    suspend fun getRowCount(): Int
+
 }
 
 @androidx.room.Database(

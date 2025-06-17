@@ -1,7 +1,6 @@
 package launcher.launcher.ui.screens.launcher
 
 import android.content.Context.MODE_PRIVATE
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -52,7 +51,6 @@ import launcher.launcher.data.game.StreakCheckReturn
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.checkIfStreakFailed
 import launcher.launcher.data.game.continueStreak
-import launcher.launcher.data.game.getStreakInfo
 import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.navigation.Screen
@@ -74,12 +72,12 @@ fun HomeScreen(navController: NavController) {
 
     val questHelper = QuestHelper(context)
     val questListUnfiltered by dao.getAllQuests().collectAsState(initial = emptyList())
+    val initial = remember { mutableStateOf(true) }
     val questList = remember { mutableStateListOf<CommonQuestInfo>() }
 
     val completedQuests = remember { SnapshotStateList<String>() }
     val progress = (completedQuests.size.toFloat() / questList.size.toFloat()).coerceIn(0f,1f)
 
-    var streakInfo = remember {mutableStateOf(getStreakInfo(context))}
 
     BackHandler {  }
 
@@ -99,34 +97,40 @@ fun HomeScreen(navController: NavController) {
     }
 
     LaunchedEffect(questListUnfiltered) {
-        val todayDay = getCurrentDay()
-        val list = questListUnfiltered.filter { !it.is_destroyed && it.selected_days.contains(todayDay)}
-        questList.clear()
-        questList.addAll(list)
+        if (initial.value) {
+            initial.value = false // Ignore the first emission (initial = emptyList())
+        } else {
+            val todayDay = getCurrentDay()
+            val list =
+                questListUnfiltered.filter { !it.is_destroyed && it.selected_days.contains(todayDay) }
+            questList.clear()
+            questList.addAll(list)
 
 
-        questList.forEach { item ->
-            if (item.last_completed_on == getCurrentDate()) {
-                completedQuests.add(item.title)
+            questList.forEach { item ->
+                if (item.last_completed_on == getCurrentDate()) {
+                    completedQuests.add(item.title)
+                }
+                if (questHelper.isQuestRunning(item.title)) {
+                    viewQuest(item, navController)
+                }
             }
-            if (questHelper.isQuestRunning(item.title)) {
-                viewQuest(item, navController)
-            }
-        }
-        Log.d("streak data", streakInfo.toString())
-        if (streakInfo.value.currentStreak != 0) {
-            streakFailResultHandler(User.checkIfStreakFailed())
-        }
-        val data = context.getSharedPreferences("onboard", MODE_PRIVATE)
 
-        if (completedQuests.size == questList.size && data.getBoolean("onboard",false)) {
-            if (User.continueStreak()) {
-                RewardDialogInfo.currentDialog = DialogState.STREAK_UP
-                RewardDialogInfo.isRewardDialogVisible = true
+            val data = context.getSharedPreferences("onboard", MODE_PRIVATE)
+
+
+            if (User.userInfo.streak.currentStreak != 0) {
+                streakFailResultHandler(User.checkIfStreakFailed())
             }
+            if (completedQuests.size == questList.size && data.getBoolean("onboard", false)) {
+                if (User.continueStreak()) {
+                    RewardDialogInfo.currentDialog = DialogState.STREAK_UP
+                    RewardDialogInfo.isRewardDialogVisible = true
+                }
+            }
+
         }
     }
-
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
     Box(
         modifier = Modifier
@@ -191,7 +195,7 @@ fun HomeScreen(navController: NavController) {
                     }
             )
             Text(
-                text = "${streakInfo.value.currentStreak}D",
+                text = "${User.userInfo.streak.currentStreak}D",
                 style = MaterialTheme.typography.bodyLarge,
             )
 

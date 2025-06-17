@@ -55,7 +55,6 @@ import launcher.launcher.R.drawable
 import launcher.launcher.data.game.InventoryItem
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.User.userInfo
-import launcher.launcher.data.game.getStreakInfo
 import launcher.launcher.data.game.isBoosterActive
 import launcher.launcher.data.game.useInventoryItem
 import launcher.launcher.data.game.xpToLevelUp
@@ -70,7 +69,6 @@ import launcher.launcher.utils.formatRemainingTime
 @Composable
 fun UserInfoScreen() {
     val context = LocalContext.current
-    val streakData = getStreakInfo(context)
 
     val totalXpForNextLevel = xpToLevelUp(userInfo.level + 1)
     val totalXpForCurrentLevel = xpToLevelUp(userInfo.level)
@@ -224,12 +222,12 @@ fun UserInfoScreen() {
                     )
 
                     StatItem(
-                        value = "${formatNumber( streakData.currentStreak)}d",
+                        value = "${formatNumber( User.userInfo.streak.currentStreak)}d",
                         label = "Streak"
                     )
 
                     StatItem(
-                        value = "${formatNumber( streakData.longestStreak)}d",
+                        value = "${formatNumber( User.userInfo.streak.longestStreak)}d",
                         label = "Top Streak"
                     )
                 }
