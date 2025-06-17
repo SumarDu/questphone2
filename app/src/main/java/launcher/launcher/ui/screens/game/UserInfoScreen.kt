@@ -48,7 +48,6 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.first
 import launcher.launcher.R
 import launcher.launcher.R.drawable
@@ -59,7 +58,6 @@ import launcher.launcher.data.game.isBoosterActive
 import launcher.launcher.data.game.useInventoryItem
 import launcher.launcher.data.game.xpToLevelUp
 import launcher.launcher.data.quest.stats.StatsDatabaseProvider
-import launcher.launcher.data.quest.stats.StatsInfo
 import launcher.launcher.ui.screens.quest.stats.components.HeatMapChart
 import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.formatNumber
@@ -81,17 +79,9 @@ fun UserInfoScreen() {
 
     LaunchedEffect (Unit) {
         val userId = Supabase.supabase.auth.currentUserOrNull()!!.id
-
-        var stats = Supabase.supabase
-            .postgrest["quest_stats"]
-            .select {
-                filter {
-                    eq("user_id",userId)
-                }
-            }
-            .decodeList<StatsInfo>()
-
         val dao = StatsDatabaseProvider.getInstance(context).statsDao()
+
+        var stats = dao.getAllStatsForUser().first()
 
         stats = stats.toMutableList()
         stats.addAll(dao.getAllUnSyncedStats().first())

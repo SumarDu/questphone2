@@ -60,7 +60,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -110,19 +109,9 @@ fun BaseQuestStatsView(baseData: CommonQuestInfo, navController: NavHostControll
 
     LaunchedEffect(Unit) {
         val userId = Supabase.supabase.auth.currentUserOrNull()!!.id
-        var stats = Supabase.supabase
-            .postgrest["quest_stats"]
-            .select {
-                filter {
-                    eq("user_id",userId)
-                    eq("quest_id", baseData.id)
-                }
-            }
-            .decodeList<StatsInfo>()
-
         val dao = StatsDatabaseProvider.getInstance(context).statsDao()
-        stats = stats.toMutableList()
-        stats.addAll(dao.getAllUnSyncedStats().first())
+
+        var stats = dao.getStatsByQuestId(baseData.id).first()
 
         successfulDates.addAll(stats.map { it.date })
         val allowedDays = baseData.selected_days.map { it.toJavaDayOfWeek() }.toSet()

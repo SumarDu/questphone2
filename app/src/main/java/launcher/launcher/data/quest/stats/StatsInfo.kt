@@ -69,14 +69,14 @@ interface StatsInfoDao {
     @Update
     suspend fun updateStats(statsInfo: StatsInfo)
 
-    @Query("SELECT * FROM StatsInfo WHERE id = :id LIMIT 1")
-    suspend fun getStatsById(id: String): StatsInfo?
+    @Query("SELECT * FROM StatsInfo WHERE quest_id = :id")
+    fun getStatsByQuestId(id: String): Flow<List<StatsInfo>>
 
     @Query("SELECT * FROM StatsInfo WHERE date = :date LIMIT 1")
     suspend fun getStatsForUserOnDate( date: LocalDate): StatsInfo?
 
-    @Query("SELECT * FROM StatsInfo WHERE user_id = :userId ORDER BY date DESC")
-    fun getAllStatsForUser(userId: String): Flow<List<StatsInfo>>
+    @Query("SELECT * FROM StatsInfo")
+    fun getAllStatsForUser(): Flow<List<StatsInfo>>
 
     @Query("DELETE FROM StatsInfo WHERE id = :id")
     suspend fun deleteStatsById(id: String)

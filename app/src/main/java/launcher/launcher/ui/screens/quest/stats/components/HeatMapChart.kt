@@ -330,13 +330,13 @@ fun ContributionLegend(modifier: Modifier = Modifier) {
 @Composable
 fun QuestTooltip(dailyInfo: MutableState<DailyQuestInfo?>) {
     val context = LocalContext.current
-    val questList = remember { mutableStateListOf<String>()}
+    val questList = remember { mutableMapOf<String, String>()}
 
     LaunchedEffect(dailyInfo.value) {
         if(dailyInfo.value!=null){
             val dao = QuestDatabaseProvider.getInstance(context).questDao()
             dailyInfo.value!!.quests.forEach {
-                questList.add(dao.getQuestById(it)?.title ?: it)
+                questList[it] = dao.getQuestById(it)?.title ?: it
             }
         }
     }
@@ -385,7 +385,7 @@ fun QuestTooltip(dailyInfo: MutableState<DailyQuestInfo?>) {
 
                     questList.forEach { questName ->
                         Text(
-                            text = "• $questName",
+                            text = "• ${questName.value}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                         )
