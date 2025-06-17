@@ -33,7 +33,6 @@ import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
 import launcher.launcher.utils.json
-import java.time.LocalDate
 import java.util.UUID
 
 @Composable
@@ -89,7 +88,7 @@ fun AiSnapQuestView(
 
     if(isAiEvaluating.value) {
         Log.d("aiQuest",aiQuest.toString())
-        AiEvaluationScreen(isAiEvaluating,aiQuest?.taskDescription ?: "return error") { isComplete ->
+        AiEvaluationScreen(isAiEvaluating,commonQuestInfo.id ?: "return error") { isComplete ->
             if(isComplete) onQuestComplete()
         }
     } else if (isCameraScreen.value) {

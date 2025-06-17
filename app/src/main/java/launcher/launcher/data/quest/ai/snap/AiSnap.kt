@@ -5,5 +5,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class AiSnap(
     val taskDescription: String,
-    var spatialImageUrl : String? = null
+    var features: List<String>
 )

@@ -2,9 +2,14 @@ package launcher.launcher.utils.ai
 
 
 import android.util.Log
-import okhttp3.*
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.Response
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
@@ -20,7 +25,7 @@ class TaskValidationClient {
 
     companion object {
         private const val TAG = "TaskValidationClient"
-        private const val BASE_URL = "http://ec2-3-83-89-169.compute-1.amazonaws.com:8000" // Use 10.0.2.2 for emulator localhost
+        private const val BASE_URL = "http://localhost:8000" // Use 10.0.2.2 for emulator localhost
     }
 
     data class ValidationResult(
@@ -30,14 +35,14 @@ class TaskValidationClient {
 
     fun validateTask(
         imageFile: File,
-        description: String,
+        questId: String,
         token: String,
         callback: (Result<ValidationResult>) -> Unit
     ) {
         // Create multipart form data
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart("description", description)
+            .addFormDataPart("quest_id", questId)
 
             .addFormDataPart(
                 "image",
@@ -48,7 +53,7 @@ class TaskValidationClient {
 
         // Build the request
         val request = Request.Builder()
-            .url("$BASE_URL/validate-task/")
+            .url("$BASE_URL/validate-task")
             .header("Authorization", "Bearer $token")
             .post(requestBody)
             .build()
@@ -75,7 +80,7 @@ class TaskValidationClient {
                         callback(Result.failure(IOException("Empty response from server")))
                         return
                     }
-
+                    Log.d("server Response",responseBody)
                     try {
                         val json = JSONObject(responseBody)
                         val result = ValidationResult(
