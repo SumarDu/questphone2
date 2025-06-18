@@ -3,13 +3,9 @@ package launcher.launcher.blockers
 
 import android.os.SystemClock
 import android.util.Log
-import java.util.Calendar
+import launcher.launcher.services.ServiceInfo.unlockedApps
 
 class AppBlocker {
-
-    // package-name -> end-time-in-millis
-    private var cooldownAppsList:MutableMap<String,Long> = mutableMapOf()
-
 
     var blockedAppsList = hashSetOf("")
 
@@ -21,9 +17,9 @@ class AppBlocker {
      */
     fun doesAppNeedToBeBlocked(packageName: String): AppBlockerResult {
 
-        if(cooldownAppsList.containsKey(packageName)){
+        if(unlockedApps.containsKey(packageName)){
             // check if app has surpassed the cooldown period
-            if (cooldownAppsList[packageName]!! < SystemClock.uptimeMillis()){
+            if (unlockedApps[packageName]!! < SystemClock.uptimeMillis()){
                 removeCooldownFrom(packageName)
                 return AppBlockerResult(isBlocked = true)
             }
@@ -31,7 +27,7 @@ class AppBlocker {
             // app is still under cooldown
             return AppBlockerResult(
                 isBlocked = false,
-                cooldownEndTime = cooldownAppsList[packageName]!!
+                cooldownEndTime = unlockedApps[packageName]!!
             )
         }
 
@@ -43,12 +39,12 @@ class AppBlocker {
         return AppBlockerResult(isBlocked = false)
     }
     fun putCooldownTo(packageName: String, endTime: Long) {
-        cooldownAppsList[packageName] = endTime
-        Log.d("cooldownAppsList",cooldownAppsList.toString())
+        unlockedApps[packageName] = endTime
+        Log.d("cooldownAppsList",unlockedApps.toString())
     }
 
     fun removeCooldownFrom(packageName: String) {
-        cooldownAppsList.remove(packageName)
+        unlockedApps.remove(packageName)
     }
 
     /**

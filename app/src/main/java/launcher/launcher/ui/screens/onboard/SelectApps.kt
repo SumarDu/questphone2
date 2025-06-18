@@ -54,7 +54,7 @@ import launcher.launcher.utils.openAccessibilityServiceScreen
 import launcher.launcher.utils.reloadApps
 
 @Composable
-fun SelectApps(isNextEnabled: MutableState<Boolean?> = mutableStateOf(null)) {
+fun SelectApps(isNextEnabled: MutableState<Boolean> = mutableStateOf(false)) {
     val context = LocalContext.current
 
     val isLoading = remember { mutableStateOf(true) }

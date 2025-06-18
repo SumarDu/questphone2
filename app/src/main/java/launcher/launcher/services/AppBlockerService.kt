@@ -1,33 +1,37 @@
 package launcher.launcher.services
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
-import launcher.MyApp
 import launcher.launcher.MainActivity
 import launcher.launcher.R
+import launcher.launcher.services.ServiceInfo.deepFocus
+import launcher.launcher.services.ServiceInfo.unlockedApps
 
 
 class AppBlockerService : Service() {
 
-    private val TAG = "AppBockService"
+    private val TAG = "AppBockServiceFG"
     private lateinit var usageStatsManager: UsageStatsManager
     private lateinit var handler: Handler
     private var lastForegroundPackage: String? = null
 
-    // Store the unlock time for each app that is temporarily unlocked
-    private val temporarilyUnlockedAppsWithExpiry = mutableMapOf<String, Long>()
 
     // Default locked apps - will be overridden by saved preferences
-    private val lockedApps = mutableSetOf<String>("com.android.settings")
+    private val lockedApps = mutableSetOf<String>()
 
 
     companion object {
@@ -36,14 +40,9 @@ class AppBlockerService : Service() {
         var isOverlayActive = false
         var currentLockedPackage: String? = null
 
-        // Time to wait before locking an app again after going to home screen
-        private const val HOME_SCREEN_LOCK_DELAY_MS = 3000L
-
         // Polling intervals
         private const val STANDARD_POLLING_INTERVAL_MS = 100L
 
-        // NEW: Time an app remains unlocked after successful authentication (15 minutes)
-        private const val TEMPORARY_UNLOCK_DURATION_MS = 15 * 60 * 1000L // 15 minutes
     }
 
     override fun onCreate() {
@@ -52,10 +51,31 @@ class AppBlockerService : Service() {
         usageStatsManager = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
         handler = Handler(Looper.getMainLooper())
         createNotificationChannel()
+        setupBroadcastListeners()
         loadLockedApps()
         startForeground(NOTIFICATION_ID, createNotification())
         startMonitoringApps()
-        (applicationContext as MyApp).appLockServiceInstance = this
+        ServiceInfo.appBlockerService= this
+    }
+
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+    private fun setupBroadcastListeners(){
+        val filter = IntentFilter().apply {
+            addAction(INTENT_ACTION_REFRESH_APP_BLOCKER)
+            addAction(INTENT_ACTION_UNLOCK_APP)
+            addAction(INTENT_ACTION_START_DEEP_FOCUS)
+            addAction(INTENT_ACTION_STOP_DEEP_FOCUS)
+        }
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(refreshReceiver, filter, RECEIVER_EXPORTED)
+            } else {
+                registerReceiver(refreshReceiver, filter)
+            }
+        } catch (e: Exception) {
+            Log.e("AppBlockerService", "Failed to register receiver: ${e.message}")
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -67,7 +87,7 @@ class AppBlockerService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacks(appMonitorRunnable)
-        (applicationContext as MyApp).appLockServiceInstance = null
+        ServiceInfo.appBlockerService = null
         // remove the notification when service is destroyed
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.cancel(NOTIFICATION_ID)
@@ -181,13 +201,13 @@ class AppBlockerService : Service() {
     // Cleans up apps whose temporary unlock duration has expired
     private fun cleanUpExpiredUnlocks(currentTime: Long) {
         val expiredApps = mutableListOf<String>()
-        for ((packageName, expiryTime) in temporarilyUnlockedAppsWithExpiry) {
+        for ((packageName, expiryTime) in unlockedApps) {
             if (currentTime >= expiryTime) {
                 expiredApps.add(packageName)
                 Log.d(TAG, "Temporary unlock expired for: $packageName")
             }
         }
-        expiredApps.forEach { temporarilyUnlockedAppsWithExpiry.remove(it) }
+        expiredApps.forEach { unlockedApps.remove(it) }
     }
 
     private fun shouldShowLockScreen(
@@ -203,7 +223,7 @@ class AppBlockerService : Service() {
 
         val isAppCurrentlyLocked = lockedApps.contains(detectedForegroundPackage)
         // Check if the app is currently temporarily unlocked (and not expired)
-        val isTemporarilyUnlocked = temporarilyUnlockedAppsWithExpiry.containsKey(detectedForegroundPackage)
+        val isTemporarilyUnlocked = unlockedApps.containsKey(detectedForegroundPackage)
 
         if (isAppCurrentlyLocked &&
             !isOverlayActive &&
@@ -242,7 +262,7 @@ class AppBlockerService : Service() {
         }
 
         // NEW: Check if the app is currently temporarily unlocked (and not expired)
-        val isCurrentlyTemporarilyUnlocked = temporarilyUnlockedAppsWithExpiry.containsKey(foregroundPackage)
+        val isCurrentlyTemporarilyUnlocked = unlockedApps.containsKey(foregroundPackage)
 
         // If the current foreground app is one that is temporarily unlocked, do nothing further.
         if (isCurrentlyTemporarilyUnlocked) {
@@ -300,30 +320,21 @@ class AppBlockerService : Service() {
         startActivity(intent)
     }
 
-    // Modified unlockApp to set an expiry time
-    fun unlockApp(unlockedPackageName: String) {
-        val expiryTime = System.currentTimeMillis() + TEMPORARY_UNLOCK_DURATION_MS
-        temporarilyUnlockedAppsWithExpiry[unlockedPackageName] = expiryTime
-        Log.d(TAG, "App unlocked via PIN: $unlockedPackageName. Unlocked until: $expiryTime")
-        isOverlayActive = false
-        if (currentLockedPackage == unlockedPackageName) {
-            currentLockedPackage = null
+    // unlockApp to set an expiry time
+    fun unlockApp(unlockedPackageName: String, duration: Int) {
+        if (!isAppUnlocked(unlockedPackageName)) {
+            val expiryTime = System.currentTimeMillis() + duration
+            unlockedApps[unlockedPackageName] = expiryTime
+            Log.d(TAG, "App unlocked via PIN: $unlockedPackageName. Unlocked until: $expiryTime")
+            isOverlayActive = false
+            if (currentLockedPackage == unlockedPackageName) {
+                currentLockedPackage = null
+            }
         }
     }
 
-    // Modified temporarilyUnlockApp to set an expiry time
-    fun temporarilyUnlockApp(packageName: String) {
-        val expiryTime = System.currentTimeMillis() + TEMPORARY_UNLOCK_DURATION_MS
-        temporarilyUnlockedAppsWithExpiry[packageName] = expiryTime
-        Log.d(TAG, "Biometric auth: temporarily unlocking app: $packageName. Unlocked until: $expiryTime")
-        if (currentLockedPackage == packageName) {
-            currentLockedPackage = null
-        }
-        isOverlayActive = false
-        Log.d(
-            TAG,
-            "App state after temp unlock - temporarilyUnlockedAppsWithExpiry: $temporarilyUnlockedAppsWithExpiry, isOverlayActive: $isOverlayActive, currentLockedPackage: $currentLockedPackage"
-        )
+    fun isAppUnlocked(packageName:String):Boolean{
+        return unlockedApps.containsKey(packageName)
     }
 
     fun isAppLocked(packageName: String): Boolean {
@@ -332,7 +343,7 @@ class AppBlockerService : Service() {
 
     // Modified isAppTemporarilyUnlocked to check for expiry
     fun isAppTemporarilyUnlocked(packageName: String): Boolean {
-        val expiryTime = temporarilyUnlockedAppsWithExpiry[packageName]
+        val expiryTime = unlockedApps[packageName]
         return expiryTime != null && System.currentTimeMillis() < expiryTime
     }
 
@@ -340,7 +351,8 @@ class AppBlockerService : Service() {
         val sp = getSharedPreferences("distractions", MODE_PRIVATE)
         val apps = sp.getStringSet("distracting_apps", emptySet<String>())
 
-        if (apps != null) {
+        lockedApps.clear()
+        if(apps?.isNotEmpty() == true){
             lockedApps.addAll(apps)
         }
         Log.d(TAG, "Loaded locked apps: $lockedApps")
@@ -353,7 +365,7 @@ class AppBlockerService : Service() {
     fun removeLockedApp(packageName: String) {
         lockedApps.remove(packageName)
         // If removing a locked app, also remove it from temporary unlock if it was there
-        temporarilyUnlockedAppsWithExpiry.remove(packageName)
+        unlockedApps.remove(packageName)
     }
 
 
@@ -388,5 +400,35 @@ class AppBlockerService : Service() {
             }
         }
         return currentApp
+    }
+
+    private val refreshReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent == null) return
+            when (intent.action) {
+                INTENT_ACTION_REFRESH_APP_BLOCKER -> loadLockedApps()
+                INTENT_ACTION_START_DEEP_FOCUS -> {
+                    deepFocus.exceptionApps = intent.getStringArrayListExtra("exception")?.toHashSet()!!
+                    deepFocus.isRunning = true
+                }
+                INTENT_ACTION_STOP_DEEP_FOCUS -> {
+                    deepFocus.isRunning = false
+                    deepFocus.exceptionApps = hashSetOf<String>()
+                }
+                INTENT_ACTION_UNLOCK_APP -> {
+                    val interval = intent.getIntExtra("selected_time", 0)
+                    val coolPackage = intent.getStringExtra("package_name") ?: ""
+
+                    Log.d("AppBlockerServiceFG", "Received cooldown broadcast for $coolPackage, duration: $interval ms")
+
+                    // Only proceed if we have a valid package and duration
+                    if (coolPackage.isNotEmpty() && interval > 0) {
+                        unlockApp(coolPackage,interval)
+                    } else {
+                        Log.e("AppBlockerServiceFG", "Invalid cooldown parameters: package=$coolPackage, interval=$interval")
+                    }
+                }
+            }
+        }
     }
 }

@@ -31,7 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.edit
+import androidx.core.content.ContextCompat.startForegroundService
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -41,7 +41,10 @@ import kotlinx.coroutines.withContext
 import launcher.launcher.data.AppInfo
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.useCoins
-import launcher.launcher.services.INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN
+import launcher.launcher.services.AppBlockerService
+import launcher.launcher.services.INTENT_ACTION_UNLOCK_APP
+import launcher.launcher.services.ServiceInfo
+import launcher.launcher.services.ServiceInfo.unlockedApps
 import launcher.launcher.ui.screens.launcher.components.AppItem
 import launcher.launcher.ui.screens.launcher.components.CoinDialog
 import launcher.launcher.ui.screens.launcher.components.LowCoinsDialog
@@ -95,13 +98,11 @@ fun AppList() {
             innerPadding = innerPadding,
             onAppClick = { packageName ->
                 if (distractions.contains(packageName)) {
-                    val cooldownUntil = sp.getLong(packageName+"_time",-1L)
-
+                    val cooldownUntil = unlockedApps[packageName] ?:0L
                     if (cooldownUntil==-1L || System.currentTimeMillis() > cooldownUntil) {
                         // Not under cooldown - show dialog
                         showCoinDialog.value = true
                         selectedPackage.value = packageName
-                        sp.edit { remove(packageName + "_time") }
                     } else {
                         launchApp(context, packageName)
                     }
@@ -113,30 +114,26 @@ fun AppList() {
         )
 
         if (showCoinDialog.value) {
-            if(User.userInfo.coins>=5) {
+            if(User.userInfo.coins>=0) {
                 CoinDialog(
                     coins = User.userInfo.coins,
                     onDismiss = { showCoinDialog.value = false },
                     onConfirm = {
-
-                        // Set cooldown time (10 minutes = 10 * 60 * 1000 milliseconds)
                         val cooldownTime = 10 * 60_000
-                        sp.edit {
-                            putLong(
-                                selectedPackage.value + "_time",
-                                System.currentTimeMillis() + cooldownTime
-                            )
-                        }
-                        val intent = Intent().apply {
-                            action = INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN
-                            putExtra("selected_time", cooldownTime)
-                            putExtra("result_id", selectedPackage.value)
-                        }
-                        context.sendBroadcast(intent)
+                            val intent = Intent().apply {
+                                action = INTENT_ACTION_UNLOCK_APP
+                                putExtra("selected_time", cooldownTime)
+                                putExtra("package_name", selectedPackage.value)
+                            }
+                            context.sendBroadcast(intent)
+                            if(!ServiceInfo.isUsingAccessibilityService && ServiceInfo.appBlockerService==null){
+                                startForegroundService(context,Intent(context, AppBlockerService::class.java))
+                                unlockedApps[selectedPackage.value] = System.currentTimeMillis() +  cooldownTime
+                            }
+                            User.useCoins(5)
+                            launchApp(context, selectedPackage.value)
+                            showCoinDialog.value = false
 
-                        User.useCoins(5)
-                        launchApp(context, selectedPackage.value)
-                        showCoinDialog.value = false
                     },
                     appName = try {
                         packageManager.getApplicationInfo(selectedPackage.value, 0)

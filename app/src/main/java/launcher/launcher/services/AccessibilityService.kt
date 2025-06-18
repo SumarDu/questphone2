@@ -17,12 +17,8 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import androidx.core.app.NotificationCompat
 import launcher.launcher.blockers.AppBlocker
-import launcher.launcher.blockers.DeepFocus
+import launcher.launcher.services.ServiceInfo.deepFocus
 
-const val INTENT_ACTION_REFRESH_APP_BLOCKER = "launcher.launcher.refresh.appblocker"
-const val INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN = "launcher.launcher.refresh.appblocker.cooldown"
-const val INTENT_ACTION_START_DEEP_FOCUS = "launcher.launcher.start.deepfocus"
-const val INTENT_ACTION_STOP_DEEP_FOCUS = "launcher.launcher.stop.deepfocus"
 private const val NOTIFICATION_CHANNEL_ID = "app_cooldown_channel"
 private const val NOTIFICATION_ID = 1002
 
@@ -32,7 +28,6 @@ class AccessibilityService : AccessibilityService() {
     private var timerRunnable: Runnable? = null
     private var lastPackage = ""
     val appBlocker = AppBlocker()
-    val deepFocus = DeepFocus()
     private var isTimerRunning = false
     private var currentCooldownPackage = ""
 
@@ -113,9 +108,9 @@ class AccessibilityService : AccessibilityService() {
                     deepFocus.isRunning = false
                     deepFocus.exceptionApps = hashSetOf<String>()
                 }
-                INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN -> {
+                INTENT_ACTION_UNLOCK_APP -> {
                     val interval = intent.getIntExtra("selected_time", 0).toLong()
-                    val coolPackage = intent.getStringExtra("result_id") ?: ""
+                    val coolPackage = intent.getStringExtra("package_name") ?: ""
                     val cooldownUntil = SystemClock.uptimeMillis() + interval
 
                     Log.d("AppBlockerService", "Received cooldown broadcast for $coolPackage, duration: $interval ms")
@@ -151,7 +146,7 @@ class AccessibilityService : AccessibilityService() {
 
         val filter = IntentFilter().apply {
             addAction(INTENT_ACTION_REFRESH_APP_BLOCKER)
-            addAction(INTENT_ACTION_REFRESH_APP_BLOCKER_COOLDOWN)
+            addAction(INTENT_ACTION_UNLOCK_APP)
             addAction(INTENT_ACTION_START_DEEP_FOCUS)
             addAction(INTENT_ACTION_STOP_DEEP_FOCUS)
         }
