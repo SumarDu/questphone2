@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat.startForegroundService
 import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -43,9 +44,10 @@ import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.focus.DeepFocus
 import launcher.launcher.data.quest.stats.StatsDatabaseProvider
-import launcher.launcher.data.quest.stats.StatsInfo
+import launcher.launcher.services.AppBlockerService
 import launcher.launcher.services.INTENT_ACTION_START_DEEP_FOCUS
 import launcher.launcher.services.INTENT_ACTION_STOP_DEEP_FOCUS
+import launcher.launcher.services.ServiceInfo
 import launcher.launcher.ui.screens.quest.checkForRewards
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
@@ -54,8 +56,6 @@ import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
 import launcher.launcher.utils.json
 import launcher.launcher.utils.sendRefreshRequest
-import java.time.LocalDate
-import java.util.UUID
 
 private const val PREF_NAME = "deep_focus_prefs"
 private const val KEY_START_TIME = "start_time_"
@@ -138,15 +138,15 @@ fun DeepFocusQuestView(
         commonQuestInfo.synced = false
         commonQuestInfo.last_updated = System.currentTimeMillis()
         scope.launch {
-            dao.upsertQuest(commonQuestInfo)
+//            dao.upsertQuest(commonQuestInfo)
 
             val userid = Supabase.supabase.auth.currentUserOrNull()!!.id
             val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
-            statsDao.upsertStats(StatsInfo(
-                id =  UUID.randomUUID().toString(),
-                quest_id = commonQuestInfo.id,
-                user_id = userid,
-            ))
+//            statsDao.upsertStats(StatsInfo(
+//                id =  UUID.randomUUID().toString(),
+//                quest_id = commonQuestInfo.id,
+//                user_id = userid,
+//            ))
         }
 
         questHelper.setQuestRunning(commonQuestInfo.title, false)
@@ -164,6 +164,8 @@ fun DeepFocusQuestView(
         // Cancel notification when complete
         cancelTimerNotification(context)
         sendRefreshRequest(context, INTENT_ACTION_STOP_DEEP_FOCUS)
+
+        ServiceInfo.deepFocus.isRunning = false
         isQuestComplete.value =true
     }
     fun startQuest() {
@@ -171,11 +173,16 @@ fun DeepFocusQuestView(
         isQuestRunning = true
         timerActive = true
 
+        if(!ServiceInfo.isUsingAccessibilityService && ServiceInfo.appBlockerService==null){
+            startForegroundService(context,Intent(context, AppBlockerService::class.java))
+        }
         // Clear any existing data and set fresh start time
         prefs.edit {
             putLong(KEY_START_TIME + questKey, System.currentTimeMillis())
                 .putLong(KEY_PAUSED_ELAPSED + questKey, 0L)
         }
+        ServiceInfo.deepFocus.isRunning = true
+        ServiceInfo.deepFocus.exceptionApps = deepFocus.unrestrictedApps.toHashSet()
         val intent = Intent(INTENT_ACTION_START_DEEP_FOCUS)
         intent.putStringArrayListExtra("exception", deepFocus.unrestrictedApps.toCollection(ArrayList()))
         context.sendBroadcast(intent)
@@ -219,12 +226,19 @@ fun DeepFocusQuestView(
                 if (!isAppInForeground && isQuestRunning) {
                     updateTimerNotification(context, commonQuestInfo.title, progress, duration)
                 }
+
                 if (progress >= 1f) {
+                    isQuestRunning = false
                     onQuestComplete()
                 }
 
                 delay(1000) // Update every second instead of 100ms to reduce battery usage
             }
+        }
+    }
+    LaunchedEffect(progress) {
+        if (progress >= 1f && isQuestRunning) {
+            onQuestComplete()
         }
     }
 

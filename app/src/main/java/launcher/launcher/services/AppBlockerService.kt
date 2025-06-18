@@ -16,10 +16,16 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import launcher.launcher.LockedActivity
 import launcher.launcher.MainActivity
 import launcher.launcher.R
 import launcher.launcher.services.ServiceInfo.deepFocus
 import launcher.launcher.services.ServiceInfo.unlockedApps
+import launcher.launcher.utils.getKeyboards
+import launcher.launcher.utils.reloadApps
 
 
 class AppBlockerService : Service() {
@@ -53,6 +59,7 @@ class AppBlockerService : Service() {
         createNotificationChannel()
         setupBroadcastListeners()
         loadLockedApps()
+        if(deepFocus.isRunning) turnDeepFocus()
         startForeground(NOTIFICATION_ID, createNotification())
         startMonitoringApps()
         ServiceInfo.appBlockerService= this
@@ -67,6 +74,7 @@ class AppBlockerService : Service() {
             addAction(INTENT_ACTION_STOP_DEEP_FOCUS)
         }
 
+        Log.d("AppBlockerSrvieFg","registering reciever")
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 registerReceiver(refreshReceiver, filter, RECEIVER_EXPORTED)
@@ -91,6 +99,8 @@ class AppBlockerService : Service() {
         // remove the notification when service is destroyed
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.cancel(NOTIFICATION_ID)
+
+        unregisterReceiver(refreshReceiver)
     }
 
     private fun createNotificationChannel() {
@@ -296,12 +306,11 @@ class AppBlockerService : Service() {
     private fun refreshHomeScreenOverlay() {
         if (isOverlayActive && currentLockedPackage != null) {
             Log.d(TAG, "Refreshing overlay for $currentLockedPackage")
-            val currentIntent = Intent(this, MainActivity::class.java)
+            val currentIntent = Intent(this, LockedActivity::class.java)
             currentIntent.addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                        Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
             )
             // Ensure the package name is passed, in case the overlay needs to re-verify
             currentIntent.putExtra("locked_package", currentLockedPackage)
@@ -310,11 +319,11 @@ class AppBlockerService : Service() {
     }
 
     private fun showHomwScreenOverlay() {
-        val intent = Intent(this, MainActivity::class.java)
+        val intent = Intent(this, LockedActivity::class.java)
         intent.addFlags(
             Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
         )
         intent.putExtra("locked_package", currentLockedPackage)
         startActivity(intent)
@@ -402,18 +411,42 @@ class AppBlockerService : Service() {
         return currentApp
     }
 
+    private fun turnDeepFocus(){
+        CoroutineScope(Dispatchers.IO).launch {
+            val pm = applicationContext.packageManager
+            val result = reloadApps(pm,applicationContext)
+
+            if(result.isSuccess){
+                var allApps = result.getOrDefault(emptyList())
+                val keyboardApps = getKeyboards(applicationContext)
+
+                allApps = allApps.filter {
+                    !deepFocus.exceptionApps.contains(it.packageName) && !keyboardApps.contains(it.packageName) && it.packageName != "launcher.launcher"
+                }
+
+                lockedApps.clear()
+                lockedApps.addAll(allApps.map { it.packageName })
+                Log.d("AppBlockerServiceFg","Turning on FocusMode ${lockedApps.toString()}")
+
+            }
+        }
+    }
+
     private val refreshReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            Log.d(TAG,intent?.action.toString())
             if (intent == null) return
             when (intent.action) {
                 INTENT_ACTION_REFRESH_APP_BLOCKER -> loadLockedApps()
                 INTENT_ACTION_START_DEEP_FOCUS -> {
                     deepFocus.exceptionApps = intent.getStringArrayListExtra("exception")?.toHashSet()!!
                     deepFocus.isRunning = true
+                    turnDeepFocus()
                 }
                 INTENT_ACTION_STOP_DEEP_FOCUS -> {
                     deepFocus.isRunning = false
                     deepFocus.exceptionApps = hashSetOf<String>()
+                    loadLockedApps()
                 }
                 INTENT_ACTION_UNLOCK_APP -> {
                     val interval = intent.getIntExtra("selected_time", 0)

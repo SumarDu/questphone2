@@ -2,10 +2,11 @@ package launcher.launcher.utils
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.view.inputmethod.InputMethodManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import launcher.launcher.data.AppInfo
 
@@ -59,4 +60,28 @@ suspend fun reloadApps(
             Result.failure(e)
         }
     }
+}
+suspend fun getBackgroundSystemApps(context: Context): List<ApplicationInfo> {
+    return withContext(Dispatchers.IO) {
+        val pm = context.packageManager
+        val allApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+
+        val launcherIntent = Intent(Intent.ACTION_MAIN, null).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
+        }
+        val launchableApps = pm.queryIntentActivities(launcherIntent, 0)
+            .map { it.activityInfo.applicationInfo.packageName }
+            .toSet()
+
+        allApps.filter { app ->
+            (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0 && // system app
+                    app.packageName !in launchableApps                  // not launchable
+        }
+    }
+}
+
+fun getKeyboards(context: Context): List<String> {
+    val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+    val enabledMethods = imm.enabledInputMethodList
+    return enabledMethods.map { it.packageName }
 }

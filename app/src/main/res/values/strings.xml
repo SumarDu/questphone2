@@ -3,4 +3,5 @@
     <string name="title_activity_health_perm">HealthPermActivity</string>
     <string name="title_activity_privacy_policy">PrivacyPolicyActivity</string>
     <string name="accessibility_permission_app_blocker">block app </string>
+    <string name="title_activity_locked">LockedActivity</string>
 </resources>

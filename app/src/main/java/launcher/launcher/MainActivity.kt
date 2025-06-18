@@ -25,6 +25,7 @@ import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.stats.StatsDatabaseProvider
 import launcher.launcher.services.AppBlockerService
+import launcher.launcher.services.ServiceInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
 import launcher.launcher.ui.screens.account.SetupNewPassword
@@ -61,7 +62,9 @@ class MainActivity : ComponentActivity() {
                 isUserOnboarded.value = data.getBoolean("onboard",false)
                 Log.d("onboard", isUserOnboarded.value.toString())
 
-                startForegroundService(Intent(this@MainActivity, AppBlockerService::class.java))
+                if(ServiceInfo.appBlockerService==null){
+                    startForegroundService(Intent(this@MainActivity, AppBlockerService::class.java))
+                }
                 Supabase.supabase.handleDeeplinks(intent){
                     if(it.type == "recovery"){
                         isLoginResetPassword.value = true
