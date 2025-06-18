@@ -1,6 +1,12 @@
 package launcher.launcher.ui.screens.onboard
 
+import android.Manifest
 import android.content.Context.MODE_PRIVATE
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -41,11 +47,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
+import androidx.core.net.toUri
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.account.SetupProfileScreen
 import launcher.launcher.utils.VibrationHelper
+import launcher.launcher.utils.checkNotificationPermission
+import launcher.launcher.utils.checkUsagePermission
 
 // Sealed class to represent different types of onboarding pages
 sealed class OnboardingContent {
@@ -57,6 +66,7 @@ sealed class OnboardingContent {
 
     // Custom composable content
     data class CustomPage(
+        val onNextPressed: () -> Boolean = {true},
         val content: @Composable (MutableState<Boolean>) -> Unit
     ) : OnboardingContent()
 }
@@ -170,6 +180,16 @@ fun OnboardingScreen(
                     if (isLastPage) {
                         onFinishOnboarding()
                     } else {
+                        val crnPage = pages[pagerState.currentPage]
+                        if(crnPage is OnboardingContent.CustomPage){
+                            val result = crnPage.onNextPressed.invoke()
+                            if(result){
+                                scope.launch {
+                                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                }
+                            }
+                            return@Button
+                        }
                         scope.launch {
                             pagerState.animateScrollToPage(pagerState.currentPage + 1)
                         }
@@ -238,6 +258,11 @@ fun StandardPageContent(
 @Composable
 fun OnBoardScreen(navController: NavHostController) {
 
+    val notificationPermLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { _ ->
+        }
+    )
     val context  = LocalContext.current
         val onboardingPages = listOf(
             OnboardingContent.CustomPage{ isNextEnabled ->
@@ -258,6 +283,51 @@ fun OnBoardScreen(navController: NavHostController) {
 
             OnboardingContent.CustomPage{ isNextEnabled ->
                 SetLauncher()
+            },
+            OnboardingContent.CustomPage(
+                content = {
+                    OverlayPermissionScreen()
+                },
+                onNextPressed = {
+                    val isAllowed = android.provider.Settings.canDrawOverlays(context)
+                    if(!isAllowed){
+                        val intent = Intent(
+                            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            "package:${context.packageName}".toUri()
+                        )
+                        context.startActivity(intent)
+                        return@CustomPage false
+                    }
+                    return@CustomPage true
+                }
+            ),
+            OnboardingContent.CustomPage(
+                content = {
+                    UsageAccessPermission()
+                }, onNextPressed = {
+                    if(checkUsagePermission(context)){
+                        return@CustomPage true
+                    }
+                    val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+                    context.startActivity(intent)
+                    return@CustomPage false
+
+                }
+            ),
+            OnboardingContent.CustomPage(
+                onNextPressed = {
+                    if(checkNotificationPermission(context)){
+                        return@CustomPage true
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        return@CustomPage false
+                    }else{
+                        return@CustomPage true
+                    }
+                }
+            ){
+                NotificationPermissionScreen()
             },
             OnboardingContent.StandardPage(
                 "Stay Motivated",

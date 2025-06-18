@@ -19,7 +19,6 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import launcher.launcher.LockedActivity
 import launcher.launcher.MainActivity
 import launcher.launcher.R
 import launcher.launcher.services.ServiceInfo.deepFocus
@@ -306,7 +305,7 @@ class AppBlockerService : Service() {
     private fun refreshHomeScreenOverlay() {
         if (isOverlayActive && currentLockedPackage != null) {
             Log.d(TAG, "Refreshing overlay for $currentLockedPackage")
-            val currentIntent = Intent(this, LockedActivity::class.java)
+            val currentIntent = Intent(this, MainActivity::class.java)
             currentIntent.addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or
@@ -319,7 +318,7 @@ class AppBlockerService : Service() {
     }
 
     private fun showHomwScreenOverlay() {
-        val intent = Intent(this, LockedActivity::class.java)
+        val intent = Intent(this, MainActivity::class.java)
         intent.addFlags(
             Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or

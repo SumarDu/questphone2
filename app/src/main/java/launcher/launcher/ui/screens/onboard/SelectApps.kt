@@ -49,9 +49,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import launcher.launcher.data.AppInfo
 import launcher.launcher.services.AccessibilityService
-import launcher.launcher.utils.isAccessibilityServiceEnabled
+import launcher.launcher.services.INTENT_ACTION_REFRESH_APP_BLOCKER
 import launcher.launcher.utils.openAccessibilityServiceScreen
 import launcher.launcher.utils.reloadApps
+import launcher.launcher.utils.sendRefreshRequest
 
 @Composable
 fun SelectApps(isNextEnabled: MutableState<Boolean> = mutableStateOf(false)) {
@@ -63,28 +64,39 @@ fun SelectApps(isNextEnabled: MutableState<Boolean> = mutableStateOf(false)) {
 
     val sp = context.getSharedPreferences("distractions",Context.MODE_PRIVATE)
 
-    var isAccessibilityServiceEnabled = remember { mutableStateOf(isAccessibilityServiceEnabled(context, AccessibilityService::class.java)) }
+//    var isAccessibilityServiceEnabled = remember { mutableStateOf(isAccessibilityServiceEnabled(context, AccessibilityService::class.java)) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    val isLoadedFromSp = remember { mutableStateOf(false) }
     LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            isAccessibilityServiceEnabled.value = isAccessibilityServiceEnabled(context, AccessibilityService::class.java)
-            isNextEnabled.value = isAccessibilityServiceEnabled.value
+//        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+//            isAccessibilityServiceEnabled.value = isAccessibilityServiceEnabled(context, AccessibilityService::class.java)
+//            isNextEnabled.value = isAccessibilityServiceEnabled.value
+//        }
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.DESTROYED) {
+            sendRefreshRequest(context, INTENT_ACTION_REFRESH_APP_BLOCKER)
         }
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             val apps = sp.getStringSet("distracting_apps", emptySet<String>()) ?: emptySet()
             selectedApps.clear() // Clear to avoid duplicates
             selectedApps.addAll(apps)
-            isNextEnabled.value = selectedApps.isNotEmpty() && isAccessibilityServiceEnabled.value
+            isNextEnabled.value = selectedApps.isNotEmpty()
+//            isNextEnabled.value = selectedApps.isNotEmpty() && isAccessibilityServiceEnabled.value
         }
     }
     LaunchedEffect(selectedApps) {
-        snapshotFlow { selectedApps.toSet() }.collect { appsSet ->
-            sp.edit { putStringSet("distracting_apps", appsSet) }
+        if(isLoadedFromSp.value){
+            snapshotFlow { selectedApps.toSet() }.collect { appsSet ->
+                sp.edit { putStringSet("distracting_apps", appsSet) }
+            }
         }
     }
     LaunchedEffect(Unit) {
+        val distractions = sp.getStringSet("distracting_apps", emptySet<String>()) ?: emptySet()
+        selectedApps.addAll(distractions)
+        isLoadedFromSp.value = true
+
         withContext(Dispatchers.IO) {
             reloadApps(context.packageManager, context)
                 .onSuccess { apps ->
@@ -127,12 +139,12 @@ fun SelectApps(isNextEnabled: MutableState<Boolean> = mutableStateOf(false)) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        if(selectedApps.isNotEmpty() && !isAccessibilityServiceEnabled.value){
-            AccessibilityPanel(selectedApps)
-            isNextEnabled.value = false
-        }else {
-            isNextEnabled.value = true
-        }
+//        if(selectedApps.isNotEmpty() && !isAccessibilityServiceEnabled.value){
+//            AccessibilityPanel(selectedApps)
+//            isNextEnabled.value = false
+//        }else {
+//            isNextEnabled.value = true
+//        }
 
         LazyColumn(
             modifier = Modifier

@@ -25,7 +25,6 @@ import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.stats.StatsDatabaseProvider
 import launcher.launcher.services.AppBlockerService
-import launcher.launcher.services.ServiceInfo
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
 import launcher.launcher.ui.screens.account.SetupNewPassword
@@ -62,7 +61,7 @@ class MainActivity : ComponentActivity() {
                 isUserOnboarded.value = data.getBoolean("onboard",false)
                 Log.d("onboard", isUserOnboarded.value.toString())
 
-                if(ServiceInfo.appBlockerService==null){
+                if(isUserOnboarded.value){
                     startForegroundService(Intent(this@MainActivity, AppBlockerService::class.java))
                 }
                 Supabase.supabase.handleDeeplinks(intent){
