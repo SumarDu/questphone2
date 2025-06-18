@@ -54,6 +54,9 @@ class ProfileSyncWorker(
             }
 
 
+            val manager =
+                applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.cancel(1041)
             return Result.success()
         } catch (e: Exception){
             Log.e("SyncError",e.stackTraceToString())

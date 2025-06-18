@@ -118,6 +118,7 @@ fun AppList() {
                     coins = User.userInfo.coins,
                     onDismiss = { showCoinDialog.value = false },
                     onConfirm = {
+
                         // Set cooldown time (10 minutes = 10 * 60 * 1000 milliseconds)
                         val cooldownTime = 10 * 60_000
                         sp.edit {

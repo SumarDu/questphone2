@@ -109,7 +109,7 @@ class QuestSyncWorker(
 
         val manager =
             applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.cancel(1001)
+        manager.cancel(1043)
             return Result.success()
         }catch (e: Exception){
             Log.e("SyncError",e.stackTraceToString())

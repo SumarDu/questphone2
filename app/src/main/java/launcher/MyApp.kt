@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import launcher.launcher.data.game.Pet
 import launcher.launcher.data.game.User
+import launcher.launcher.services.AppBlockerService
 import launcher.launcher.utils.VibrationHelper
 import launcher.launcher.utils.isOnline
 import launcher.launcher.utils.triggerQuestSync
@@ -14,9 +15,11 @@ class MyApp : Application() {
 
     private lateinit var connectivityManager: ConnectivityManager
     private lateinit var networkCallback: ConnectivityManager.NetworkCallback
+    var appLockServiceInstance: AppBlockerService? = null
 
     override fun onCreate() {
         super.onCreate()
+
         User.init(this)
         VibrationHelper.init(this)
         Pet.init(this)

@@ -8,7 +8,7 @@ import io.github.jan.supabase.storage.Storage
 
 object Supabase {
     const val SUPABASE_URL = "https://hplszhlnchhfwngbojnc.supabase.co"
-    const val SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhwbHN6aGxuY2hoZnduZ2Jvam5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1MTE5MTcsImV4cCI6MjA1ODA4NzkxN30.4lK1hS2ZwymniV2W4rxQbVpBJbW1rnsbSw7WwqRUzUk"
+    const val SUPABASE_KEY = "sb_publishable_zzdik6KGZp6yP9ZGvuqkkA_Qfxy3MLz"
     val supabase by lazy {
         createSupabaseClient(SUPABASE_URL, SUPABASE_KEY) {
             defaultSerializer = KotlinXSerializer(json)

@@ -73,6 +73,9 @@ class StatsSyncWorker(
                 dao.markAsSynced(it.id)
             }
 
+            val manager =
+                applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.cancel(1044)
             return Result.success()
         }catch (e: Exception){
             Log.e("SyncError",e.stackTraceToString())
@@ -101,7 +104,7 @@ private fun showSyncNotification(context: Context) {
 
     val notification = NotificationCompat.Builder(context, channelId)
         .setContentTitle("Sync in Progress")
-        .setContentText("Your quests are syncing...")
+        .setContentText("Your Stats are syncing...")
         .setSmallIcon(R.drawable.baseline_info_24) // replace with your icon
         .setPriority(NotificationCompat.PRIORITY_LOW)
         .setOngoing(true)

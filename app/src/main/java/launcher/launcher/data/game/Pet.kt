@@ -2,6 +2,7 @@ package launcher.launcher.data.game
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.core.content.edit
 import kotlinx.serialization.Serializable
 import launcher.launcher.utils.json
@@ -115,6 +116,7 @@ object Pet {
         if (petStateJson != null) {
             try {
                 petDialogState = json.decodeFromString(petStateJson)
+                Log.d("loaded pet state : ",petDialogState.toString())
                 // Further validation of petDialogState.currentSequenceId and currentStepIndex
                 // against the actual loaded pet script will happen in PetDialog's LaunchedEffect.
             } catch (e: Exception) {
