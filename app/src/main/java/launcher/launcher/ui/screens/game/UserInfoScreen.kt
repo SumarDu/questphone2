@@ -51,6 +51,7 @@ import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.flow.first
 import launcher.launcher.R
 import launcher.launcher.R.drawable
+import launcher.launcher.data.game.Category
 import launcher.launcher.data.game.InventoryItem
 import launcher.launcher.data.game.User
 import launcher.launcher.data.game.User.userInfo
@@ -495,19 +496,35 @@ fun InventoryItemInfoDialog(
                 ) {
                     TextButton(onClick = onDismissRequest) {
                         Text("Close")
+
                     }
-                    if(reward.isDirectlyUsableFromInventory && !User.isBoosterActive(InventoryItem.XP_BOOSTER)){
-                        Button(onClick = {
-                            reward.onUse()
-                            User.useInventoryItem(InventoryItem.XP_BOOSTER)
-                            onDismissRequest()
-                        }) {
+
+                    if (reward.isDirectlyUsableFromInventory) {
+
+                        if (reward.category == Category.BOOSTERS && !User.isBoosterActive(reward)) {
+                            Button(
+                                onClick = {
+                                    reward.onUse()
+                                    User.useInventoryItem(reward)
+                                    onDismissRequest()
+                                }) {
+                                Text("Use")
+                            }
+                        }
+                    }
+
+                    if (reward.category != Category.BOOSTERS) {
+                        Button(
+                            onClick = {
+                                reward.onUse()
+                                User.useInventoryItem(reward)
+                                onDismissRequest()
+                            }) {
                             Text("Use")
                         }
                     }
                 }
             }
         }
-
     }
 }
