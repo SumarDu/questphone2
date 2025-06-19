@@ -49,7 +49,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.coroutineScope
-import kotlinx.serialization.json.Json
 import launcher.launcher.R
 import launcher.launcher.data.game.StreakCheckReturn
 import launcher.launcher.data.game.User
@@ -347,8 +346,7 @@ fun HomeScreen(navController: NavController) {
 }
 
 fun viewQuest(baseQuest: CommonQuestInfo, navController: NavController) {
-    val data = Json.encodeToString<CommonQuestInfo>(baseQuest )
-    navController.navigate(Screen.ViewQuest.route + data)
+    navController.navigate(Screen.ViewQuest.route + baseQuest.id)
 }
 @Composable
 fun QuestItem(

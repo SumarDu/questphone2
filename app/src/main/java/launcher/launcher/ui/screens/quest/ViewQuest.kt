@@ -9,9 +9,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,7 +32,7 @@ import launcher.launcher.utils.QuestHelper
 @Composable
 fun ViewQuest(
     navController: NavHostController,
-    commonQuestInfo: CommonQuestInfo
+    id: String
 ) {
     val context = LocalContext.current
     val questHelper = QuestHelper(context)
@@ -40,23 +43,31 @@ fun ViewQuest(
     val scope = rememberCoroutineScope()
     val dao = QuestDatabaseProvider.getInstance(context).questDao()
 
-    Surface {
-        if(QuestHelper.isNeedAutoDestruction(commonQuestInfo)){
-            showDestroyQuestDialog.value =true
-        }else{
-            commonQuestInfo.integration_id.viewScreen.invoke(commonQuestInfo)
-        }
-        if(showDestroyQuestDialog.value) DestroyQuestDialog {
-            commonQuestInfo.is_destroyed = true
-            commonQuestInfo.synced = false
-            commonQuestInfo.last_updated = System.currentTimeMillis()
-            scope.launch {
-                dao.upsertQuest(commonQuestInfo)
-            }
+    var commonQuestInfo by remember { mutableStateOf<CommonQuestInfo?>(null) }
 
-            showDestroyQuestDialog.value =false
-            navController.navigate(Screen.HomeScreen.route) {
-                popUpTo(Screen.ViewQuest.route) { inclusive = true }
+    LaunchedEffect(Unit) {
+        val dao = QuestDatabaseProvider.getInstance(context).questDao()
+        commonQuestInfo = dao.getQuestById(id)
+    }
+
+    Surface {
+        if(commonQuestInfo!=null) {
+            if (QuestHelper.isNeedAutoDestruction(commonQuestInfo!!)) {
+                showDestroyQuestDialog.value = true
+            } else {
+                commonQuestInfo!!.integration_id.viewScreen.invoke(commonQuestInfo!!)
+            }
+            if (showDestroyQuestDialog.value)
+                DestroyQuestDialog {
+                commonQuestInfo!!.is_destroyed = true
+                commonQuestInfo!!.synced = false
+                commonQuestInfo!!.last_updated = System.currentTimeMillis()
+                scope.launch {
+                    dao.upsertQuest(commonQuestInfo!!)
+                }
+                    navController.navigate(Screen.HomeScreen.route) {
+                        popUpTo(Screen.ViewQuest.route) { inclusive = true }
+                    }
             }
         }
     }

@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.flow.first
-import kotlinx.serialization.json.Json
 import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.ui.navigation.Screen
@@ -132,7 +131,7 @@ fun ListAllQuests(navHostController: NavHostController) {
                     QuestItem(
                         quest = questBase,
                         onClick = {
-                            navHostController.navigate(Screen.QuestStats.route + Json.encodeToString<CommonQuestInfo>(questBase))
+                            navHostController.navigate(Screen.QuestStats.route + questBase.id)
                         }
                     )
                 }

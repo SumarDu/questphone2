@@ -20,9 +20,7 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import io.github.jan.supabase.auth.handleDeeplinks
-import kotlinx.serialization.json.Json
 import launcher.launcher.data.IntegrationId
-import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.stats.StatsDatabaseProvider
 import launcher.launcher.services.AppBlockerService
@@ -155,13 +153,12 @@ class MainActivity : ComponentActivity() {
                             ListAllQuests(navController)
                         }
                         composable(
-                            route = "${Screen.ViewQuest.route}{baseQuestInfo}",
-                            arguments = listOf(navArgument("baseQuestInfo") { type = NavType.StringType })
+                            route = "${Screen.ViewQuest.route}{id}",
+                            arguments = listOf(navArgument("id") { type = NavType.StringType })
                         ) { backStackEntry ->
-                            val json = backStackEntry.arguments?.getString("baseQuestInfo")
-                            val commonQuestInfo = json?.let { Json.decodeFromString<CommonQuestInfo>(it) }
+                            val id = backStackEntry.arguments?.getString("id")
 
-                            ViewQuest(navController,commonQuestInfo!!)
+                            ViewQuest(navController,id!!)
                         }
 
                         navigation(startDestination = SetupQuestScreen.Integration.route, route = Screen.AddNewQuest.route){
@@ -181,11 +178,10 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
-                        composable("${Screen.QuestStats.route}{baseQuestInfo}") { backStackEntry ->
-                            val json = backStackEntry.arguments?.getString("baseQuestInfo")
-                            val commonQuestInfo = json?.let { Json.decodeFromString<CommonQuestInfo>(it) }
+                        composable("${Screen.QuestStats.route}{id}") { backStackEntry ->
+                            val id = backStackEntry.arguments?.getString("id")
 
-                            BaseQuestStatsView(commonQuestInfo!!,navController)
+                            BaseQuestStatsView(id!!,navController)
                         }
                     }
                 }

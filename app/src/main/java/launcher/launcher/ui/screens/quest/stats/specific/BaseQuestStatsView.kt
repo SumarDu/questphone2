@@ -90,7 +90,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 @Composable
-fun BaseQuestStatsView(baseData: CommonQuestInfo, navController: NavHostController) {
+fun BaseQuestStatsView(id: String, navController: NavHostController) {
     val context = LocalContext.current
     var successfulDates = remember { mutableStateListOf<kotlinx.datetime.LocalDate>() }
 
@@ -107,7 +107,11 @@ fun BaseQuestStatsView(baseData: CommonQuestInfo, navController: NavHostControll
     var totalCoins by remember { mutableIntStateOf(0) }
     var weeklyAverageCompletions by remember { mutableDoubleStateOf(0.0) }
 
+    var baseData by remember { mutableStateOf<CommonQuestInfo>(CommonQuestInfo()) }
     LaunchedEffect(Unit) {
+        val bdao = QuestDatabaseProvider.getInstance(context).questDao()
+        baseData = bdao.getQuestById(id)!!
+
         val userId = Supabase.supabase.auth.currentUserOrNull()!!.id
         val dao = StatsDatabaseProvider.getInstance(context).statsDao()
 
