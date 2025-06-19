@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import dev.jeziellago.compose.markdowntext.MarkdownText
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
 import launcher.launcher.data.game.getUserInfo
@@ -27,6 +26,7 @@ import launcher.launcher.data.quest.stats.StatsDatabaseProvider
 import launcher.launcher.data.quest.stats.StatsInfo
 import launcher.launcher.ui.screens.quest.checkForRewards
 import launcher.launcher.ui.screens.quest.view.BaseQuestView
+import launcher.launcher.ui.screens.quest.view.components.MdPad
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.Supabase
@@ -128,11 +128,8 @@ fun AiSnapQuestView(
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                     )
                 }
-                MarkdownText(
-                    markdown = commonQuestInfo.instructions,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
-                )
+                MdPad(commonQuestInfo)
+
             }
         }
     }

@@ -34,7 +34,6 @@ import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import dev.jeziellago.compose.markdowntext.MarkdownText
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -50,6 +49,7 @@ import launcher.launcher.services.INTENT_ACTION_START_DEEP_FOCUS
 import launcher.launcher.services.INTENT_ACTION_STOP_DEEP_FOCUS
 import launcher.launcher.services.ServiceInfo
 import launcher.launcher.ui.screens.quest.checkForRewards
+import launcher.launcher.ui.screens.quest.view.components.MdPad
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.Supabase
@@ -352,11 +352,8 @@ fun DeepFocusQuestView(
                     )
                 }
             }
+            MdPad(commonQuestInfo)
 
-            MarkdownText(
-                markdown = commonQuestInfo.instructions,
-                modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
-            )
         }
     }
 }

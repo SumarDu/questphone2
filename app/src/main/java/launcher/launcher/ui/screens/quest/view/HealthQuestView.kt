@@ -19,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import dev.jeziellago.compose.markdowntext.MarkdownText
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
 import launcher.launcher.data.game.getUserInfo
@@ -32,6 +31,7 @@ import launcher.launcher.data.quest.health.getUnitForType
 import launcher.launcher.data.quest.stats.StatsDatabaseProvider
 import launcher.launcher.data.quest.stats.StatsInfo
 import launcher.launcher.ui.screens.quest.checkForRewards
+import launcher.launcher.ui.screens.quest.view.components.MdPad
 import launcher.launcher.ui.screens.tutorial.HealthConnectScreen
 import launcher.launcher.ui.theme.JetBrainsMonoFont
 import launcher.launcher.utils.HealthConnectManager
@@ -186,11 +186,7 @@ fun HealthQuestView(commonQuestInfo: CommonQuestInfo) {
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin),
                     )
                 }
-
-                MarkdownText(
-                    markdown = commonQuestInfo.instructions,
-                    modifier = Modifier.padding(top = 32.dp, bottom = 4.dp)
-                )
+                MdPad(commonQuestInfo)
 
             }
         }
