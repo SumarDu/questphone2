@@ -14,11 +14,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,6 +55,7 @@ import kotlinx.coroutines.withContext
 import launcher.launcher.data.AppInfo
 import launcher.launcher.services.AccessibilityService
 import launcher.launcher.services.INTENT_ACTION_REFRESH_APP_BLOCKER
+import launcher.launcher.services.ServiceInfo
 import launcher.launcher.utils.openAccessibilityServiceScreen
 import launcher.launcher.utils.reloadApps
 import launcher.launcher.utils.sendRefreshRequest
@@ -64,6 +71,7 @@ fun SelectApps(selectAppsModes: SelectAppsModes = SelectAppsModes.ALLOW_ADD_AND_
     // the one special app that was added for ALLOW_ADD or ALLOW_REMOVE mode. is not used for the third mode
     var specialChosenApp by remember { mutableStateOf<String?>(null) }
 
+
     val context = LocalContext.current
 
     val isLoading = remember { mutableStateOf(true) }
@@ -77,13 +85,33 @@ fun SelectApps(selectAppsModes: SelectAppsModes = SelectAppsModes.ALLOW_ADD_AND_
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val isLoadedFromSp = remember { mutableStateOf(false) }
+
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredAppList = remember(appsState.value, searchQuery) {
+        if (searchQuery.isBlank()) {
+            appsState.value
+        } else {
+            appsState.value.filter { item ->
+                item.name.contains(searchQuery, ignoreCase = true) ||
+                        item.packageName.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
+
+    fun saveToBlocker(){
+        sp.edit { putStringSet("distracting_apps", selectedApps.toSet()) }
+        sendRefreshRequest(context, INTENT_ACTION_REFRESH_APP_BLOCKER)
+        ServiceInfo.appBlockerService?.loadLockedApps()
+    }
+
     LaunchedEffect(lifecycleOwner) {
 //        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
 //            isAccessibilityServiceEnabled.value = isAccessibilityServiceEnabled(context, AccessibilityService::class.java)
 //            isNextEnabled.value = isAccessibilityServiceEnabled.value
 //        }
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.DESTROYED) {
-            sendRefreshRequest(context, INTENT_ACTION_REFRESH_APP_BLOCKER)
+            saveToBlocker()
         }
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             val apps = sp.getStringSet("distracting_apps", emptySet<String>()) ?: emptySet()
@@ -95,7 +123,8 @@ fun SelectApps(selectAppsModes: SelectAppsModes = SelectAppsModes.ALLOW_ADD_AND_
     LaunchedEffect(selectedApps) {
         if (isLoadedFromSp.value) {
             snapshotFlow { selectedApps.toSet() }.collect { appsSet ->
-                sp.edit { putStringSet("distracting_apps", appsSet) }
+                saveToBlocker()
+
             }
         }
     }
@@ -157,9 +186,8 @@ fun SelectApps(selectAppsModes: SelectAppsModes = SelectAppsModes.ALLOW_ADD_AND_
                 }
             }
         }
+        saveToBlocker()
 
-        // Save to SharedPreferences
-        sp.edit { putStringSet("distracting_apps", selectedApps.toSet()) }
     }
 
     Column(
@@ -181,7 +209,7 @@ fun SelectApps(selectAppsModes: SelectAppsModes = SelectAppsModes.ALLOW_ADD_AND_
         )
 
         Text(
-            text = "These might be social media or games. Leave blank and tap Next to skip blocking.",
+            text = "These might be social media or games..",
             color = Color.White,
             fontSize = 16.sp,
             textAlign = TextAlign.Center,
@@ -201,7 +229,35 @@ fun SelectApps(selectAppsModes: SelectAppsModes = SelectAppsModes.ALLOW_ADD_AND_
             modifier = Modifier
                 .fillMaxWidth()
         ) {
-            items(appsState.value) { (appName, packageName) ->
+                item {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        label = { Text("Search Quests") },
+                        placeholder = { Text("Type Quest Title...") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search"
+                            )
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Clear search"
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        singleLine = true
+                    )
+                }
+            items(filteredAppList) { (appName, packageName) ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

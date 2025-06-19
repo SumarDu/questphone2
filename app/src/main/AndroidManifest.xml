@@ -30,6 +30,9 @@
         tools:ignore="ForegroundServicesPolicy" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
+<!--    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>-->
+
+
     <application
         android:name="launcher.MyApp"
         android:allowBackup="true"
@@ -44,16 +47,10 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
         <activity
-            android:name=".LockedActivity"
-            android:exported="false"
-            android:label="@string/title_activity_locked"
-            android:excludeFromRecents="true"
-            android:launchMode="singleTop"
-            android:theme="@style/Theme.Launcher" />
-        <activity
             android:name=".MainActivity"
             android:excludeFromRecents="true"
             android:exported="true"
+            android:launchMode="singleTop"
             android:taskAffinity=""
             android:theme="@style/Theme.Launcher">
             <intent-filter>

@@ -46,10 +46,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat.startForegroundService
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
+import launcher.launcher.services.AppBlockerService
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.account.SetupProfileScreen
 import launcher.launcher.utils.VibrationHelper
@@ -270,8 +272,8 @@ fun OnBoardScreen(navController: NavHostController) {
             },
 
             OnboardingContent.StandardPage(
-                "BlankPhone",
-                "Welcome to BlankPhone! Ever felt like your phone controls you instead of the other way around? BlankPhone helps you build mindful screen habits by turning screen time into a rewarding challenge."
+                "QuestPhone",
+                "Welcome to QuestPhone! Ever felt like your phone controls you instead of the other way around? QuestPhone helps you build mindful screen habits by turning screen time into a rewarding challenge."
             ),
             OnboardingContent.CustomPage{_ ->
                 SetupProfileScreen()
@@ -301,6 +303,18 @@ fun OnBoardScreen(navController: NavHostController) {
                     return@CustomPage true
                 }
             ),
+//            OnboardingContent.CustomPage(
+//                content = {
+//                    BackgroundUsagePermission()
+//                },
+//                onNextPressed = {
+//                    if(isIgnoringBatteryOptimizations(context)){
+//                        return@CustomPage true
+//                    }
+//                    openBatteryOptimizationSettings(context)
+//                    return@CustomPage false
+//                }
+//            ),
             OnboardingContent.CustomPage(
                 content = {
                     UsageAccessPermission()
@@ -331,11 +345,11 @@ fun OnBoardScreen(navController: NavHostController) {
             },
             OnboardingContent.StandardPage(
                 "Stay Motivated",
-                "BlankPhone makes it fun! Earn XP, level up, and collect badges as you build healthier screen habits."
+                "QuestPhone makes it fun! Earn XP, level up, and collect badges as you build healthier screen habits."
             ),
             OnboardingContent.StandardPage(
                 "Quests",
-                "Real-life tasks are called Quests in BlankPhone. Completing a quest—like exercising, reading, or meditating—earns you Coins. These coins can be used to temporarily unlock the apps that distract you the most! 5 coins gives you 10 minutes to use a distracting app"
+                "Real-life tasks are called Quests in QuestPhone. Completing a quest—like exercising, reading, or meditating—earns you Coins. These coins can be used to temporarily unlock the apps that distract you the most! 5 coins gives you 10 minutes to use a distracting app"
             ),
             OnboardingContent.CustomPage { _ ->
                 SelectApps()
@@ -344,12 +358,10 @@ fun OnBoardScreen(navController: NavHostController) {
 
         OnboardingScreen(
             onFinishOnboarding = {
-
+                startForegroundService(context,Intent(context, AppBlockerService::class.java))
                 val data = context.getSharedPreferences("onboard", MODE_PRIVATE)
                 data.edit { putBoolean("onboard", true) }
                 navController.navigate(Screen.HomeScreen.route)
-
-                // Navigate to main app screen
             },
             pages = onboardingPages
         )

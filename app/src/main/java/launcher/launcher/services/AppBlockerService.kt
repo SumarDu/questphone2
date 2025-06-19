@@ -95,6 +95,7 @@ class AppBlockerService : Service() {
         super.onDestroy()
         handler.removeCallbacks(appMonitorRunnable)
         ServiceInfo.appBlockerService = null
+        showHomwScreenOverlay()
         // remove the notification when service is destroyed
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.cancel(NOTIFICATION_ID)
@@ -118,6 +119,7 @@ class AppBlockerService : Service() {
         // Import required for NotificationCompat
         val builder = androidx.core.app.NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle("AppBlocker Active")
+            .setOngoing(true)
             .setContentText("Protecting your time")
             .setSmallIcon(R.drawable.baseline_info_24) // This requires a notification icon in your drawable resources
             .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
@@ -355,7 +357,7 @@ class AppBlockerService : Service() {
         return expiryTime != null && System.currentTimeMillis() < expiryTime
     }
 
-    private fun loadLockedApps() {
+    fun loadLockedApps() {
         val sp = getSharedPreferences("distractions", MODE_PRIVATE)
         val apps = sp.getStringSet("distracting_apps", emptySet<String>())
 

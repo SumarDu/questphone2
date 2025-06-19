@@ -1,11 +1,11 @@
 package launcher.launcher.utils
 
 import android.content.ComponentName
-import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import launcher.launcher.services.AccessibilityService
 
 
@@ -40,6 +40,7 @@ fun openAccessibilityServiceScreen(context: Context,cls: Class<*>) {
     }
 }
 fun sendRefreshRequest(context: Context, action: String) {
+    Log.d("refreshReq","loaded")
     val intent = Intent(action)
     context.sendBroadcast(intent)
 }

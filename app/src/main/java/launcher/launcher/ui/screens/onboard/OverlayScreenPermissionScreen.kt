@@ -60,7 +60,7 @@ fun OverlayPermissionScreen(isOnBoardingScreen : Boolean= true) {
 
         Text(
             text = if (!hasPermission.value)
-                "BlankPhone needs permission to draw over other apps for app blocking. "
+                "QuestPhone needs permission to draw over other apps for app blocking. "
             else
                 "Overlay permission granted!",
             color = Color.White,

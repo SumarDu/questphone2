@@ -24,21 +24,21 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
-import launcher.launcher.utils.checkUsagePermission
+import launcher.launcher.utils.isIgnoringBatteryOptimizations
 import launcher.launcher.utils.openBatteryOptimizationSettings
 
 @Composable
-fun UsageAccessPermission(isFromOnboardingScreen : Boolean = true) {
+fun BackgroundUsagePermission(isFromOnboardingScreen: Boolean = true) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val hasUsagePermission = remember { mutableStateOf(false) }
-
+    val isBatteryOptimDisabled = remember { mutableStateOf(false) }
 
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            hasUsagePermission.value = checkUsagePermission(context)
+            isBatteryOptimDisabled.value = isIgnoringBatteryOptimizations(context)
         }
     }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -47,19 +47,19 @@ fun UsageAccessPermission(isFromOnboardingScreen : Boolean = true) {
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "Grant Usage Access",
+            text = "Allow Unrestricted Background Usage",
             color = Color.White,
-            fontSize = 28.sp,
+            fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
         Text(
-            text = if (!hasUsagePermission.value)
-                "Please allow QuestPhone to access app usage data to show you detailed statistics about your screen time usage and help find ways to reduce it. All of this data is processed 100% locally and nothing is sent to our servers."
+            text = if (!isBatteryOptimDisabled.value)
+                "To make sure QuestPhone works reliably in the background, please allow it to ignore battery optimizations. This prevents Android from force-stopping the app or delaying its actions."
             else
-                "Usage access granted. You’re all set!",
+                "Unrestricted background usage is enabled. You’re all set!",
             color = Color.White,
             fontSize = 16.sp,
             textAlign = TextAlign.Center,
@@ -68,7 +68,7 @@ fun UsageAccessPermission(isFromOnboardingScreen : Boolean = true) {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        if (!hasUsagePermission.value && !isFromOnboardingScreen) {
+        if (!isBatteryOptimDisabled.value && !isFromOnboardingScreen) {
             Button(
                 onClick = {
                     openBatteryOptimizationSettings(context)
