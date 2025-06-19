@@ -1,7 +1,11 @@
 package launcher.launcher.data.game
 
+import android.util.Log
 import kotlinx.serialization.Serializable
 import launcher.launcher.R
+import launcher.launcher.ui.navigation.Navigator
+import launcher.launcher.ui.navigation.Screen
+import launcher.launcher.ui.screens.onboard.SelectAppsModes
 import launcher.launcher.utils.getFullTimeAfter
 
 @Serializable
@@ -27,9 +31,20 @@ enum class InventoryItem(val simpleName: String, val description: String, val ic
     QUEST_EDITOR("Quest Editor", description = "Edit information about a quest", icon = R.drawable.quest_editor, price = 20),
     QUEST_DELETER ("Quest Deleter", description = "Destroy a quest.", icon = R.drawable.quest_deletor, price = 100),
     XP_BOOSTER ("XP Booster", description = "Get 2x more xp for the next 5 hours.", isDirectlyUsableFromInventory = true,onUse = ::onUseXpBooster, icon = R.drawable.xp_booster, category = Category.BOOSTERS, price = 10),
+    DISTRACTION_ADDER("Distraction Adder", description = "Add an app to the distraction list", isDirectlyUsableFromInventory = true, onUse = ::onUseDistractionAdder,icon = R.drawable.distraction_adder, price = 0),
+    DISTRACTION_REMOVER("Distraction Remover", description = "Remove an app from the distractions list", isDirectlyUsableFromInventory = true, onUse = ::onUseDistractionRemover ,icon = R.drawable.distraction_remover, price = 0),
 }
 
 fun onUseXpBooster(){
     User.userInfo.active_boosts.put(InventoryItem.XP_BOOSTER,getFullTimeAfter(5,0))
     User.saveUserInfo()
+}
+
+fun onUseDistractionAdder(){
+    Log.d("InventoryItem","Used distraction Adder")
+    Navigator.currentScreen = Screen.SelectApps.route + SelectAppsModes.ALLOW_ADD.ordinal
+}
+fun onUseDistractionRemover(){
+    Log.d("InventoryItem","Used distraction Remover")
+    Navigator.currentScreen = Screen.SelectApps.route + SelectAppsModes.ALLOW_REMOVE.ordinal
 }

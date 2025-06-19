@@ -23,7 +23,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -54,15 +53,24 @@ import launcher.launcher.utils.openAccessibilityServiceScreen
 import launcher.launcher.utils.reloadApps
 import launcher.launcher.utils.sendRefreshRequest
 
+enum class SelectAppsModes{
+    ALLOW_ADD, // only allow adding one app, block removing any apps
+    ALLOW_REMOVE, // only allow removing one app, block adding any app
+    ALLOW_ADD_AND_REMOVE // no restrictions
+}
 @Composable
-fun SelectApps(isNextEnabled: MutableState<Boolean> = mutableStateOf(false)) {
+fun SelectApps(selectAppsModes: SelectAppsModes = SelectAppsModes.ALLOW_ADD_AND_REMOVE) {
+
+    // the one special app that was added for ALLOW_ADD or ALLOW_REMOVE mode. is not used for the third mode
+    var specialChosenApp by remember { mutableStateOf<String?>(null) }
+
     val context = LocalContext.current
 
     val isLoading = remember { mutableStateOf(true) }
     val appsState = remember { mutableStateOf<List<AppInfo>>(emptyList()) }
     val selectedApps = remember { mutableStateListOf<String>() }
 
-    val sp = context.getSharedPreferences("distractions",Context.MODE_PRIVATE)
+    val sp = context.getSharedPreferences("distractions", Context.MODE_PRIVATE)
 
 //    var isAccessibilityServiceEnabled = remember { mutableStateOf(isAccessibilityServiceEnabled(context, AccessibilityService::class.java)) }
 
@@ -81,12 +89,11 @@ fun SelectApps(isNextEnabled: MutableState<Boolean> = mutableStateOf(false)) {
             val apps = sp.getStringSet("distracting_apps", emptySet<String>()) ?: emptySet()
             selectedApps.clear() // Clear to avoid duplicates
             selectedApps.addAll(apps)
-            isNextEnabled.value = selectedApps.isNotEmpty()
 //            isNextEnabled.value = selectedApps.isNotEmpty() && isAccessibilityServiceEnabled.value
         }
     }
     LaunchedEffect(selectedApps) {
-        if(isLoadedFromSp.value){
+        if (isLoadedFromSp.value) {
             snapshotFlow { selectedApps.toSet() }.collect { appsSet ->
                 sp.edit { putStringSet("distracting_apps", appsSet) }
             }
@@ -109,6 +116,50 @@ fun SelectApps(isNextEnabled: MutableState<Boolean> = mutableStateOf(false)) {
                     isLoading.value = false
                 }
         }
+    }
+
+    fun handleAppSelection(packageName: String) {
+        when (selectAppsModes) {
+            SelectAppsModes.ALLOW_ADD -> {
+                // Only allow adding one app, but allow undoing that addition
+                if (specialChosenApp == null && !selectedApps.contains(packageName)) {
+                    // Allow adding one app
+                    specialChosenApp = packageName
+                    selectedApps.add(packageName)
+                } else if (specialChosenApp == packageName) {
+                    // Allow undoing the addition (removing the special app that was added)
+                    specialChosenApp = null
+                    selectedApps.remove(packageName)
+                }
+                // Block removing pre-existing apps or adding more apps
+            }
+
+            SelectAppsModes.ALLOW_REMOVE -> {
+                // Only allow removing one app, but allow undoing that removal
+                if (specialChosenApp == null && selectedApps.contains(packageName)) {
+                    // Allow removing one app
+                    selectedApps.remove(packageName)
+                    specialChosenApp = packageName
+                } else if (specialChosenApp == packageName) {
+                    // Allow undoing the removal (re-adding the special app that was removed)
+                    selectedApps.add(packageName)
+                    specialChosenApp = null
+                }
+                // Block adding new apps or removing more apps
+            }
+
+            SelectAppsModes.ALLOW_ADD_AND_REMOVE -> {
+                // No restrictions - toggle selection
+                if (selectedApps.contains(packageName)) {
+                    selectedApps.remove(packageName)
+                } else {
+                    selectedApps.add(packageName)
+                }
+            }
+        }
+
+        // Save to SharedPreferences
+        sp.edit { putStringSet("distracting_apps", selectedApps.toSet()) }
     }
 
     Column(
@@ -155,30 +206,41 @@ fun SelectApps(isNextEnabled: MutableState<Boolean> = mutableStateOf(false)) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            if (selectedApps.contains(packageName)) {
-                                selectedApps.remove(packageName)
-                            } else {
-                                selectedApps.add(packageName)
-                            }
-                            sp.edit { putStringSet("distracting_apps", selectedApps.toSet()) }
-
+                            handleAppSelection(packageName)
                         }
                         .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Checkbox(
-                        checked = selectedApps.contains(packageName),
-                        onCheckedChange = {
-                            if (it) selectedApps.add(packageName) else selectedApps.remove(
-                                packageName
-                            )
-                            sp.edit { putStringSet("distracting_apps", selectedApps.toSet()) }
+                    val isSelected = selectedApps.contains(packageName)
 
+                    val isEnabled = when(selectAppsModes) {
+                        SelectAppsModes.ALLOW_ADD -> {
+                            // Enable unselected apps if no special app chosen yet (can add)
+                            // OR enable the special app that was added (can undo)
+                            (specialChosenApp == null && !isSelected) || specialChosenApp == packageName
+                        }
+                        SelectAppsModes.ALLOW_REMOVE -> {
+                            // Enable selected apps if no special app chosen yet (can remove)
+                            // OR enable the special app that was removed (can undo)
+                            (specialChosenApp == null && isSelected) || specialChosenApp == packageName
+                        }
+                        SelectAppsModes.ALLOW_ADD_AND_REMOVE -> {
+                            // Always enabled - no restrictions
+                            true
+                        }
+                    }
+
+                    Checkbox(
+                        checked = isSelected,
+                        enabled = isEnabled,
+                        onCheckedChange = { _ ->
+                            handleAppSelection(packageName)
                         }
                     )
                     Text(
                         text = appName,
-                        modifier = Modifier.padding(start = 8.dp)
+                        modifier = Modifier.padding(start = 8.dp),
+                        color = if (isEnabled) Color.White else Color.Gray
                     )
                 }
             }

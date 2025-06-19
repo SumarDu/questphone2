@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -25,6 +26,7 @@ import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.stats.StatsDatabaseProvider
 import launcher.launcher.services.AppBlockerService
+import launcher.launcher.ui.navigation.Navigator
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
 import launcher.launcher.ui.screens.account.SetupNewPassword
@@ -33,6 +35,8 @@ import launcher.launcher.ui.screens.game.UserInfoScreen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.HomeScreen
 import launcher.launcher.ui.screens.onboard.OnBoardScreen
+import launcher.launcher.ui.screens.onboard.SelectApps
+import launcher.launcher.ui.screens.onboard.SelectAppsModes
 import launcher.launcher.ui.screens.pet.PetDialog
 import launcher.launcher.ui.screens.quest.ListAllQuests
 import launcher.launcher.ui.screens.quest.RewardDialogMaker
@@ -83,6 +87,7 @@ class MainActivity : ComponentActivity() {
                     val unSyncedStatsItems = remember { statsDao.getAllUnSyncedStats() }
                     val context = LocalContext.current
 
+                    val forceCurrentScreen = remember {derivedStateOf { Navigator.currentScreen }}
                     RewardDialogMaker()
                     if(currentRoute != Screen.OnBoard){
 
@@ -104,6 +109,13 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+                    LaunchedEffect(forceCurrentScreen.value) {
+                        Log.d("MainActivity","triggered screen change")
+                        if(forceCurrentScreen.value!=null){
+                            navController.navigate(forceCurrentScreen.value!!)
+                            Navigator.currentScreen = null
+                        }
+                    }
 
                     NavHost(
                         navController = navController,
@@ -118,7 +130,13 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.OnBoard.route) {
                             OnBoardScreen(navController)
                         }
-                        composable(Screen.ResetPass.route) {
+                        composable( route = "${Screen.SelectApps.route}{mode}",
+                            arguments = listOf(navArgument("mode") { type = NavType.IntType })) { backstack ->
+                            val mode =  backstack.arguments?.getInt("mode")
+                            SelectApps(SelectAppsModes.entries[mode!!])
+                        }
+                        composable(
+                            Screen.ResetPass.route) {
                             SetupNewPassword(navController)
                         }
 

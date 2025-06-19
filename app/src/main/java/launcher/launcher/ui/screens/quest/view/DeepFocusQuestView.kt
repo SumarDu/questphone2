@@ -44,6 +44,7 @@ import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.focus.DeepFocus
 import launcher.launcher.data.quest.stats.StatsDatabaseProvider
+import launcher.launcher.data.quest.stats.StatsInfo
 import launcher.launcher.services.AppBlockerService
 import launcher.launcher.services.INTENT_ACTION_START_DEEP_FOCUS
 import launcher.launcher.services.INTENT_ACTION_STOP_DEEP_FOCUS
@@ -56,6 +57,7 @@ import launcher.launcher.utils.formatHour
 import launcher.launcher.utils.getCurrentDate
 import launcher.launcher.utils.json
 import launcher.launcher.utils.sendRefreshRequest
+import java.util.UUID
 
 private const val PREF_NAME = "deep_focus_prefs"
 private const val KEY_START_TIME = "start_time_"
@@ -138,15 +140,15 @@ fun DeepFocusQuestView(
         commonQuestInfo.synced = false
         commonQuestInfo.last_updated = System.currentTimeMillis()
         scope.launch {
-//            dao.upsertQuest(commonQuestInfo)
+            dao.upsertQuest(commonQuestInfo)
 
             val userid = Supabase.supabase.auth.currentUserOrNull()!!.id
             val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
-//            statsDao.upsertStats(StatsInfo(
-//                id =  UUID.randomUUID().toString(),
-//                quest_id = commonQuestInfo.id,
-//                user_id = userid,
-//            ))
+            statsDao.upsertStats(StatsInfo(
+                id =  UUID.randomUUID().toString(),
+                quest_id = commonQuestInfo.id,
+                user_id = userid,
+            ))
         }
 
         questHelper.setQuestRunning(commonQuestInfo.title, false)

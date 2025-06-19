@@ -18,6 +18,8 @@ sealed class Screen(val route: String) {
     data object UserInfo : Screen("userInfo/")
     data object QuestStats : Screen("questStats/")
 
+    data object SelectApps : Screen("select_apps/")
+
 }
 
 /**
