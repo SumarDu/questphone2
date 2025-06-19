@@ -28,6 +28,14 @@ fun getCurrentDate(): String {
 /**
  * format: yyyy-MM-dd
  */
+fun formatInstantToDate(instant: Instant): String {
+    val localDate = instant.toLocalDateTime(TimeZone.currentSystemDefault()).date
+    return localDate.toString() // yyyy-MM-dd
+}
+
+/**
+ * format: yyyy-MM-dd
+ */
 fun getPreviousDay(): String {
     val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     val calendar = Calendar.getInstance()

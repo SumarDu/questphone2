@@ -158,6 +158,7 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
                             isReviewDialogVisible.value = true
 
                         },
+                        enabled = questInfoState.selectedDays.isNotEmpty(),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

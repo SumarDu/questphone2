@@ -111,6 +111,7 @@ fun SetSwiftMark(editQuestId:String? = null,navController: NavHostController) {
 
 
                     Button(
+                        enabled = questInfoState.selectedDays.isNotEmpty(),
                         onClick = {
                             isReviewDialogVisible.value = true
                         },

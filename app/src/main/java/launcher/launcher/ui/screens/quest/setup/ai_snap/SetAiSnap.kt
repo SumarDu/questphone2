@@ -171,13 +171,13 @@ fun SetAiSnap(editQuestId:String? = null,navController: NavHostController) {
 
                 // Create Quest button
                 Button(
+                    enabled = questInfoState.selectedDays.isNotEmpty(),
                     onClick = {
                         if (taskDescription.value.isNotBlank()) {
                             isReviewDialogVisible.value = true
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = taskDescription.value.isNotBlank()
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -186,7 +186,8 @@ fun SetAiSnap(editQuestId:String? = null,navController: NavHostController) {
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Create Quest",
+                            text = if(editQuestId==null) "Create Quest" else "Save Changes",
+
                             style = MaterialTheme.typography.labelLarge
                         )
                     }

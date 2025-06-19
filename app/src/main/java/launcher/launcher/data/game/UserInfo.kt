@@ -8,6 +8,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import launcher.launcher.data.game.User.lastRewards
 import launcher.launcher.data.game.User.lastXpEarned
+import launcher.launcher.utils.formatInstantToDate
 import launcher.launcher.utils.isTimeOver
 import launcher.launcher.utils.json
 import launcher.launcher.utils.triggerProfileSync
@@ -37,6 +38,10 @@ data class UserInfo(
 ){
     fun getFirstName(): String {
         return full_name.trim().split(" ").firstOrNull() ?: ""
+    }
+
+    fun getCreatedOnString():String{
+        return formatInstantToDate(created_on)
     }
 }
 

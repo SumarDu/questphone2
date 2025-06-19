@@ -1,6 +1,7 @@
 package launcher.launcher.ui.screens.launcher
 
 import android.content.Context.MODE_PRIVATE
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -63,6 +64,7 @@ import launcher.launcher.ui.screens.quest.RewardDialogInfo
 import launcher.launcher.utils.QuestHelper
 import launcher.launcher.utils.VibrationHelper
 import launcher.launcher.utils.formatHour
+import launcher.launcher.utils.formatInstantToDate
 import launcher.launcher.utils.getCurrentDate
 import launcher.launcher.utils.getCurrentDay
 import launcher.launcher.utils.isSetToDefaultLauncher
@@ -106,8 +108,13 @@ fun HomeScreen(navController: NavController) {
             initial.value = false // Ignore the first emission (initial = emptyList())
         } else {
             val todayDay = getCurrentDay()
-            val list =
-                questListUnfiltered.filter { !it.is_destroyed && it.selected_days.contains(todayDay) }
+            val isUserCreatedToday = getCurrentDate() == formatInstantToDate(User.userInfo.created_on)
+
+            Log.d("IsUserCreatedToday",isUserCreatedToday.toString())
+            val list = questListUnfiltered.filter {
+                !it.is_destroyed && it.selected_days.contains(todayDay) &&
+                        (isUserCreatedToday || it.created_on != getCurrentDate())
+            }
             questList.clear()
             questList.addAll(list)
 
