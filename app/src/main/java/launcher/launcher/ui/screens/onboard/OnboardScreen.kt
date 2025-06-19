@@ -282,10 +282,14 @@ fun OnBoardScreen(navController: NavHostController) {
                 "How it Works?",
                 "Unlock screen time by completing real-life challenges! Whether it’s doing meditation, taking a walk, or studying, you decide how to earn your screen time. Stay productive while still enjoying your favorite apps!"
             ),
-
-            OnboardingContent.CustomPage{ isNextEnabled ->
-                SetLauncher()
-            },
+            OnboardingContent.StandardPage(
+                "Stay Motivated",
+                "QuestPhone makes it fun! Earn XP, level up, and collect items as you build healthier screen habits."
+            ),
+            OnboardingContent.StandardPage(
+                "Quests",
+                "Real-life tasks are called Quests in QuestPhone. Completing a quest—like exercising, reading, or meditating—earns you Coins. These coins can be used to temporarily unlock the apps that distract you the most! 5 coins gives you 10 minutes to use a distracting app"
+            ),
             OnboardingContent.CustomPage(
                 content = {
                     OverlayPermissionScreen()
@@ -343,14 +347,6 @@ fun OnBoardScreen(navController: NavHostController) {
             ){
                 NotificationPermissionScreen()
             },
-            OnboardingContent.StandardPage(
-                "Stay Motivated",
-                "QuestPhone makes it fun! Earn XP, level up, and collect badges as you build healthier screen habits."
-            ),
-            OnboardingContent.StandardPage(
-                "Quests",
-                "Real-life tasks are called Quests in QuestPhone. Completing a quest—like exercising, reading, or meditating—earns you Coins. These coins can be used to temporarily unlock the apps that distract you the most! 5 coins gives you 10 minutes to use a distracting app"
-            ),
             OnboardingContent.CustomPage { _ ->
                 SelectApps()
             }

@@ -27,7 +27,7 @@ data class UserInfo(
     var coins: Int = 0,
     var level : Int = 1,
     val inventory: HashMap<InventoryItem, Int> = hashMapOf(Pair(InventoryItem.STREAK_FREEZER,2)),
-    val achievements: List<Achievements> = listOf(Achievements.THE_DISCIPLINED,Achievements.MONTH_STREAK),
+    val achievements: List<Achievements> = listOf(Achievements.THE_EARLY_FEW),
     var active_boosts: HashMap<InventoryItem,String> = hashMapOf(),
     var last_updated: Long = System.currentTimeMillis(),
     var created_on: Instant = Clock.System.now(),

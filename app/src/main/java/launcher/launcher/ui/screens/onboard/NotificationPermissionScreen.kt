@@ -71,7 +71,7 @@ fun NotificationPermissionScreen( isFromOnboard: Boolean = true) {
 
         Text(
             text = if (!hasPermission.value)
-                "To notify you about your progress or challenges, BlankPhone needs permission to send notifications."
+                "To notify you about your progress or challenges, QuestPhone needs permission to send notifications."
             else
                 "Notification permission granted!",
             color = Color.White,

@@ -52,3 +52,14 @@ fun openBatteryOptimizationSettings(context: Context) {
     }
     context.startActivity(intent)
 }
+
+fun isSetToDefaultLauncher(context: Context): Boolean{
+    return context.packageManager.resolveActivity(
+        Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME),
+        PackageManager.MATCH_DEFAULT_ONLY
+    )?.activityInfo?.packageName == context.packageName
+}
+fun openDefaultLauncherSettings(context: Context){
+    val intent = Intent(Settings.ACTION_HOME_SETTINGS)
+    context.startActivity(intent)
+}

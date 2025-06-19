@@ -1,18 +1,33 @@
 package launcher.launcher.ui.screens.tutorial
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -40,17 +55,16 @@ fun HealthConnectScreen(onGetStarted: () -> Unit, onSkip: () -> Unit) {
                     .padding(top = 40.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Image(
+                Icon(
                     painter = painterResource(id = launcher.launcher.R.drawable.health_connect),
                     contentDescription = "Health Connect",
                     modifier = Modifier
                         .size(60.dp)
                         .padding(vertical = 8.dp),
-                    contentScale = ContentScale.Fit
                 )
 
                 Text(
-                    text = "Enhance Your BlankPhone Experience",
+                    text = "Enhance Your QuestPhone Experience",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
@@ -77,8 +91,8 @@ fun HealthConnectScreen(onGetStarted: () -> Unit, onSkip: () -> Unit) {
                 )
 
                 InfoCard(
-                    title = "How BlankPhone Uses Your Data",
-                    description = "BlankPhone transforms your health data into fun challenges and rewards. We'll track your progress and offer personalized achievements based on your activity.",
+                    title = "How QuestPhone Uses Your Data",
+                    description = "QuestPhone transforms your health data into fun challenges and rewards. We'll track your progress and offer personalized achievements based on your activity.",
                     iconId = R.drawable.baseline_gamepad_24
                 )
 
@@ -204,7 +218,7 @@ fun InfoCard(title: String, description: String, iconId: Int) {
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(
+            Icon(
                 painter = painterResource(id = iconId),
                 contentDescription = null,
                 modifier = Modifier
