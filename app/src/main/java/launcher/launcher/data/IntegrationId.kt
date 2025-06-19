@@ -17,7 +17,7 @@ enum class IntegrationId(
     val viewScreen: @Composable (CommonQuestInfo) -> Unit = { baseQuest -> DeepFocusQuestView(baseQuest) },
     val isLoginRequired: Boolean = false,
     val rewardCoins: Int = 5,
-    val docLink : String = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/AiSnap.md"
+    val docLink : String = "https://raw.githubusercontent.com/questphone/docs/refs/heads/main/integration/AiSnap.md"
 ) {
     /**
      * blocks all apps except a few selected ones.
@@ -30,7 +30,7 @@ enum class IntegrationId(
         description = "Block all apps except the essential ones for a set period, allowing you to stay focused on your work.",
         setupScreen = {id,navController -> SetDeepFocus(id,navController) },
         viewScreen = { baseQuest ->  DeepFocusQuestView(baseQuest) },
-        docLink = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/DeepFocus.md"
+        docLink = "https://raw.githubusercontent.com/questphone/docs/refs/heads/main/integration/DeepFocus.md"
     ),
 
 
@@ -48,7 +48,7 @@ enum class IntegrationId(
                 baseQuest
             )
         },
-        docLink = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/HealthConnect.md"
+        docLink = "https://raw.githubusercontent.com/questphone/docs/refs/heads/main/integration/HealthConnect.md"
     ),
 
     SWIFT_MARK(
@@ -66,7 +66,7 @@ enum class IntegrationId(
             )
         },
         rewardCoins = 1,
-        docLink = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/SwiftMark.md"
+        docLink = "https://raw.githubusercontent.com/questphone/docs/refs/heads/main/integration/SwiftMark.md"
     ),
 
     AI_SNAP(
@@ -85,6 +85,6 @@ enum class IntegrationId(
             )
         },
         isLoginRequired = true,
-        docLink = "https://raw.githubusercontent.com/nethical6/BlankPhoneQuestDocs/refs/heads/main/quest/AiSnap.md"
+        docLink = "https://raw.githubusercontent.com/questphone/docs/refs/heads/main/integration/AiSnap.md"
     )
 }
