@@ -234,10 +234,37 @@
         }
       ],
       "eventType": "NAVIGATION",
-      "eventData": "questStats/{baseQuestInfo}",
+      "eventData": "questStats/{id}",
       "conditions": {
         "isTutorialOnGoing": "true",
         "questStatsTutorialShown": "false"
+      }
+    },
+    "questView": {
+      "steps": [
+          {
+            "message": "Welcome to your quest! This is where the action happens."
+          },
+          {
+            "message": "You can edit the quest instructions by tapping the little pencil icon above."
+          },
+          {
+            "message": "Any changes you make will stick around just for today — everything resets back to normal tomorrow."
+          },
+          {
+            "message": "So feel free to tweak it if you need to store notes just for the day!",
+            "choices": [
+              {
+                "text": "okhay",
+                "storeValue": ["questViewTutorialShown", "true"]
+              }
+            ]
+          }
+      ],
+      "eventType": "NAVIGATION",
+      "eventData": "view_quest/{id}",
+      "conditions": {
+        "questViewTutorialShown": "false"
       }
     }
   }

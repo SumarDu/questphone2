@@ -233,8 +233,8 @@ fun SelectApps(selectAppsModes: SelectAppsModes = SelectAppsModes.ALLOW_ADD_AND_
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        label = { Text("Search Quests") },
-                        placeholder = { Text("Type Quest Title...") },
+                        label = { Text("Search Apps") },
+                        placeholder = { Text("Type app name...") },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Search,

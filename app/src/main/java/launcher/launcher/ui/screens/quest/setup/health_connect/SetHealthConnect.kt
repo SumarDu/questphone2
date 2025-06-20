@@ -45,7 +45,6 @@ import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.QuestInfoState
 import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.data.quest.health.HealthTaskType
-import launcher.launcher.data.quest.health.getUnitForType
 import launcher.launcher.ui.screens.quest.setup.ReviewDialog
 import launcher.launcher.ui.screens.quest.setup.components.SetBaseQuest
 import launcher.launcher.utils.json
@@ -140,7 +139,7 @@ fun SetHealthConnect(editQuestId:String? = null,navController: NavHostController
                                         healthGoalConfig = healthQuest.value.healthGoalConfig.copy(initial = newValue)
                                     )
                                 },
-                                unit = getUnitForType(healthQuest.value.type)
+                                unit = healthQuest.value.type.unit
                             )
 
                             GoalConfigInput(
@@ -152,7 +151,7 @@ fun SetHealthConnect(editQuestId:String? = null,navController: NavHostController
                                         healthGoalConfig = healthQuest.value.healthGoalConfig.copy(increment = newValue)
                                     )
                                 },
-                                unit = getUnitForType(healthQuest.value.type)
+                                unit = healthQuest.value.type.unit
                             )
                             GoalConfigInput(
                                 label = "Final Count",
@@ -163,7 +162,7 @@ fun SetHealthConnect(editQuestId:String? = null,navController: NavHostController
                                         healthGoalConfig = healthQuest.value.healthGoalConfig.copy(final = newValue)
                                     )
                                 },
-                                unit = getUnitForType(healthQuest.value.type)
+                                unit = healthQuest.value.type.unit
                             )
 
                             }

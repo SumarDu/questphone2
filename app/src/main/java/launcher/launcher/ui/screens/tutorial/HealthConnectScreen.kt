@@ -96,6 +96,13 @@ fun HealthConnectScreen(onGetStarted: () -> Unit, onSkip: () -> Unit) {
                     iconId = R.drawable.baseline_gamepad_24
                 )
 
+
+                InfoCard(
+                    title = "NOTICE",
+                    description = "To make sure Health Connect quests work as they should, please allow us access to Health Connect.",
+                    iconId = R.drawable.baseline_error_24
+                )
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -118,17 +125,21 @@ fun HealthConnectScreen(onGetStarted: () -> Unit, onSkip: () -> Unit) {
                         ) {
                             DataAccessItem(
                                 title = "Step Count",
-                                description = "To track daily activity goals and award movement badges"
+                                description = "To track step goals and award movement badges"
                             )
 
                             DataAccessItem(
-                                title = "Exercise Sessions",
-                                description = "To create personalized workout challenges and streaks"
+                                title = "Distance Covered",
+                                description = "To track distance goals and award movement badges"
                             )
 
                             DataAccessItem(
                                 title = "Sleep Data",
                                 description = "To provide rest recommendations and sleep quality rewards"
+                            )
+                            DataAccessItem(
+                                title = "Calories Burned",
+                                description = "To track calories burned and reward relevant items for it."
                             )
                         }
                     }

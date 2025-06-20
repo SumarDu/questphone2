@@ -27,7 +27,6 @@ import launcher.launcher.data.quest.CommonQuestInfo
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.health.HealthQuest
 import launcher.launcher.data.quest.health.HealthTaskType
-import launcher.launcher.data.quest.health.getUnitForType
 import launcher.launcher.data.quest.stats.StatsDatabaseProvider
 import launcher.launcher.data.quest.stats.StatsInfo
 import launcher.launcher.ui.screens.quest.checkForRewards
@@ -135,7 +134,9 @@ fun HealthQuestView(commonQuestInfo: CommonQuestInfo) {
             onGetStarted = {
                 permissionLauncher.launch(permissionManager.permissions)
             },
-            onSkip = {}
+            onSkip = {
+                hasRequiredPermissions.value = true
+            }
         )
     } else {
 
@@ -157,19 +158,20 @@ fun HealthQuestView(commonQuestInfo: CommonQuestInfo) {
                     modifier = Modifier.padding(top = 40.dp)
                 )
                 Text(
-                    text = (if(isQuestComplete.value) "Reward" else "Next Reward") + ": ${commonQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
+                    text = (if(isQuestComplete.value) "Next Reward" else "Reward") + ": ${commonQuestInfo.reward} coins + ${xpToRewardForQuest(userInfo.level)} xp",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin),
                 )
 
                 Text(
-                    text = "Health Task Type: ${healthQuest.type}",
+                    text = "Health Task Type: ${healthQuest.type.label}",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
 
                 if (isQuestComplete.value) {
                     Text(
-                        text = "Next Goal: ${healthQuest.nextGoal} ${getUnitForType(healthQuest.type)}",
+                        text = "Next Goal: ${healthQuest.nextGoal} ${healthQuest.type.unit}",
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
                     )
                 } else {
                     Text(
@@ -179,11 +181,10 @@ fun HealthQuestView(commonQuestInfo: CommonQuestInfo) {
                                 currentHealthData.doubleValue
                             )
                         } / ${healthQuest.nextGoal} ${
-                            getUnitForType(
-                                healthQuest.type
-                            )
+                            healthQuest.type.unit
                         }",
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin),
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
                 MdPad(commonQuestInfo)
