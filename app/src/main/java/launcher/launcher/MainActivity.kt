@@ -19,7 +19,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import io.github.jan.supabase.auth.handleDeeplinks
 import launcher.launcher.data.IntegrationId
 import launcher.launcher.data.quest.QuestDatabaseProvider
 import launcher.launcher.data.quest.stats.StatsDatabaseProvider
@@ -27,12 +26,10 @@ import launcher.launcher.services.AppBlockerService
 import launcher.launcher.ui.navigation.Navigator
 import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.navigation.SetupQuestScreen
-import launcher.launcher.ui.screens.account.SetupNewPassword
 import launcher.launcher.ui.screens.game.StoreScreen
 import launcher.launcher.ui.screens.game.UserInfoScreen
 import launcher.launcher.ui.screens.launcher.AppList
 import launcher.launcher.ui.screens.launcher.HomeScreen
-import launcher.launcher.ui.screens.onboard.OnBoardScreen
 import launcher.launcher.ui.screens.onboard.SelectApps
 import launcher.launcher.ui.screens.onboard.SelectAppsModes
 import launcher.launcher.ui.screens.pet.PetDialog
@@ -42,7 +39,6 @@ import launcher.launcher.ui.screens.quest.ViewQuest
 import launcher.launcher.ui.screens.quest.setup.SetIntegration
 import launcher.launcher.ui.screens.quest.stats.specific.BaseQuestStatsView
 import launcher.launcher.ui.theme.LauncherTheme
-import launcher.launcher.utils.Supabase
 import launcher.launcher.utils.isOnline
 import launcher.launcher.utils.triggerQuestSync
 
@@ -58,19 +54,16 @@ class MainActivity : ComponentActivity() {
         setContent {
             val isUserOnboarded = remember {mutableStateOf(true)}
             val isPetDialogVisible = remember { mutableStateOf(true) }
-            val isLoginResetPassword = remember { mutableStateOf(false) }
             LaunchedEffect(Unit) {
                 isUserOnboarded.value = data.getBoolean("onboard",false)
                 Log.d("onboard", isUserOnboarded.value.toString())
 
                 if(isUserOnboarded.value){
                     startForegroundService(Intent(this@MainActivity, AppBlockerService::class.java))
-                }
-                Supabase.supabase.handleDeeplinks(intent){
-                    if(it.type == "recovery"){
-                        isLoginResetPassword.value = true
-                    }
-                    Log.d("Supabase Deeplink",it.type.toString())
+                }else{
+                    val intent = Intent(this@MainActivity, OnboardActivity::class.java)
+                    startActivity(intent)
+                    finish()
                 }
             }
             LauncherTheme {
@@ -87,14 +80,12 @@ class MainActivity : ComponentActivity() {
 
                     val forceCurrentScreen = remember {derivedStateOf { Navigator.currentScreen }}
                     RewardDialogMaker()
-                    if(currentRoute != Screen.OnBoard){
 
-                        PetDialog(
-                            petId = "turtie",
-                            isPetDialogVisible,
-                            navController
-                        )
-                    }
+                    PetDialog(
+                        petId = "turtie",
+                        isPetDialogVisible,
+                        navController
+                    )
                     LaunchedEffect(Unit) {
                         unSyncedQuestItems.collect {
                             if(context.isOnline()){
@@ -117,27 +108,17 @@ class MainActivity : ComponentActivity() {
 
                     NavHost(
                         navController = navController,
-                        startDestination = if(isLoginResetPassword.value) Screen.ResetPass.route
-                            else if (!isUserOnboarded.value) Screen.OnBoard.route
-                                else Screen.HomeScreen.route,
+                        startDestination = Screen.HomeScreen.route,
                     ) {
 
                         composable(Screen.UserInfo.route) {
                             UserInfoScreen()
-                        }
-                        composable(Screen.OnBoard.route) {
-                            OnBoardScreen(navController)
                         }
                         composable( route = "${Screen.SelectApps.route}{mode}",
                             arguments = listOf(navArgument("mode") { type = NavType.IntType })) { backstack ->
                             val mode =  backstack.arguments?.getInt("mode")
                             SelectApps(SelectAppsModes.entries[mode!!])
                         }
-                        composable(
-                            Screen.ResetPass.route) {
-                            SetupNewPassword(navController)
-                        }
-
                         composable(Screen.HomeScreen.route) {
                             HomeScreen(navController)
                         }

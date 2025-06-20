@@ -40,6 +40,7 @@ fun LoginOnboard(isNextEnabled: MutableState<Boolean>, navController: NavHostCon
 
     LaunchedEffect(Unit) {
         Supabase.supabase.auth.sessionStatus.collectLatest { authState ->
+            Log.d("authState",authState.toString())
             when (authState) {
                 is SessionStatus.Authenticated -> {
                     loginStep.value = LoginStep.COMPLETE

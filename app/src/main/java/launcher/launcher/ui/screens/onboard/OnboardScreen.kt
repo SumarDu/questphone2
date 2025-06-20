@@ -1,6 +1,7 @@
 package launcher.launcher.ui.screens.onboard
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import android.os.Build
@@ -51,8 +52,8 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
+import launcher.launcher.MainActivity
 import launcher.launcher.services.AppBlockerService
-import launcher.launcher.ui.navigation.Screen
 import launcher.launcher.ui.screens.account.SetupProfileScreen
 import launcher.launcher.utils.VibrationHelper
 import launcher.launcher.utils.checkNotificationPermission
@@ -357,7 +358,9 @@ fun OnBoardScreen(navController: NavHostController) {
                 startForegroundService(context,Intent(context, AppBlockerService::class.java))
                 val data = context.getSharedPreferences("onboard", MODE_PRIVATE)
                 data.edit { putBoolean("onboard", true) }
-                navController.navigate(Screen.HomeScreen.route)
+                val intent = Intent(context, MainActivity::class.java)
+                context.startActivity(intent)
+                (context as Activity).finish()
             },
             pages = onboardingPages
         )
