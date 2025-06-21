@@ -72,7 +72,6 @@ fun HealthQuestView(commonQuestInfo: CommonQuestInfo) {
                         // Update progress based on nextGoal
                         progressState.floatValue =
                             (data / healthQuest.nextGoal).toFloat().coerceIn(0f, 1f)
-
                     }
                 }
             }
@@ -115,7 +114,6 @@ fun HealthQuestView(commonQuestInfo: CommonQuestInfo) {
                     currentHealthData.doubleValue = data
                     progressState.floatValue =
                         (data / healthQuest.nextGoal).toFloat().coerceIn(0f, 1f)
-
                 }
 
             }

@@ -7,12 +7,18 @@ import android.util.Log
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
-import androidx.health.connect.client.records.*
+import androidx.health.connect.client.records.DistanceRecord
+import androidx.health.connect.client.records.HydrationRecord
+import androidx.health.connect.client.records.Record
+import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import launcher.launcher.data.quest.health.HealthTaskType
-import java.time.Instant
-import java.time.ZonedDateTime
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -66,29 +72,60 @@ class HealthConnectManager(private val context: Context) {
     suspend fun hasAllPermissions(): Boolean =
         permissionController.getGrantedPermissions().containsAll(requiredPermissions)
 
-    private fun getTodayTimeRange(): TimeRangeFilter {
-        val now = ZonedDateTime.now()
-        val startOfDay = now.toLocalDate().atStartOfDay(now.zone).toInstant()
-        return TimeRangeFilter.between(startOfDay, now.toInstant())
+    private fun getFullDayTimeRange(): TimeRangeFilter {
+        val zoneId = ZoneId.systemDefault()
+        val today = LocalDate.now(zoneId)
+        val startOfDay = today.atStartOfDay(zoneId).toInstant()
+        val startOfTomorrow = today.plusDays(1).atStartOfDay(zoneId).toInstant()
+        return TimeRangeFilter.between(startOfDay, startOfTomorrow)
     }
+
 
     suspend fun getTodayHealthData(type: HealthTaskType): Double {
         if (!hasAllPermissions()) {
             throw SecurityException("Required Health Connect permissions not granted")
         }
 
-        val timeRangeFilter = getTodayTimeRange()
+        val timeRangeFilter = getFullDayTimeRange()
         return when (type) {
-            HealthTaskType.STEPS -> readRecords<StepsRecord>(timeRangeFilter)
-                .sumOf { it.count.toDouble() }
-            HealthTaskType.CALORIES -> readRecords<TotalCaloriesBurnedRecord>(timeRangeFilter)
-                .sumOf { it.energy.inKilocalories }
-            HealthTaskType.DISTANCE -> (readRecords<DistanceRecord>(timeRangeFilter))
-                .sumOf { it.distance.inMeters  }
+            HealthTaskType.STEPS -> {
+                val aggregateResponse = healthConnectClient.aggregate(
+                    AggregateRequest(
+                        metrics = setOf(StepsRecord.COUNT_TOTAL),
+                        timeRangeFilter = timeRangeFilter
+                    )
+                )
+                aggregateResponse[StepsRecord.COUNT_TOTAL]?.toDouble() ?: 0.0
+            }
+            HealthTaskType.CALORIES -> {
+                val aggregateResponse = healthConnectClient.aggregate(
+                    AggregateRequest(
+                        metrics = setOf(TotalCaloriesBurnedRecord.ENERGY_TOTAL),
+                        timeRangeFilter = timeRangeFilter
+                    )
+                )
+                aggregateResponse[TotalCaloriesBurnedRecord.ENERGY_TOTAL]?.inKilocalories ?: 0.0
+            }
+            HealthTaskType.DISTANCE -> {
+                val aggregateResponse = healthConnectClient.aggregate(
+                    AggregateRequest(
+                        metrics = setOf(DistanceRecord.DISTANCE_TOTAL),
+                        timeRangeFilter = timeRangeFilter
+                    )
+                )
+                aggregateResponse[DistanceRecord.DISTANCE_TOTAL]?.inMeters ?: 0.0
+            }
             HealthTaskType.SLEEP -> readRecords<SleepSessionRecord>(timeRangeFilter)
                 .sumOf { java.time.Duration.between(it.startTime, it.endTime).toMinutes().toDouble() }
-            HealthTaskType.WATER_INTAKE -> readRecords<HydrationRecord>(timeRangeFilter)
-                .sumOf { it.volume.inMilliliters }
+            HealthTaskType.WATER_INTAKE -> {
+                val aggregateResponse = healthConnectClient.aggregate(
+                    AggregateRequest(
+                        metrics = setOf(HydrationRecord.VOLUME_TOTAL),
+                        timeRangeFilter = timeRangeFilter
+                    )
+                )
+                aggregateResponse[HydrationRecord.VOLUME_TOTAL]?.inMilliliters ?: 0.0
+            }
         }
     }
 
