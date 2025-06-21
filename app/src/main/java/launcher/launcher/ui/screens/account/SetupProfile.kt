@@ -180,10 +180,15 @@ fun SetupProfileScreen() {
             )
 
             Spacer(modifier = Modifier.height(16.dp))
-
             OutlinedTextField(
                 value = username,
-                onValueChange = { username = it; errorMessage = null },
+                onValueChange = {
+                    val filtered = it.filter { ch -> ch.isLetterOrDigit() || ch == '_' || ch == '-' }
+                    if (filtered == it) {
+                        username = filtered
+                        errorMessage = null
+                    }
+                },
                 label = { Text("Username") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
