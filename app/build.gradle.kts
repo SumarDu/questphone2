@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "launcher.launcher"
+    namespace = "neth.iecal.questphone"
     compileSdk = 36
 
     defaultConfig {
