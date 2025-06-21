@@ -114,7 +114,7 @@ fun AppList() {
         )
 
         if (showCoinDialog.value) {
-            if(User.userInfo.coins>=0) {
+            if(User.userInfo.coins>0) {
                 CoinDialog(
                     coins = User.userInfo.coins,
                     onDismiss = { showCoinDialog.value = false },
