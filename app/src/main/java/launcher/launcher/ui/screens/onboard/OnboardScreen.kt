@@ -2,6 +2,7 @@ package launcher.launcher.ui.screens.onboard
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import android.os.Build
@@ -58,9 +59,7 @@ import launcher.launcher.ui.screens.account.SetupProfileScreen
 import launcher.launcher.utils.VibrationHelper
 import launcher.launcher.utils.checkNotificationPermission
 import launcher.launcher.utils.checkUsagePermission
-
-// Sealed class to represent different types of onboarding pages
-sealed class OnboardingContent {
+open class OnboardingContent {
     // Standard title and description page
     data class StandardPage(
         val title: String,
@@ -70,7 +69,8 @@ sealed class OnboardingContent {
     // Custom composable content
     data class CustomPage(
         val onNextPressed: () -> Boolean = {true},
-        val content: @Composable (MutableState<Boolean>) -> Unit
+        val isNextEnabled: MutableState<Boolean> = mutableStateOf(true),
+        val content: @Composable () -> Unit
     ) : OnboardingContent()
 }
 
@@ -89,7 +89,7 @@ fun OnboardingScreen(
     // Determine if we're on the first or last page
     val isFirstPage = pagerState.currentPage == 0
     val isLastPage = pagerState.currentPage == pages.size - 1
-    val isNextEnabled = remember  {mutableStateOf(false)}
+    val isNextEnabled = remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -113,8 +113,9 @@ fun OnboardingScreen(
                     )
 //                    isNextEnabled.value = true
                 }
+
                 is OnboardingContent.CustomPage -> {
-                    page.content(isNextEnabled)
+                    page.content()
                 }
             }
         }
@@ -172,11 +173,6 @@ fun OnboardingScreen(
             if (isFirstPage) {
                 Spacer(modifier = Modifier.width(64.dp))
             }
-            AnimatedVisibility(
-                visible = isNextEnabled.value,
-                enter = fadeIn(animationSpec = tween(300)),
-                exit = fadeOut(animationSpec = tween(300))
-            ) {
             Button(
                 onClick = {
                     VibrationHelper.vibrate(50)
@@ -184,9 +180,9 @@ fun OnboardingScreen(
                         onFinishOnboarding()
                     } else {
                         val crnPage = pages[pagerState.currentPage]
-                        if(crnPage is OnboardingContent.CustomPage){
+                        if (crnPage is OnboardingContent.CustomPage) {
                             val result = crnPage.onNextPressed.invoke()
-                            if(result){
+                            if (result) {
                                 scope.launch {
                                     pagerState.animateScrollToPage(pagerState.currentPage + 1)
                                 }
@@ -202,20 +198,23 @@ fun OnboardingScreen(
                     containerColor = Color.White,
                     contentColor = Color.Black
                 ),
-                enabled = isNextEnabled.value
+                enabled = if(pages[pagerState.currentPage] is OnboardingContent.CustomPage){
+                    (pages[pagerState.currentPage] as OnboardingContent.CustomPage).isNextEnabled.value
+                }else{
+                    isNextEnabled.value
+                }
+
             ) {
                 Text(
                     text = if (isLastPage) "Get Started" else "Next",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
-            }
 
+            }
         }
     }
 }
-    }
-
 @Composable
 fun StandardPageContent(
     isNextEnabled: MutableState<Boolean> ,
@@ -261,22 +260,30 @@ fun StandardPageContent(
 @Composable
 fun OnBoardScreen(navController: NavHostController) {
 
+    val context = LocalContext.current
     val notificationPermLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { _ ->
         }
     )
-    val context  = LocalContext.current
-        val onboardingPages = listOf(
-            OnboardingContent.CustomPage{ isNextEnabled ->
-                LoginOnboard(isNextEnabled,navController)
+    val isTosAccepted = remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        val tosp = context.getSharedPreferences("terms",Context.MODE_PRIVATE)
+        isTosAccepted.value = tosp.getBoolean("isAccepted",false)
+    }
+    val isNextEnabledLogin = remember {mutableStateOf(false)}
+    val onboardingPages = mutableListOf(
+
+            OnboardingContent.CustomPage(
+                isNextEnabled = isNextEnabledLogin){ ->
+                LoginOnboard(isNextEnabledLogin,navController)
             },
 
             OnboardingContent.StandardPage(
                 "QuestPhone",
                 "Welcome to QuestPhone! Ever felt like your phone controls you instead of the other way around? QuestPhone helps you build mindful screen habits by turning screen time into a rewarding challenge."
             ),
-            OnboardingContent.CustomPage{_ ->
+            OnboardingContent.CustomPage{
                 SetupProfileScreen()
             },
             OnboardingContent.StandardPage(
@@ -348,14 +355,16 @@ fun OnBoardScreen(navController: NavHostController) {
             ){
                 NotificationPermissionScreen()
             },
-            OnboardingContent.CustomPage { _ ->
+            OnboardingContent.CustomPage {
                 SelectApps()
             }
         )
 
+
+    if(isTosAccepted.value) {
         OnboardingScreen(
             onFinishOnboarding = {
-                startForegroundService(context,Intent(context, AppBlockerService::class.java))
+                startForegroundService(context, Intent(context, AppBlockerService::class.java))
                 val data = context.getSharedPreferences("onboard", MODE_PRIVATE)
                 data.edit { putBoolean("onboard", true) }
                 val intent = Intent(context, MainActivity::class.java)
@@ -364,4 +373,7 @@ fun OnBoardScreen(navController: NavHostController) {
             },
             pages = onboardingPages
         )
+    } else {
+        TermsScreen(isTosAccepted)
+    }
 }
