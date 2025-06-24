@@ -44,8 +44,9 @@ This project uses environment variables to manage sensitive information like Sup
 
 To run the app locally:
 
-1. Create a file named `local.properties` in the **root** of the project (same level as your `build.gradle` file).
-2. Add the following content to it:
+1. Follow the steps mentioned [here](https://github.com/QuestPhone/supabase_tutorial): 
+2. Create a file named `local.properties` in the **root** of the project (same level as your `build.gradle` file).
+3. Add the following content to it:
 
    ```properties
    SUPABASE_URL=https://yourproject.supabase.co
