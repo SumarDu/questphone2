@@ -13,7 +13,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "launcher.launcher"
+        applicationId = "neth.iecal.questphone"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
