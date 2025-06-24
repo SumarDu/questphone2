@@ -6,10 +6,13 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import neth.iecal.questphone.data.game.User.lastRewards
+import neth.iecal.questphone.data.game.User.lastXpEarned
 import neth.iecal.questphone.utils.formatInstantToDate
 import neth.iecal.questphone.utils.isTimeOver
 import neth.iecal.questphone.utils.json
 import neth.iecal.questphone.utils.triggerProfileSync
+import java.util.UUID
 
 
 /**
@@ -19,6 +22,7 @@ import neth.iecal.questphone.utils.triggerProfileSync
  */
 @Serializable
 data class UserInfo(
+    var id : String = UUID.randomUUID().toString(),
     var username: String = "",
     var full_name: String = "",
     var has_profile: Boolean = false,
@@ -32,7 +36,9 @@ data class UserInfo(
     var created_on: Instant = Clock.System.now(),
     var streak : StreakData = StreakData(),
     @Transient
-    var needsSync: Boolean = true
+    var needsSync: Boolean = true,
+    @Transient
+    var isAnonymous : Boolean = false,
 ){
     fun getFirstName(): String {
         return full_name.trim().split(" ").firstOrNull() ?: ""
@@ -122,7 +128,7 @@ fun User.addItemsToInventory(items: HashMap<InventoryItem, Int>){
 
 fun User.saveUserInfo(isSetLastUpdated: Boolean = true){
     val sharedPreferences = appContext.getSharedPreferences("user_info", Context.MODE_PRIVATE)
-    if(isSetLastUpdated){
+    if(isSetLastUpdated && !User.userInfo.isAnonymous){
         userInfo.last_updated = System.currentTimeMillis()
         userInfo.needsSync = true
         triggerProfileSync(appContext)

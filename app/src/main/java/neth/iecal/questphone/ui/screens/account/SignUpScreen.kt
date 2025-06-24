@@ -1,6 +1,8 @@
 package neth.iecal.questphone.ui.screens.account
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,8 +20,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,7 +56,10 @@ import io.github.jan.supabase.auth.exception.AuthRestException
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
 import kotlinx.coroutines.launch
+import neth.iecal.questphone.BuildConfig
 import neth.iecal.questphone.R
+import neth.iecal.questphone.data.game.User
+import neth.iecal.questphone.data.game.saveUserInfo
 import neth.iecal.questphone.utils.Supabase
 
 enum class SignUpStep {
@@ -60,6 +67,7 @@ enum class SignUpStep {
     VERIFICATION
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpScreen(loginStep: MutableState<LoginStep>) {
 
@@ -374,6 +382,40 @@ fun SignUpScreen(loginStep: MutableState<LoginStep>) {
                 }
             }
 
+            if(BuildConfig.IS_FDROID){
+                var isContinueWithoutLoginDialog = remember { mutableStateOf(false) }
+                if (isContinueWithoutLoginDialog.value) {
+                    AlertDialog(
+                        onDismissRequest = { isContinueWithoutLoginDialog.value = false },
+                        title = {
+                            Text(text = "Warning")
+                        },
+                        text = {
+                            Text("If you continue in this mode, you might never be able to access your data again after uninstalling this app.")
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                isContinueWithoutLoginDialog.value = false
+                                User.userInfo.isAnonymous = true
+                                User.saveUserInfo()
+                                loginStep.value = LoginStep.COMPLETE
+                            }) {
+                                Text("Continue Anyway")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { isContinueWithoutLoginDialog.value = false }) {
+                                Text("Cancel")
+                            }
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Continue without an account",color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable{
+                    isContinueWithoutLoginDialog.value = true
+                })
+            }
             Spacer(modifier = Modifier.weight(1f))
         }
     }

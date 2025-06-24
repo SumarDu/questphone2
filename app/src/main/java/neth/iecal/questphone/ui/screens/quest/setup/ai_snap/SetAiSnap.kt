@@ -74,7 +74,6 @@ fun SetAiSnap(editQuestId:String? = null,navController: NavHostController) {
 
     LaunchedEffect(Unit) {
         if(editQuestId!=null){
-            val userId = Supabase.supabase.auth.currentUserOrNull()!!.id
             val dao = QuestDatabaseProvider.getInstance(context).questDao()
             val quest = dao.getQuest(editQuestId)
             questInfoState.fromBaseQuest(quest!!)

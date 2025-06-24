@@ -20,6 +20,7 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import neth.iecal.questphone.data.IntegrationId
+import neth.iecal.questphone.data.game.User
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.data.quest.stats.StatsDatabaseProvider
 import neth.iecal.questphone.services.AppBlockerService
@@ -88,12 +89,12 @@ class MainActivity : ComponentActivity() {
                     )
                     LaunchedEffect(Unit) {
                         unSyncedQuestItems.collect {
-                            if (context.isOnline()) {
+                            if (context.isOnline() && !User.userInfo.isAnonymous) {
                                 triggerQuestSync(applicationContext)
                             }
                         }
                         unSyncedStatsItems.collect {
-                            if (context.isOnline()) {
+                            if (context.isOnline() && !User.userInfo.isAnonymous ) {
                                 triggerQuestSync(applicationContext)
                             }
                         }

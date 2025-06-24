@@ -47,6 +47,7 @@ fun Context.isOnline(): Boolean {
 
 
 fun triggerQuestSync(context: Context, isFirstSync: Boolean = false) {
+
     val inputData = workDataOf(
         "is_first_time" to isFirstSync
     )

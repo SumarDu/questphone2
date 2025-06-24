@@ -47,7 +47,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
-import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.LocalDate
 import neth.iecal.questphone.R
@@ -59,9 +58,9 @@ import neth.iecal.questphone.data.game.useInventoryItem
 import neth.iecal.questphone.data.game.xpToLevelUp
 import neth.iecal.questphone.data.quest.stats.StatsDatabaseProvider
 import neth.iecal.questphone.ui.screens.quest.stats.components.HeatMapChart
-import neth.iecal.questphone.utils.Supabase
 import neth.iecal.questphone.utils.formatNumber
 import neth.iecal.questphone.utils.formatRemainingTime
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,7 +77,6 @@ fun UserInfoScreen() {
     val successfulDates = remember { mutableStateMapOf<LocalDate, List<String>>() }
 
     LaunchedEffect (Unit) {
-        val userId = Supabase.supabase.auth.currentUserOrNull()!!.id
         val dao = StatsDatabaseProvider.getInstance(context).statsDao()
 
         var stats = dao.getAllStatsForUser().first()
@@ -123,15 +121,20 @@ fun UserInfoScreen() {
                     .size(120.dp)
                     .clip(RoundedCornerShape(12.dp))
             ) {
+                val data = if (User.userInfo.has_profile){
+                    if(User.userInfo.isAnonymous){
+                        val profileFile = File(context.filesDir, "profile")
+                        profileFile.absolutePath
+                    }else{
+                        "https://hplszhlnchhfwngbojnc.supabase.co/storage/v1/object/public/profile/${User.userInfo.id}/profile"
+                    }
+                } else R.drawable.baseline_person_24
+
                 Image(
                     painter = rememberAsyncImagePainter(
 
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(
-                                if (User.userInfo.has_profile)
-                                    "https://hplszhlnchhfwngbojnc.supabase.co/storage/v1/object/public/profile/${Supabase.supabase.auth.currentUserOrNull()!!.id}/profile"
-                                else R.drawable.baseline_person_24
-                            )
+                            .data(data)
                             .crossfade(true)
                             .error(R.drawable.baseline_person_24)
                             .placeholder(R.drawable.baseline_person_24)

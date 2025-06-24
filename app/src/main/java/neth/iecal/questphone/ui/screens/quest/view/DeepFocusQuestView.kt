@@ -35,9 +35,9 @@ import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import neth.iecal.questphone.data.game.User
 import neth.iecal.questphone.data.game.getUserInfo
 import neth.iecal.questphone.data.game.xpToRewardForQuest
 import neth.iecal.questphone.data.quest.CommonQuestInfo
@@ -53,7 +53,6 @@ import neth.iecal.questphone.ui.screens.quest.checkForRewards
 import neth.iecal.questphone.ui.screens.quest.view.components.MdPad
 import neth.iecal.questphone.ui.theme.JetBrainsMonoFont
 import neth.iecal.questphone.utils.QuestHelper
-import neth.iecal.questphone.utils.Supabase
 import neth.iecal.questphone.utils.formatHour
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.utils.json
@@ -143,13 +142,12 @@ fun DeepFocusQuestView(
         scope.launch {
             dao.upsertQuest(commonQuestInfo)
 
-            val userid = Supabase.supabase.auth.currentUserOrNull()!!.id
             val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
             statsDao.upsertStats(
                 StatsInfo(
                     id = UUID.randomUUID().toString(),
                     quest_id = commonQuestInfo.id,
-                    user_id = userid,
+                    user_id = User.userInfo.id,
                 )
             )
         }

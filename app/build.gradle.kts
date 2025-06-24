@@ -18,8 +18,22 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    flavorDimensions += "distribution"
+
+    productFlavors {
+        create("fdroid") {
+            dimension = "distribution"
+            versionNameSuffix = "-fdroid"
+            buildConfigField("Boolean", "IS_FDROID", "true")
+        }
+        create("play") {
+            dimension = "distribution"
+            versionNameSuffix = "-play"
+            buildConfigField("Boolean", "IS_FDROID", "false")
+        }
     }
 
     buildTypes {
@@ -40,6 +54,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

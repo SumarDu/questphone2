@@ -59,6 +59,8 @@ import neth.iecal.questphone.data.game.User
 import neth.iecal.questphone.data.game.UserInfo
 import neth.iecal.questphone.data.game.saveUserInfo
 import neth.iecal.questphone.utils.Supabase
+import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
 import java.util.Base64
 
@@ -91,6 +93,7 @@ fun SetupProfileScreen() {
 
 
     LaunchedEffect(Unit) {
+        if(User.userInfo.isAnonymous) return@LaunchedEffect
         val userId = Supabase.supabase.auth.currentUserOrNull()!!.id
 
         val profile = Supabase.supabase.from("profiles")
@@ -212,6 +215,20 @@ fun SetupProfileScreen() {
                             return@Button
                         }
                         isLoading = true
+                        if(User.userInfo.isAnonymous){
+                            User.userInfo = UserInfo(
+                                username = username,
+                                full_name = name,
+                                has_profile = profileUri != null || profileUrl != null
+                            )
+                            if(profileUri!=null){
+                                copyFileFromUriToAppStorage(context,profileUri!!)
+                            }
+                            User.saveUserInfo()
+                            isLoading = false
+                            isProfileSetupDone = true
+                            return@Button
+                        }
                         coroutineScope.launch {
                             val userId = Supabase.supabase.auth.currentUserOrNull()!!.id
                             if (isUsernameTaken(username, userId)) {
@@ -324,4 +341,24 @@ fun squashUserIdToUsername(userId: String): String {
     val bytes = userId.toByteArray(Charsets.UTF_8)
     val base64 = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     return base64.take(5)  // first 5 chars
+}
+fun copyFileFromUriToAppStorage(
+    context: Context,
+    uri: Uri,
+): File? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        val destinationFile = File(context.filesDir, "profile")
+
+        FileOutputStream(destinationFile).use { outputStream ->
+            inputStream.use { input ->
+                input.copyTo(outputStream)
+            }
+        }
+
+        destinationFile
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
 }

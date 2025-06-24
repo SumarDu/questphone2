@@ -19,13 +19,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
-import neth.iecal.questphone.data.quest.health.HealthQuest
+import neth.iecal.questphone.data.game.User
 import neth.iecal.questphone.data.game.getUserInfo
 import neth.iecal.questphone.data.game.xpToRewardForQuest
 import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
+import neth.iecal.questphone.data.quest.health.HealthQuest
 import neth.iecal.questphone.data.quest.health.HealthTaskType
 import neth.iecal.questphone.data.quest.stats.StatsDatabaseProvider
 import neth.iecal.questphone.data.quest.stats.StatsInfo
@@ -36,7 +36,6 @@ import neth.iecal.questphone.ui.theme.JetBrainsMonoFont
 import neth.iecal.questphone.utils.HealthConnectManager
 import neth.iecal.questphone.utils.HealthConnectPermissionManager
 import neth.iecal.questphone.utils.QuestHelper
-import neth.iecal.questphone.utils.Supabase
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.utils.json
 import java.util.UUID
@@ -86,13 +85,13 @@ fun HealthQuestView(commonQuestInfo: CommonQuestInfo) {
         commonQuestInfo.last_updated = System.currentTimeMillis()
         scope.launch {
             dao.upsertQuest(commonQuestInfo)
-            val userid = Supabase.supabase.auth.currentUserOrNull()!!.id
             val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
             statsDao.upsertStats(
                 StatsInfo(
                     id = UUID.randomUUID().toString(),
                     quest_id = commonQuestInfo.id,
-                    user_id = userid,
+                    user_id = User.userInfo.id,
+
                 )
             )
         }

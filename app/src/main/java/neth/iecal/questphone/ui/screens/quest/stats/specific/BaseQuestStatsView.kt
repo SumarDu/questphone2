@@ -112,7 +112,6 @@ fun BaseQuestStatsView(id: String, navController: NavHostController) {
         val bdao = QuestDatabaseProvider.getInstance(context).questDao()
         baseData = bdao.getQuestById(id)!!
 
-        val userId = Supabase.supabase.auth.currentUserOrNull()!!.id
         val dao = StatsDatabaseProvider.getInstance(context).statsDao()
 
         var stats = dao.getStatsByQuestId(baseData.id).first()
