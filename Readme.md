@@ -22,12 +22,12 @@
 
 It was started in April 2024 under the name *DigipawFull* and is now continued as *QuestPhone*.
 
-> ⚠️ **CAUTION**  
+> [!CAUTION]
 > This project is experimental and not yet ready for full production. [Donate](https://digipaws.life/donate)
 
-> ⚠️ **CAUTION**  
-> This is a continuation of the [DigipawFull Project](https://github.com/nethical6/digipaws)
 
+> [!CAUTION]
+> This is a continuation of the [DigipawsFull Project](github.com/nethical6/digipaws)
 ---
 
 ## 🚀 Features
