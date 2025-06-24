@@ -19,10 +19,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,16 +38,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import neth.iecal.questphone.utils.VibrationHelper
 import neth.iecal.questphone.R
 import neth.iecal.questphone.data.IntegrationId
 import neth.iecal.questphone.ui.screens.tutorial.QuestTutorial
+import neth.iecal.questphone.utils.VibrationHelper
 
 @OptIn(ExperimentalFoundationApi::class)
 @SuppressLint("UnrememberedMutableState")
 @Composable
 fun SetIntegration(navController: NavHostController) {
 
+    val showLoginRequiredDialog = remember { mutableStateOf(false) }
     Scaffold()
     { paddingValues ->
         Box(
@@ -54,6 +57,25 @@ fun SetIntegration(navController: NavHostController) {
                 .padding(paddingValues)
 
         ) {
+            if (showLoginRequiredDialog.value) {
+                AlertDialog(
+                    onDismissRequest = { showLoginRequiredDialog.value = false },
+                    title = {
+                        Text(text = "Login Required For this quest")
+                    },
+                    text = {
+                        Text("This quest can only be performed by signed up users to prevent abuse. Please Logout and try again!")
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showLoginRequiredDialog.value = false
+                        }) {
+                            Text("Okay")
+                        }
+                    }
+                )
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -91,7 +113,11 @@ fun SetIntegration(navController: NavHostController) {
                                     .height(100.dp)
                                     .combinedClickable(
                                         onClick = {
-                                            navController.navigate("${item.name}/ntg")
+                                            if(!item.isLoginRequired){
+                                                navController.navigate("${item.name}/ntg")
+                                            }else{
+                                                showLoginRequiredDialog.value = true
+                                            }
                                         },
                                         onLongClick = {
                                             VibrationHelper.vibrate(100)
