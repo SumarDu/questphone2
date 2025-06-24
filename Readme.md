@@ -79,11 +79,4 @@ Integrations are how your quests get verified.
 
 ---
 
-## 🤝 Contributing
-
-We welcome contributions from the community!
-
-1. Fork the repository.
-2. Create a new branch:
-   ```sh
-   git checkout -b feature/your-feature-name
+We can def win over brainrot
