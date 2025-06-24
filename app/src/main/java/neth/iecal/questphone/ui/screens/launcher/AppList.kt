@@ -113,7 +113,7 @@ fun AppList() {
         )
 
         if (showCoinDialog.value) {
-            if(User.userInfo.coins>0) {
+            if(User.userInfo.coins>5) {
                 CoinDialog(
                     coins = User.userInfo.coins,
                     onDismiss = { showCoinDialog.value = false },
@@ -148,7 +148,13 @@ fun AppList() {
             } else {
                 LowCoinsDialog(
                     coins = User.userInfo.coins,
-                    onDismiss = { showCoinDialog.value = false }
+                    onDismiss = { showCoinDialog.value = false },
+                    appName = try {
+                        packageManager.getApplicationInfo(selectedPackage.value, 0)
+                            .loadLabel(packageManager).toString()
+                    } catch (_: Exception) {
+                        selectedPackage.value
+                    }
                 )
             }
         }

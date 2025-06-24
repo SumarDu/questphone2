@@ -1,17 +1,16 @@
 package neth.iecal.questphone.ui.screens.launcher.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -20,6 +19,8 @@ import androidx.compose.ui.window.Dialog
 fun LowCoinsDialog(
     coins: Int,
     onDismiss: () -> Unit,
+
+    appName : String
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Column(
@@ -33,7 +34,7 @@ fun LowCoinsDialog(
             )
 
             Text(
-                text = "You're too broke to use this app right now. ",
+                text = "You're too broke to use $appName right now. ",
                 color = Color.White,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(bottom = 16.dp)
