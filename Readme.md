@@ -62,12 +62,13 @@ Click on any image to enlarge.
 
 ## 🔌 Integrations
 
-Integrations are how your quests get verified.
+Integrations are how your quests get verified. 
+Press on any title to get a detailed explanation about them
 
-- **Health Connect**: Connects to your fitness watch or reads data from other apps.
-- **AI Snap**: Prompts users to snap a photo after completing the task.
-- **Deep Focus**: Blocks all but selected apps for focused time.
-- **Swift Mark**: Simple tap-to-complete mode with no strict verification.
+- **[Health Connect](https://github.com/QuestPhone/docs/blob/main/integration/HealthConnect.md)**: Connects to your fitness watch or reads data from other apps.
+- **[AI Snap](https://github.com/QuestPhone/docs/blob/main/integration/AiSnap.md)**: Prompts users to snap a photo after completing the task.
+- **[Deep Focus](https://github.com/QuestPhone/docs/blob/main/integration/DeepFocus.md)**: Blocks all but selected apps for focused time.
+- **[Swift Mark](https://github.com/QuestPhone/docs/blob/main/integration/HealthConnect.md)**: Simple tap-to-complete mode with no strict verification.
 
 ---
 
