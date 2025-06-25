@@ -35,6 +35,7 @@ import androidx.core.content.ContextCompat.startForegroundService
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,7 +54,7 @@ import neth.iecal.questphone.utils.reloadApps
 data class AppGroup(val letter: Char, val apps: List<AppInfo>)
 
 @Composable
-fun AppList() {
+fun AppList(navController: NavController) {
     val context = LocalContext.current
     val packageManager = context.packageManager
     val appsState = remember { mutableStateOf<List<AppInfo>>(emptyList()) }
@@ -154,7 +155,8 @@ fun AppList() {
                             .loadLabel(packageManager).toString()
                     } catch (_: Exception) {
                         selectedPackage.value
-                    }
+                    },
+                    navController = navController
                 )
             }
         }

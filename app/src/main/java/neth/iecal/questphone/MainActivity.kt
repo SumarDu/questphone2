@@ -130,7 +130,7 @@ class MainActivity : ComponentActivity() {
                             StoreScreen(navController)
                         }
                         composable(Screen.AppList.route) {
-                            AppList()
+                            AppList(navController)
                         }
 
                         composable(Screen.ListAllQuest.route) {
