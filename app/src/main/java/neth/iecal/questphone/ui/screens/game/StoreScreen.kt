@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,15 +37,18 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import android.widget.Toast
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import neth.iecal.questphone.R
 import neth.iecal.questphone.data.game.*
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
+import neth.iecal.questphone.data.settings.SettingsRepository
 import java.util.concurrent.TimeUnit
 import neth.iecal.questphone.services.ServiceInfo
 import neth.iecal.questphone.services.saveServiceInfo
@@ -61,10 +65,13 @@ class StoreViewModelFactory(private val application: Application, private val ap
 }
 
 class StoreViewModel(application: Application, private val appUnlockerItemDao: AppUnlockerItemDao) : AndroidViewModel(application) {
+    private val settingsRepository = SettingsRepository(application)
+    val settings = settingsRepository.settings
     var coins by mutableIntStateOf(User.userInfo.coins)
     var selectedCategory by mutableStateOf(Category.BOOSTERS)
     var items by mutableStateOf<List<StoreItem>>(emptyList())
     var selectedItem by mutableStateOf<StoreItem?>(null)
+    var itemToDelete by mutableStateOf<StoreItem?>(null)
 
     init {
         loadItems()
@@ -147,6 +154,34 @@ class StoreViewModel(application: Application, private val appUnlockerItemDao: A
             }
         }
     }
+
+    fun onDeleteItemRequest(item: StoreItem) {
+        if (!item.isFromEnum) {
+            itemToDelete = item
+        }
+    }
+
+    fun onDeleteItemCancel() {
+        itemToDelete = null
+    }
+
+    fun onDeleteItemConfirm() {
+        viewModelScope.launch {
+            val currentSettings = settingsRepository.settings.first()
+            if (currentSettings.isItemDeletionEnabled) {
+                itemToDelete?.let { item ->
+                    if (!item.isFromEnum) {
+                        item.id.toIntOrNull()?.let { id ->
+                            appUnlockerItemDao.deleteById(id)
+                        }
+                    }
+                }
+            } else {
+                Toast.makeText(getApplication(), "Item deletion is disabled in settings", Toast.LENGTH_SHORT).show()
+            }
+            itemToDelete = null
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -161,6 +196,7 @@ fun StoreScreen(
             QuestDatabaseProvider.getInstance(context).appUnlockerItemDao()
         )
     )
+    val settings by viewModel.settings.collectAsState()
 
     Scaffold(
         topBar = {
@@ -183,9 +219,9 @@ fun StoreScreen(
             )
         },
         floatingActionButton = {
-            if (viewModel.selectedCategory == Category.UNLOCKERS) {
+            if (viewModel.selectedCategory == Category.UNLOCKERS && settings.isItemCreationEnabled) {
                 FloatingActionButton(onClick = { navController.navigate(Screen.CreateAppUnlocker.route) }) {
-                    Icon(Icons.Default.Add, contentDescription = "Create App Unlocker")
+                    Icon(Icons.Default.Add, contentDescription = "Add Unlocker")
                 }
             }
         }
@@ -201,7 +237,8 @@ fun StoreScreen(
             )
             StoreItemsList(
                 items = viewModel.items.filter { it.category == viewModel.selectedCategory },
-                onItemClick = { viewModel.selectItem(it) }
+                onItemClick = { viewModel.selectItem(it) },
+                onDeleteClick = { viewModel.onDeleteItemRequest(it) }
             )
         }
 
@@ -211,6 +248,14 @@ fun StoreScreen(
                 onDismiss = { viewModel.deselectItem() },
                 onPurchase = { viewModel.purchaseSelectedItem() },
                 canAfford = viewModel.coins >= viewModel.selectedItem!!.price
+            )
+        }
+
+        if (viewModel.itemToDelete != null) {
+            DeleteConfirmationDialog(
+                item = viewModel.itemToDelete!!,
+                onDismiss = { viewModel.onDeleteItemCancel() },
+                onConfirm = { viewModel.onDeleteItemConfirm() }
             )
         }
     }
@@ -233,16 +278,16 @@ fun CategorySelector(selectedCategory: Category, onCategorySelected: (Category) 
 }
 
 @Composable
-fun StoreItemsList(items: List<StoreItem>, onItemClick: (StoreItem) -> Unit) {
+fun StoreItemsList(items: List<StoreItem>, onItemClick: (StoreItem) -> Unit, onDeleteClick: (StoreItem) -> Unit) {
     LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
         items(items) { item ->
-            StoreItemCard(item = item, onClick = { onItemClick(item) })
+            StoreItemCard(item = item, onClick = { onItemClick(item) }, onDelete = { onDeleteClick(item) })
         }
     }
 }
 
 @Composable
-fun StoreItemCard(item: StoreItem, onClick: () -> Unit) {
+fun StoreItemCard(item: StoreItem, onClick: () -> Unit, onDelete: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -264,7 +309,12 @@ fun StoreItemCard(item: StoreItem, onClick: () -> Unit) {
                 Text(text = item.name, style = MaterialTheme.typography.titleMedium)
                 Text(text = item.description, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            Spacer(modifier = Modifier.width(16.dp))
+            if (!item.isFromEnum) {
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete Item")
+                }
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             Text(text = "${item.price}", style = MaterialTheme.typography.titleMedium)
             Image(
                 painter = painterResource(R.drawable.coin_icon),
@@ -320,4 +370,23 @@ fun PurchaseDialog(item: StoreItem, onDismiss: () -> Unit, onPurchase: () -> Uni
             }
         }
     }
+}
+
+@Composable
+fun DeleteConfirmationDialog(item: StoreItem, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete Item") },
+        text = { Text("Are you sure you want to delete '${item.name}'? This action cannot be undone.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

@@ -45,12 +45,17 @@ import neth.iecal.questphone.ui.screens.quest.setup.components.SetBaseQuest
 import neth.iecal.questphone.ui.screens.quest.setup.components.SetFocusTimeUI
 import neth.iecal.questphone.utils.QuestHelper
 import neth.iecal.questphone.utils.json
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import neth.iecal.questphone.data.settings.SettingsRepository
 import neth.iecal.questphone.utils.reloadApps
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
 fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
     val context = LocalContext.current
+    val settingsRepository = SettingsRepository(context)
+    val settings by settingsRepository.settings.collectAsState()
     val apps = remember { mutableStateOf(emptyList<AppInfo>()) }
 
     val showDialog = remember { mutableStateOf(false) }
@@ -59,7 +64,7 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
     val focusTimeConfig = remember { mutableStateOf(FocusTimeConfig()) }
 
     val scrollState = rememberScrollState()
-    val sp = QuestHelper(LocalContext.current)
+    val sp = QuestHelper(context)
 
     val isReviewDialogVisible = remember { mutableStateOf(false) }
 
@@ -158,7 +163,7 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
                             isReviewDialogVisible.value = true
 
                         },
-                        enabled = questInfoState.selectedDays.isNotEmpty(),
+                        enabled = questInfoState.selectedDays.isNotEmpty() && (settings.isQuestCreationEnabled || editQuestId != null),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

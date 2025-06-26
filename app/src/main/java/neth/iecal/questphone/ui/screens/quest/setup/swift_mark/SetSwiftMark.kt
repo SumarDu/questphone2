@@ -37,12 +37,19 @@ import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.data.quest.QuestInfoState
 import neth.iecal.questphone.ui.screens.quest.setup.ReviewDialog
 import neth.iecal.questphone.ui.screens.quest.setup.components.SetBaseQuest
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import neth.iecal.questphone.data.settings.SettingsRepository
 import neth.iecal.questphone.utils.QuestHelper
 
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
 fun SetSwiftMark(editQuestId:String? = null,navController: NavHostController) {
+
+    val context = LocalContext.current
+    val settingsRepository = SettingsRepository(context)
+    val settings by settingsRepository.settings.collectAsState()
 
     val questInfoState =
         remember {
@@ -53,10 +60,9 @@ fun SetSwiftMark(editQuestId:String? = null,navController: NavHostController) {
             )
         }
 
-    val sp = QuestHelper(LocalContext.current)
+    val sp = QuestHelper(context)
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     val isReviewDialogVisible = remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit){
@@ -116,7 +122,7 @@ fun SetSwiftMark(editQuestId:String? = null,navController: NavHostController) {
 
 
                     Button(
-                        enabled = questInfoState.selectedDays.isNotEmpty(),
+                        enabled = questInfoState.selectedDays.isNotEmpty() && (settings.isQuestCreationEnabled || editQuestId != null),
                         onClick = {
                             isReviewDialogVisible.value = true
                         },

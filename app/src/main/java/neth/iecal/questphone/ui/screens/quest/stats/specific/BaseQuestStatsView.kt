@@ -138,8 +138,6 @@ fun BaseQuestStatsView(id: String, navController: NavHostController) {
 
     val scrollState = rememberScrollState()
 
-    val isQuestEditorInfoDialogVisible = remember { mutableStateOf(false) }
-    val isQuestDeleterInfoDialogVisible = remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -171,21 +169,7 @@ fun BaseQuestStatsView(id: String, navController: NavHostController) {
             )
 
             // Quest Details
-            QuestDetailsCard(baseData,isQuestEditorInfoDialogVisible,isQuestDeleterInfoDialogVisible)
-
-            UseItemDialog(InventoryItem.QUEST_EDITOR,isQuestEditorInfoDialogVisible){
-                navController.navigate(baseData.integration_id.name + "/${baseData.title}")
-            }
-
-            UseItemDialog(InventoryItem.QUEST_DELETER,isQuestDeleterInfoDialogVisible){
-                val dao = QuestDatabaseProvider.getInstance(context).questDao()
-                coroutineScope.launch {
-                    val quest = dao.getQuest(baseData.title)
-                    quest!!.is_destroyed = true
-                    dao.upsertQuest(quest)
-                }
-                navController.popBackStack()
-            }
+            QuestDetailsCard(baseData)
 
         }
 
@@ -522,7 +506,7 @@ fun CalendarSection(
 
 
 @Composable
-fun QuestDetailsCard(baseData: CommonQuestInfo, isQuestEditorInfoDialogVisible: MutableState<Boolean>, isQuestDeleterInfoDialogVisible: MutableState<Boolean>) {
+fun QuestDetailsCard(baseData: CommonQuestInfo) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -557,59 +541,7 @@ fun QuestDetailsCard(baseData: CommonQuestInfo, isQuestEditorInfoDialogVisible: 
 
             Spacer(Modifier.size(12.dp))
 
-            if(!baseData.is_destroyed) {
-                OutlinedButton(onClick = {
-                    isQuestEditorInfoDialogVisible.value = true
 
-                }, modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.quest_editor),
-                            contentDescription = "quest_editor",
-                            modifier = Modifier
-                                .size(25.dp)
-                                .clickable {
-                                }
-                        )
-                        Spacer(Modifier.size(4.dp))
-                        Text(
-                            text = "Edit Quest",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-                Spacer(Modifier.size(4.dp))
-
-                OutlinedButton(onClick = {
-                    isQuestDeleterInfoDialogVisible.value = true
-
-                }, modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.quest_deletor),
-                            contentDescription = "quest_editor",
-                            modifier = Modifier
-                                .size(25.dp)
-                                .clickable {
-                                }
-                        )
-                        Text(
-                            text = "Delete Quest",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            }
 
 
         }
@@ -815,62 +747,7 @@ fun LegendItem(color: Color? = null, borderColor: Color? = null, text: String) {
     }
 }
 
-@Composable
-fun UseItemDialog(item: InventoryItem, isDialogVisible: MutableState<Boolean>, onUse: ()-> Unit = {}){
-    if(isDialogVisible.value){
-        Dialog(onDismissRequest = {
-            isDialogVisible.value = false
-        }) {
-            val doesUserOwnEditor = User.getInventoryItemCount(item)>0
-            Surface(
-                shape = MaterialTheme.shapes.medium,
-                tonalElevation = 8.dp,
-                modifier = Modifier
-                    .padding(24.dp)
-                    .wrapContentSize()
-            ) {
 
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Image(
-                        painter = painterResource(item.icon),
-                        contentDescription = InventoryItem.QUEST_EDITOR.simpleName,
-                        modifier = Modifier.size(60.dp)
-                    )
-                    if (doesUserOwnEditor) {
-                        Text("Do You Want to Spend 1 ${item.simpleName} to perform this action?")
-                    } else {
-                        Text("You currently have no ${item.simpleName}. Please buy one from the shop to edit this quest")
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(onClick = { isDialogVisible.value = false }) {
-                            Text("Close")
-                        }
-
-                        if(doesUserOwnEditor){
-                            Button(onClick = {
-                                User.useInventoryItem(item)
-                                onUse()
-                                isDialogVisible.value = false
-                            }) {
-                                Text("Use")
-                            }
-                        }
-                    }
-
-                }
-            }
-        }
-    }
-}
 
 fun calculateCurrentStreak(
     completed: Collection<StatsInfo>,

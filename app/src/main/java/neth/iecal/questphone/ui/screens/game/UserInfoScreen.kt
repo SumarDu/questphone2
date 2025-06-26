@@ -60,11 +60,17 @@ import neth.iecal.questphone.data.quest.stats.StatsDatabaseProvider
 import neth.iecal.questphone.ui.screens.quest.stats.components.HeatMapChart
 import neth.iecal.questphone.utils.formatNumber
 import neth.iecal.questphone.utils.formatRemainingTime
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TopAppBar
+import androidx.navigation.NavController
+import neth.iecal.questphone.ui.navigation.Screen
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UserInfoScreen() {
+fun UserInfoScreen(navController: NavController) {
     val context = LocalContext.current
 
     val totalXpForNextLevel = xpToLevelUp(User.userInfo.level + 1)
@@ -97,7 +103,18 @@ fun UserInfoScreen() {
         })
     }
 
-    Scaffold { innerPadding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Profile") },
+                actions = {
+                    IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
 
         Column(
             modifier = Modifier
@@ -107,13 +124,6 @@ fun UserInfoScreen() {
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Profile Header
-            Text(
-                text = "Profile",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 32.dp)
-            )
 
             // Avatar
             Box(

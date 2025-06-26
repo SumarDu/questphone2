@@ -21,16 +21,14 @@ enum class Availability(val displayName: String, val rarityValue: Int) {
 @Serializable
 enum class Category(val simpleName: String){
     BOOSTERS("Boosters"),
-    TOOLS("Tools"),
+    UTILITY("Utility"),
     UNLOCKERS("Unlockers"),
 }
 
 @Serializable
-enum class InventoryItem(val simpleName: String, val description: String, val icon: Int, val isDirectlyUsableFromInventory : Boolean = false, val onUse: () -> Unit = {}, val availability: Availability = Availability.UNCOMMON, val price: Int = 0, val category: Category = Category.TOOLS) {
-    STREAK_FREEZER("Streak Freezer", description = "Automatically freezes your streak in case you fail to complete all quests on a day", icon = R.drawable.streak_freezer, price = 20),
-    QUEST_SKIPPER("Quest Skipper", description = "Mark any quest as complete", icon = R.drawable.quest_skipper, price = 5),
-    QUEST_EDITOR("Quest Editor", description = "Edit information about a quest", icon = R.drawable.quest_editor, price = 20),
-    QUEST_DELETER ("Quest Deleter", description = "Destroy a quest.", icon = R.drawable.quest_deletor, price = 100),
+enum class InventoryItem(val simpleName: String, val description: String, val icon: Int, val isDirectlyUsableFromInventory : Boolean = false, val onUse: () -> Unit = {}, val availability: Availability = Availability.UNCOMMON, val price: Int = 0, val category: Category = Category.UTILITY) {
+    STREAK_FREEZER("Streak Freezer", description = "Automatically freezes your streak in case you fail to complete all quests on a day", icon = R.drawable.streak_freezer, category = Category.BOOSTERS, price = 20),
+
     XP_BOOSTER ("XP Booster", description = "Get 2x more xp for the next 5 hours.", isDirectlyUsableFromInventory = true,onUse = ::onUseXpBooster, icon = R.drawable.xp_booster, category = Category.BOOSTERS, price = 10),
     DISTRACTION_ADDER("Distraction Adder", description = "Add an app to the distraction list", isDirectlyUsableFromInventory = true, onUse = ::onUseDistractionAdder,icon = R.drawable.distraction_adder, price = 2),
     DISTRACTION_REMOVER("Distraction Remover", description = "Remove an app from the distractions list", isDirectlyUsableFromInventory = true, onUse = ::onUseDistractionRemover ,icon = R.drawable.distraction_remover, price = 20),

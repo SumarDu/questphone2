@@ -57,7 +57,7 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
         animationSpec = tween(durationMillis = loadingAnimationDuration, easing = LinearEasing)
     )
 
-    val isUseQuestSkipperDialogVisible = remember { mutableStateOf(false) }
+
 
 
     Box(Modifier.fillMaxSize()) {
@@ -75,18 +75,7 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if(!isQuestCompleted.value && User.getInventoryItemCount(InventoryItem.QUEST_SKIPPER) > 0){
-                            Image(
-                                painter = painterResource(R.drawable.quest_skipper),
-                                contentDescription = "use quest skipper",
-                                modifier = Modifier.size(50.dp)
-                                    .clickable{
-                                        VibrationHelper.vibrate(50)
-                                        isUseQuestSkipperDialogVisible.value = true
-                                    }
-                            )
 
-                        }
                         if(!hideStartQuestBtn) {
                             Spacer(modifier = Modifier.width(15.dp))
                             Button(
@@ -112,49 +101,7 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
 
                 ) {
 
-                if(isUseQuestSkipperDialogVisible.value){
-                    Dialog(onDismissRequest = { isUseQuestSkipperDialogVisible.value = false }) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "Do you want to use a QUEST SKIPPER to skip this quest for today?",
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Spacer(modifier = Modifier.size(8.dp))
-                            Text(
-                                text = "Available: ${User.getInventoryItemCount(InventoryItem.QUEST_SKIPPER)}",
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(bottom = 16.dp)
-                            )
 
-                            Row {
-                                Button(
-                                    onClick = {
-                                        VibrationHelper.vibrate(200)
-                                        User.useInventoryItem(InventoryItem.QUEST_SKIPPER)
-                                        onQuestCompleted()
-                                        isUseQuestSkipperDialogVisible.value = false
-                                    },
-                                ) {
-                                    Text("Yes")
-                                }
-                                Spacer(modifier = Modifier.size(16.dp))
-
-                                Button(
-                                    onClick = {
-                                        isUseQuestSkipperDialogVisible.value = false
-                                    },
-                                ) {
-                                    Text("No")
-                                }
-                            }
-                        }
-                    }
-
-                }
 
                 // Coins display
                 Text(

@@ -47,11 +47,16 @@ import neth.iecal.questphone.data.quest.QuestInfoState
 import neth.iecal.questphone.data.quest.health.HealthTaskType
 import neth.iecal.questphone.ui.screens.quest.setup.ReviewDialog
 import neth.iecal.questphone.ui.screens.quest.setup.components.SetBaseQuest
+import androidx.compose.runtime.collectAsState
+import neth.iecal.questphone.data.settings.SettingsRepository
 import neth.iecal.questphone.utils.json
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
 fun SetHealthConnect(editQuestId:String? = null,navController: NavHostController) {
+    val context = LocalContext.current
+    val settingsRepository = SettingsRepository(context)
+    val settings by settingsRepository.settings.collectAsState()
     val scrollState = rememberScrollState()
 
     val questInfoState = remember { QuestInfoState(initialIntegrationId = IntegrationId.HEALTH_CONNECT) }
@@ -59,7 +64,6 @@ fun SetHealthConnect(editQuestId:String? = null,navController: NavHostController
     val isReviewDialogVisible = remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         if(editQuestId!=null){
@@ -168,7 +172,7 @@ fun SetHealthConnect(editQuestId:String? = null,navController: NavHostController
                             }
 
                     Button(
-                        enabled = questInfoState.selectedDays.isNotEmpty(),
+                        enabled = questInfoState.selectedDays.isNotEmpty() && (settings.isQuestCreationEnabled || editQuestId != null),
                         onClick = { isReviewDialogVisible.value = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {

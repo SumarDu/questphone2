@@ -96,8 +96,7 @@ fun User.continueStreak(): Boolean {
 }
 
 fun User.addLevelUpRewards(): HashMap<InventoryItem,Int>{
-    var levelUpInventoryItem  = hashMapOf<InventoryItem, Int>()
-    levelUpInventoryItem.put(InventoryItem.QUEST_SKIPPER, 1)
+    val levelUpInventoryItem  = hashMapOf<InventoryItem, Int>()
     if (userInfo.level % 2 == 0) {
         levelUpInventoryItem.put(InventoryItem.XP_BOOSTER, 1)
     }

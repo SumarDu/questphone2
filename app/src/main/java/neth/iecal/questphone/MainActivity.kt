@@ -39,6 +39,7 @@ import neth.iecal.questphone.ui.screens.quest.RewardDialogMaker
 import neth.iecal.questphone.ui.screens.quest.ViewQuest
 import neth.iecal.questphone.ui.screens.game.CreateAppUnlockerScreen
 import neth.iecal.questphone.ui.screens.quest.setup.SetIntegration
+import neth.iecal.questphone.ui.screens.settings.SettingsScreen
 import neth.iecal.questphone.ui.screens.quest.stats.specific.BaseQuestStatsView
 import neth.iecal.questphone.ui.theme.LauncherTheme
 import neth.iecal.questphone.utils.isOnline
@@ -114,7 +115,10 @@ class MainActivity : ComponentActivity() {
                     ) {
 
                         composable(Screen.UserInfo.route) {
-                            UserInfoScreen()
+                            UserInfoScreen(navController)
+                        }
+                        composable(Screen.Settings.route) {
+                            SettingsScreen(navController)
                         }
                         composable(
                             route = "${Screen.SelectApps.route}{mode}",

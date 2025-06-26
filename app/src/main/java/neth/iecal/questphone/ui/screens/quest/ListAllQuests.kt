@@ -29,15 +29,17 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import android.app.Application
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -52,23 +54,14 @@ import neth.iecal.questphone.ui.navigation.Screen
 
 @Composable
 fun ListAllQuests(navHostController: NavHostController) {
-    var questList by remember { mutableStateOf<List<CommonQuestInfo>>(emptyList()) }
-    val dao = QuestDatabaseProvider.getInstance(LocalContext.current).questDao()
+    val context = LocalContext.current
+    val viewModel: ListAllQuestsViewModel = viewModel(
+                factory = ListAllQuestsViewModelFactory(context.applicationContext as Application, QuestDatabaseProvider.getInstance(context).questDao())
+    )
 
-    var searchQuery by remember { mutableStateOf("") }
-    val filteredQuestList = remember(questList, searchQuery) {
-        if (searchQuery.isBlank()) {
-            questList
-        } else {
-            questList.filter { item ->
-                item.title.contains(searchQuery, ignoreCase = true) ||
-                        item.instructions.contains(searchQuery, ignoreCase = true)
-            }
-        }
-    }
-    LaunchedEffect(Unit) {
-        questList = dao.getAllQuests().first()
-    }
+    val filteredQuestList by viewModel.filteredQuests.collectAsState(initial = emptyList())
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val questToDelete by viewModel.questToDelete.collectAsState()
 
 
     Scaffold(
@@ -102,7 +95,7 @@ fun ListAllQuests(navHostController: NavHostController) {
                 item {
                     OutlinedTextField(
                         value = searchQuery,
-                        onValueChange = { searchQuery = it },
+                        onValueChange = { viewModel.onSearchQueryChange(it) },
                         label = { Text("Search Quests") },
                         placeholder = { Text("Type Quest Title...") },
                         leadingIcon = {
@@ -113,7 +106,7 @@ fun ListAllQuests(navHostController: NavHostController) {
                         },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
+                                IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
                                     Icon(
                                         imageVector = Icons.Default.Clear,
                                         contentDescription = "Clear search"
@@ -127,16 +120,34 @@ fun ListAllQuests(navHostController: NavHostController) {
                         singleLine = true
                     )
                 }
-                items(filteredQuestList) { questBase: CommonQuestInfo ->
+                                items(filteredQuestList) { questBase: CommonQuestInfo ->
                     QuestItem(
                         quest = questBase,
                         onClick = {
                             navHostController.navigate(Screen.QuestStats.route + questBase.id)
-                        }
+                        },
+                        onDelete = { viewModel.onQuestDeleteRequest(questBase) }
                     )
                 }
             }
 
+            questToDelete?.let { quest ->
+                AlertDialog(
+                    onDismissRequest = { viewModel.onQuestDeleteCancel() },
+                    title = { Text("Delete Quest") },
+                    text = { Text("Are you sure you want to delete the quest \"${quest.title}\"? This action cannot be undone.") },
+                    confirmButton = {
+                        TextButton(onClick = { viewModel.onQuestDeleteConfirm() }) {
+                            Text("Delete")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { viewModel.onQuestDeleteCancel() }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
         }
     }
 
@@ -145,7 +156,8 @@ fun ListAllQuests(navHostController: NavHostController) {
 @Composable
 private fun QuestItem(
     quest: CommonQuestInfo,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDelete: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Card(
@@ -176,15 +188,22 @@ private fun QuestItem(
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                // Item details
+                                // Item details
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(
-                        text = quest.title,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = quest.title,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = onDelete) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete quest")
+                        }
+                    }
+                    
 
                     if(quest.is_destroyed){
                         Text(

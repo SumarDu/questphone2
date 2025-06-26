@@ -35,8 +35,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +51,7 @@ import neth.iecal.questphone.data.IntegrationId
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.data.quest.QuestInfoState
 import neth.iecal.questphone.data.quest.ai.snap.AiSnap
+import neth.iecal.questphone.data.settings.SettingsRepository
 import neth.iecal.questphone.ui.screens.quest.setup.ReviewDialog
 import neth.iecal.questphone.ui.screens.quest.setup.components.SetBaseQuest
 import neth.iecal.questphone.utils.QuestHelper
@@ -58,8 +60,13 @@ import neth.iecal.questphone.utils.json
 
 @SuppressLint("UnrememberedMutableState")
 @Composable
-fun SetAiSnap(editQuestId:String? = null,navController: NavHostController) {
+fun SetAiSnap(
+    editQuestId: String? = null,
+    navController: NavHostController
+) {
     val context = LocalContext.current
+    val settingsRepository = SettingsRepository(context)
+    val settings by settingsRepository.settings.collectAsState()
     val scrollState = rememberScrollState()
     val sp = QuestHelper(LocalContext.current)
 
@@ -73,13 +80,13 @@ fun SetAiSnap(editQuestId:String? = null,navController: NavHostController) {
     val isReviewDialogVisible = remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        if(editQuestId!=null){
+        if (editQuestId != null) {
             val dao = QuestDatabaseProvider.getInstance(context).questDao()
             val quest = dao.getQuest(editQuestId)
             questInfoState.fromBaseQuest(quest!!)
             val aiSnap = json.decodeFromString<AiSnap>(quest.quest_json)
             taskDescription.value = aiSnap.taskDescription
-           features.addAll(aiSnap.features)
+            features.addAll(aiSnap.features)
 //            spatialImageUri.value = aiSnap.spatialImageUrl
         }
     }
@@ -165,12 +172,12 @@ fun SetAiSnap(editQuestId:String? = null,navController: NavHostController) {
                         )
                     }
 
-                    AddRemoveListWithDialog(items =features)
+                    AddRemoveListWithDialog(items = features)
                 }
 
                 // Create Quest button
                 Button(
-                    enabled = questInfoState.selectedDays.isNotEmpty(),
+                    enabled = questInfoState.selectedDays.isNotEmpty() && (settings.isQuestCreationEnabled || editQuestId != null),
                     onClick = {
                         if (taskDescription.value.isNotBlank()) {
                             isReviewDialogVisible.value = true
@@ -185,7 +192,7 @@ fun SetAiSnap(editQuestId:String? = null,navController: NavHostController) {
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if(editQuestId==null) "Create Quest" else "Save Changes",
+                            text = if (editQuestId == null) "Create Quest" else "Save Changes",
 
                             style = MaterialTheme.typography.labelLarge
                         )
@@ -215,7 +222,7 @@ fun AddRemoveListWithDialog(
         Spacer(modifier = Modifier.height(16.dp))
 
         Column {
-            items.forEachIndexed { i,item ->
+            items.forEachIndexed { i, item ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
