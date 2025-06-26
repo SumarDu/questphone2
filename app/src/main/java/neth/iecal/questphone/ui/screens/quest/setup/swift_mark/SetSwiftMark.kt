@@ -48,7 +48,8 @@ fun SetSwiftMark(editQuestId:String? = null,navController: NavHostController) {
         remember {
             QuestInfoState(
                 initialIntegrationId = IntegrationId.SWIFT_MARK,
-                initialReward = 1
+                initialRewardMin = 1,
+                initialRewardMax = 1
             )
         }
 

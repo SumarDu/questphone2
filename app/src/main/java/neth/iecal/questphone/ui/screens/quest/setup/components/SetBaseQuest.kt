@@ -16,6 +16,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Switch
+import androidx.compose.ui.Alignment
 import kotlinx.coroutines.flow.first
 import neth.iecal.questphone.data.game.User
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
@@ -74,4 +80,58 @@ fun SetBaseQuest(questInfoState: QuestInfoState, isTimeRangeSupported: Boolean =
         SetTimeRange(questInfoState)
     }
 
+    RewardSetter(questInfoState)
+
+}
+
+@Composable
+fun RewardSetter(questInfoState: QuestInfoState) {
+    var isRandom by remember { mutableStateOf(questInfoState.rewardMin != questInfoState.rewardMax) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Random Reward")
+            Spacer(modifier = Modifier.width(8.dp))
+            Switch(
+                checked = isRandom,
+                onCheckedChange = { isRandom = it }
+            )
+        }
+
+        if (isRandom) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = questInfoState.rewardMin.toString(),
+                    onValueChange = { value ->
+                        questInfoState.rewardMin = value.toIntOrNull() ?: 0
+                    },
+                    label = { Text("Min Reward") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                OutlinedTextField(
+                    value = questInfoState.rewardMax.toString(),
+                    onValueChange = { value ->
+                        questInfoState.rewardMax = value.toIntOrNull() ?: 0
+                    },
+                    label = { Text("Max Reward") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        } else {
+            OutlinedTextField(
+                value = questInfoState.rewardMin.toString(),
+                onValueChange = { value ->
+                    val amount = value.toIntOrNull() ?: 0
+                    questInfoState.rewardMin = amount
+                    questInfoState.rewardMax = amount
+                },
+                label = { Text("Reward") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
 }

@@ -101,7 +101,14 @@ fun RewardDialogMaker(  ) {
         // if quest info is empty, the function was triggered by stuff like daily rewards
         val isTriggeredViaQuestCompletion = RewardDialogInfo.currentCommonQuestInfo != null
 
-        val coinsEarned = RewardDialogInfo.currentCommonQuestInfo?.reward ?: 0
+                val questInfo = RewardDialogInfo.currentCommonQuestInfo
+        val coinsEarned = if (questInfo != null) {
+            if (questInfo.reward_min == questInfo.reward_max) {
+                questInfo.reward_min
+            } else {
+                (questInfo.reward_min..questInfo.reward_max).random()
+            }
+        } else { 0 }
         LaunchedEffect(Unit) {
             val xp = if(isTriggeredViaQuestCompletion) xpToRewardForQuest(User.userInfo.level) else xpFromStreak(
                 User.userInfo.streak.currentStreak

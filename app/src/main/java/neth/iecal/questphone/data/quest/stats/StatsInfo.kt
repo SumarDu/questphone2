@@ -116,7 +116,7 @@ object StatsDatabaseProvider {
                 context.applicationContext,
                 StatsDatabase::class.java,
                 "stats_info_database"
-            ).build()
+            ).fallbackToDestructiveMigration().build()
             INSTANCE = instance
             instance
         }

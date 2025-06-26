@@ -120,12 +120,13 @@ fun BaseQuestStatsView(id: String, navController: NavHostController) {
         val allowedDays = baseData.selected_days.map { it.toJavaDayOfWeek() }.toSet()
         totalPerformableQuests = daysSince(baseData.created_on, allowedDays)
         totalSuccessfulQuests = stats.size
-        totalFailedQuests = totalPerformableQuests - totalFailedQuests
+        totalFailedQuests = totalPerformableQuests - totalSuccessfulQuests
         currentStreak = calculateCurrentStreak(stats,allowedDays)
         longestStreak = calculateLongestStreak(stats,allowedDays)
         failureRate = if (totalPerformableQuests > 0) (totalFailedQuests.toFloat() / totalPerformableQuests) * 100 else 0f
         successRate = if (totalPerformableQuests > 0) (totalSuccessfulQuests.toFloat() / totalPerformableQuests) * 100 else 0f
-        totalCoins = totalSuccessfulQuests * baseData.reward
+        val averageReward = (baseData.reward_min + baseData.reward_max) / 2
+        totalCoins = totalSuccessfulQuests * averageReward
         weeklyAverageCompletions = weeklyAverage(stats)
     }
 
@@ -550,7 +551,7 @@ fun QuestDetailsCard(baseData: CommonQuestInfo, isQuestEditorInfoDialogVisible: 
             QuestInfoRow(label = "Integration", value = baseData.integration_id.name)
             QuestInfoRow(
                 label = "Reward",
-                value = "${baseData.reward} coins",
+                value = if (baseData.reward_min == baseData.reward_max) "${baseData.reward_min} coins" else "${baseData.reward_min} - ${baseData.reward_max} coins",
                 highlight = true
             )
 

@@ -289,8 +289,13 @@ fun DeepFocusQuestView(
                 modifier = Modifier.padding(top = 40.dp)
             )
 
+            val rewardText = if (commonQuestInfo.reward_min == commonQuestInfo.reward_max) {
+                "${commonQuestInfo.reward_min} coins"
+            } else {
+                "${commonQuestInfo.reward_min}-${commonQuestInfo.reward_max} coins"
+            }
             Text(
-                text = (if(isQuestComplete.value) "Reward" else "Next Reward") + ": ${commonQuestInfo.reward} coins + ${
+                text = (if(isQuestComplete.value) "Reward" else "Next Reward") + ": $rewardText + ${
                     xpToRewardForQuest(
                         userInfo.level
                     )
@@ -300,11 +305,7 @@ fun DeepFocusQuestView(
 
             if(!isInTimeRange.value){
                 Text(
-                    text = "Time: ${formatHour(commonQuestInfo.time_range[0])} to ${
-                        formatHour(
-                            commonQuestInfo.time_range[1]
-                        )
-                    }",
+                    text = "Time: ${formatHour(commonQuestInfo.time_range[0])} to ${formatHour(commonQuestInfo.time_range[1])}",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
             }

@@ -156,13 +156,19 @@ fun HealthQuestView(commonQuestInfo: CommonQuestInfo) {
                     fontFamily = JetBrainsMonoFont,
                     modifier = Modifier.padding(top = 40.dp)
                 )
+
+                val rewardText = if (commonQuestInfo.reward_min == commonQuestInfo.reward_max) {
+                    "${commonQuestInfo.reward_min} coins"
+                } else {
+                    "${commonQuestInfo.reward_min}-${commonQuestInfo.reward_max} coins"
+                }
                 Text(
-                    text = (if(isQuestComplete.value) "Next Reward" else "Reward") + ": ${commonQuestInfo.reward} coins + ${
+                    text = (if(isQuestComplete.value) "Reward" else "Next Reward") + ": $rewardText + ${
                         xpToRewardForQuest(
                             userInfo.level
                         )
                     } xp",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
 
                 Text(

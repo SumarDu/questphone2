@@ -1,5 +1,8 @@
 package neth.iecal.questphone.data.quest
 
+import neth.iecal.questphone.data.game.AppUnlockerItem
+import neth.iecal.questphone.data.game.AppUnlockerItemDao
+
 import android.content.Context
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -46,7 +49,8 @@ data class CommonQuestInfo(
     @PrimaryKey
     val id: String = UUID.randomUUID().toString(),
     var title: String = "",
-    val reward: Int = 5,
+    val reward_min: Int = 5,
+    val reward_max: Int = 5,
     var integration_id : IntegrationId = IntegrationId.DEEP_FOCUS,
     var selected_days: Set<DayOfWeek> = emptySet(),
     var auto_destruct: String = "9999-12-31",
@@ -66,7 +70,8 @@ data class CommonQuestInfo(
 class QuestInfoState(
     initialTitle: String = "",
     initialInstructions: String = "",
-    initialReward: Int = 5,
+    initialRewardMin: Int = 5,
+    initialRewardMax: Int = 5,
     initialIntegrationId: IntegrationId = IntegrationId.DEEP_FOCUS,
     initialSelectedDays: Set<DayOfWeek> = emptySet(),
     initialAutoDestruct: String = "9999-12-31",
@@ -74,7 +79,8 @@ class QuestInfoState(
 ) {
     var id = UUID.randomUUID().toString()
     var title by mutableStateOf(initialTitle)
-    var reward by mutableIntStateOf(initialReward)
+    var rewardMin by mutableIntStateOf(initialRewardMin)
+    var rewardMax by mutableIntStateOf(initialRewardMax)
     var integrationId by mutableStateOf(initialIntegrationId)
     var selectedDays by mutableStateOf(initialSelectedDays)
     var instructions by mutableStateOf(initialInstructions)
@@ -83,7 +89,8 @@ class QuestInfoState(
     inline fun < reified T : Any> toBaseQuest(questInfo: T? = null) = CommonQuestInfo(
         id = id,
         title = title,
-        reward = reward,
+        reward_min = rewardMin,
+        reward_max = rewardMax,
         integration_id = integrationId,
         selected_days = selectedDays,
         auto_destruct = initialAutoDestruct,
@@ -94,7 +101,8 @@ class QuestInfoState(
     fun fromBaseQuest(commonQuestInfo: CommonQuestInfo){
         id = commonQuestInfo.id
         title = commonQuestInfo.title
-        reward = commonQuestInfo.reward
+        rewardMin = commonQuestInfo.reward_min
+        rewardMax = commonQuestInfo.reward_max
         integrationId = commonQuestInfo.integration_id
         selectedDays = commonQuestInfo.selected_days
         initialAutoDestruct = commonQuestInfo.auto_destruct
@@ -166,13 +174,12 @@ interface QuestDao {
 
 }
 
-@Database(
-    entities = [CommonQuestInfo::class],
-    version = 1,
-    exportSchema = false
-)
+
+
+@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class], version = 3, exportSchema = false)
 @TypeConverters(BaseQuestConverter::class)
 abstract class QuestDatabase : RoomDatabase() {
+    abstract fun appUnlockerItemDao(): AppUnlockerItemDao
     abstract fun questDao(): QuestDao
 }
 
@@ -187,7 +194,7 @@ object QuestDatabaseProvider {
                 context.applicationContext,
                 QuestDatabase::class.java,
                 "quest_database"
-            ).build()
+            ).fallbackToDestructiveMigration().build()
             INSTANCE = instance
             instance
         }

@@ -37,6 +37,7 @@ import neth.iecal.questphone.ui.screens.pet.PetDialog
 import neth.iecal.questphone.ui.screens.quest.ListAllQuests
 import neth.iecal.questphone.ui.screens.quest.RewardDialogMaker
 import neth.iecal.questphone.ui.screens.quest.ViewQuest
+import neth.iecal.questphone.ui.screens.game.CreateAppUnlockerScreen
 import neth.iecal.questphone.ui.screens.quest.setup.SetIntegration
 import neth.iecal.questphone.ui.screens.quest.stats.specific.BaseQuestStatsView
 import neth.iecal.questphone.ui.theme.LauncherTheme
@@ -128,6 +129,9 @@ class MainActivity : ComponentActivity() {
 
                         composable(Screen.Store.route) {
                             StoreScreen(navController)
+                        }
+                        composable(Screen.CreateAppUnlocker.route) {
+                            CreateAppUnlockerScreen(navController)
                         }
                         composable(Screen.AppList.route) {
                             AppList(navController)
