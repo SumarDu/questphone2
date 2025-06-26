@@ -20,14 +20,14 @@
 
 **QuestPhone** is an open-source Android productivity utility designed to help users reduce screen addiction by regulating app usage through a gamified experience. The application blocks distracting apps and unlocks them only once the user completes all their work.
 
-It was started in April 2024 under the name *DigipawFull* and is now continued as *QuestPhone*.
+It was started in April 2024 under the name *DigipawsFull* and is now continued as *QuestPhone*.
 
 > [!CAUTION]
 > This project is experimental and not yet ready for full production. [Donate](https://digipaws.life/donate)
 
 
 > [!CAUTION]
-> This is a continuation of the [DigipawsFull Project](github.com/nethical6/digipaws)
+> This is a continuation of the [DigipawsFull Project](https://www.github.com/nethical6/digipaws)
 ---
 
 ## 🚀 Features
