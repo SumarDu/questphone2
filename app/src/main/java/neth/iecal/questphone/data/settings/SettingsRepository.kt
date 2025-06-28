@@ -2,8 +2,10 @@ package neth.iecal.questphone.data.settings
 
 import android.content.Context
 import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
 
 data class SettingsData(
     val isQuestCreationEnabled: Boolean = true,
@@ -16,49 +18,63 @@ data class SettingsData(
 )
 
 class SettingsRepository(context: Context) {
-
     private val sharedPreferences = context.getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
     private val gson = Gson()
 
+    // In-memory cache
+    private var cachedSettings: SettingsData? = null
     private val _settings = MutableStateFlow(loadSettings())
     val settings = _settings.asStateFlow()
 
     private fun loadSettings(): SettingsData {
+        // Check memory cache first
+        cachedSettings?.let { return it }
+
         val json = sharedPreferences.getString("settings_data", null)
         return if (json != null) {
-            gson.fromJson(json, SettingsData::class.java)
+            gson.fromJson(json, SettingsData::class.java).also {
+                cachedSettings = it
+            }
         } else {
-            SettingsData()
+            SettingsData().also {
+                cachedSettings = it
+            }
         }
     }
 
-    fun saveSettings(settingsData: SettingsData) {
+    suspend fun saveSettings(settingsData: SettingsData) {
+        withContext(Dispatchers.IO) {
         val json = gson.toJson(settingsData)
-        sharedPreferences.edit().putString("settings_data", json).apply()
+            sharedPreferences.edit()
+                .putString("settings_data", json)
+                .apply()
+            
+            cachedSettings = settingsData
         _settings.value = settingsData
+        }
     }
 
-    fun updateQuestCreation(isEnabled: Boolean) {
+    suspend fun updateQuestCreation(isEnabled: Boolean) {
         val newSettings = _settings.value.copy(isQuestCreationEnabled = isEnabled)
         saveSettings(newSettings)
     }
 
-    fun updateQuestDeletion(isEnabled: Boolean) {
+    suspend fun updateQuestDeletion(isEnabled: Boolean) {
         val newSettings = _settings.value.copy(isQuestDeletionEnabled = isEnabled)
         saveSettings(newSettings)
     }
 
-    fun updateItemCreation(isEnabled: Boolean) {
+    suspend fun updateItemCreation(isEnabled: Boolean) {
         val newSettings = _settings.value.copy(isItemCreationEnabled = isEnabled)
         saveSettings(newSettings)
     }
 
-    fun updateItemDeletion(isEnabled: Boolean) {
+    suspend fun updateItemDeletion(isEnabled: Boolean) {
         val newSettings = _settings.value.copy(isItemDeletionEnabled = isEnabled)
         saveSettings(newSettings)
     }
 
-    fun updateSettingsLock(isLocked: Boolean, password: String?, lockoutEndDate: Long?) {
+    suspend fun updateSettingsLock(isLocked: Boolean, password: String?, lockoutEndDate: Long?) {
         val newSettings = _settings.value.copy(
             isSettingsLocked = isLocked,
             settingsLockPassword = password,

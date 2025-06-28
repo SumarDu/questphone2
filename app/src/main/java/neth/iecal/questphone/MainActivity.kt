@@ -27,9 +27,6 @@ import neth.iecal.questphone.services.AppBlockerService
 import neth.iecal.questphone.ui.navigation.Navigator
 import neth.iecal.questphone.ui.navigation.Screen
 import neth.iecal.questphone.ui.navigation.SetupQuestScreen
-import neth.iecal.questphone.ui.screens.game.StoreScreen
-import neth.iecal.questphone.ui.screens.game.UserInfoScreen
-import neth.iecal.questphone.ui.screens.launcher.AppList
 import neth.iecal.questphone.ui.screens.launcher.HomeScreen
 import neth.iecal.questphone.ui.screens.onboard.SelectApps
 import neth.iecal.questphone.ui.screens.onboard.SelectAppsModes
@@ -44,6 +41,8 @@ import neth.iecal.questphone.ui.screens.quest.stats.specific.BaseQuestStatsView
 import neth.iecal.questphone.ui.theme.LauncherTheme
 import neth.iecal.questphone.utils.isOnline
 import neth.iecal.questphone.utils.triggerQuestSync
+import neth.iecal.questphone.ui.screens.game.StoreScreen
+import neth.iecal.questphone.ui.screens.launcher.AppsListScreen
 
 
 class MainActivity : ComponentActivity() {
@@ -114,9 +113,6 @@ class MainActivity : ComponentActivity() {
                         startDestination = Screen.HomeScreen.route,
                     ) {
 
-                        composable(Screen.UserInfo.route) {
-                            UserInfoScreen(navController)
-                        }
                         composable(Screen.Settings.route) {
                             SettingsScreen(navController)
                         }
@@ -136,9 +132,6 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Screen.CreateAppUnlocker.route) {
                             CreateAppUnlockerScreen(navController)
-                        }
-                        composable(Screen.AppList.route) {
-                            AppList(navController)
                         }
 
                         composable(Screen.ListAllQuest.route) {
@@ -181,6 +174,9 @@ class MainActivity : ComponentActivity() {
                             val id = backStackEntry.arguments?.getString("id")
 
                             BaseQuestStatsView(id!!, navController)
+                        }
+                        composable(Screen.AppList.route) {
+                            AppsListScreen(navController)
                         }
                     }
                 }

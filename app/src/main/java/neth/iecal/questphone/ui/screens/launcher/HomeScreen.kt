@@ -22,7 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -149,27 +149,19 @@ fun HomeScreen(navController: NavController) {
             .fillMaxSize()
             .padding(innerPadding)
             .pointerInput(Unit) {
-                coroutineScope {
-                    awaitEachGesture {
-                        // Wait for the first touch down event
-                        awaitFirstDown()
-                        var dragAmount = 0f
-
-                        // Track vertical drag events
-                        do {
-                            val event = awaitPointerEvent()
-                            val dragEvent = event.changes.first()
-                            val dragChange = dragEvent.positionChange().y
-                            dragAmount += dragChange
-
-                            // If the swipe exceeds the threshold, trigger navigation
-                            if (dragAmount < -5) { // Swipe-up threshold
-                                navController.navigate(Screen.AppList.route)
-                                VibrationHelper.vibrate(50)
-                                break
-                            }
-                        } while (dragEvent.pressed)
-                    }
+                awaitEachGesture {
+                    awaitFirstDown()
+                    var drag = 0f
+                    do {
+                        val ev = awaitPointerEvent()
+                        val change = ev.changes.first()
+                        drag += change.positionChange().y
+                        if (drag < -20) { // swipe up threshold
+                            navController.navigate(Screen.AppList.route)
+                            VibrationHelper.vibrate(30)
+                            break
+                        }
+                    } while (change.pressed)
                 }
             }
     ) {
@@ -220,20 +212,20 @@ fun HomeScreen(navController: NavController) {
                 modifier = Modifier
                     .padding(8.dp)
                     .size(30.dp)
-                    .clickable{
+                    .clickable {
                     navController.navigate(Screen.Store.route)
                 }
             )
 
-            // Profile icon on the right
+            // Settings icon now replaces Profile
             Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "user info and stats",
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Settings",
                 modifier = Modifier
                     .padding(8.dp)
                     .size(30.dp)
                     .clickable {
-                        navController.navigate(Screen.UserInfo.route)
+                        navController.navigate(Screen.Settings.route)
                     }
             )
         }

@@ -68,7 +68,7 @@ class StoreViewModel(application: Application, private val appUnlockerItemDao: A
     private val settingsRepository = SettingsRepository(application)
     val settings = settingsRepository.settings
     var coins by mutableIntStateOf(User.userInfo.coins)
-    var selectedCategory by mutableStateOf(Category.BOOSTERS)
+    var selectedCategory by mutableStateOf(Category.UNLOCKERS)
     var items by mutableStateOf<List<StoreItem>>(emptyList())
     var selectedItem by mutableStateOf<StoreItem?>(null)
     var itemToDelete by mutableStateOf<StoreItem?>(null)

@@ -10,22 +10,38 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import neth.iecal.questphone.data.AppInfo
 
+// In-memory cache
+private var cachedAppList: List<AppInfo>? = null
+private var lastCacheTime: Long = 0
+private const val CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
 // Cache the app list in SharedPreferences
-fun cacheApps(context: Context, apps: List<AppInfo>) {
+private suspend fun cacheApps(context: Context, apps: List<AppInfo>) = withContext(Dispatchers.IO) {
     val sharedPreferences = context.getSharedPreferences("app_cache", Context.MODE_PRIVATE)
     val editor = sharedPreferences.edit()
     val json = Json.encodeToString(apps)
     editor.putString("apps", json)
     editor.apply()
+    
+    // Update memory cache
+    cachedAppList = apps
+    lastCacheTime = System.currentTimeMillis()
 }
 
 // Retrieve the cached app list from SharedPreferences
-fun getCachedApps(context: Context): List<AppInfo> {
+private suspend fun getCachedApps(context: Context): List<AppInfo> = withContext(Dispatchers.IO) {
+    // Check memory cache first
+    if (cachedAppList != null && System.currentTimeMillis() - lastCacheTime < CACHE_DURATION) {
+        return@withContext cachedAppList!!
+    }
+
     val sharedPreferences = context.getSharedPreferences("app_cache", Context.MODE_PRIVATE)
     val json = sharedPreferences.getString("apps", null)
-    return if (json != null) {
-        Json.decodeFromString(json)
+    return@withContext if (json != null) {
+        Json.decodeFromString<List<AppInfo>>(json).also {
+            cachedAppList = it
+            lastCacheTime = System.currentTimeMillis()
+        }
     } else {
         emptyList()
     }
@@ -33,8 +49,14 @@ fun getCachedApps(context: Context): List<AppInfo> {
 
 suspend fun reloadApps(
     packageManager: PackageManager,
-    context: Context
+    context: Context,
+    forceReload: Boolean = false
 ): Result<List<AppInfo>> {
+    // Check memory cache first if not forcing reload
+    if (!forceReload && cachedAppList != null && System.currentTimeMillis() - lastCacheTime < CACHE_DURATION) {
+        return Result.success(cachedAppList!!)
+    }
+
     return withContext(Dispatchers.IO) {
         try {
             // Fetch the latest app list from the PackageManager
@@ -51,8 +73,9 @@ suspend fun reloadApps(
                         )
                     }
                 }
+                .sortedBy { it.name } // Pre-sort the list
 
-            // Cache the app list in SharedPreferences
+            // Cache the app list
             cacheApps(context, apps)
 
             Result.success(apps)
@@ -61,6 +84,7 @@ suspend fun reloadApps(
         }
     }
 }
+
 suspend fun getBackgroundSystemApps(context: Context): List<ApplicationInfo> {
     return withContext(Dispatchers.IO) {
         val pm = context.packageManager
@@ -80,8 +104,8 @@ suspend fun getBackgroundSystemApps(context: Context): List<ApplicationInfo> {
     }
 }
 
-fun getKeyboards(context: Context): List<String> {
+suspend fun getKeyboards(context: Context): List<String> = withContext(Dispatchers.IO) {
     val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     val enabledMethods = imm.enabledInputMethodList
-    return enabledMethods.map { it.packageName }
+    enabledMethods.map { it.packageName }
 }

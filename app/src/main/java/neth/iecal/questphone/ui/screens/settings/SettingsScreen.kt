@@ -36,6 +36,8 @@ import android.widget.Toast
 import androidx.navigation.NavController
 import java.util.Calendar
 import java.util.Date
+import neth.iecal.questphone.ui.navigation.Screen
+import neth.iecal.questphone.ui.screens.onboard.SelectAppsModes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,6 +118,17 @@ fun SettingsScreen(navController: NavController) {
                     }
                 }
             )
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            Button(
+                onClick = {
+                    navController.navigate(Screen.SelectApps.route + SelectAppsModes.ALLOW_ADD_AND_REMOVE.ordinal)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Manage Distraction Apps")
+            }
         }
     }
 }

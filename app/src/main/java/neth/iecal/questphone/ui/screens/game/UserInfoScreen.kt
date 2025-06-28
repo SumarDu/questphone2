@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -47,7 +48,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
 import neth.iecal.questphone.R
 import neth.iecal.questphone.data.game.Category
@@ -67,41 +70,49 @@ import androidx.compose.material3.TopAppBar
 import androidx.navigation.NavController
 import neth.iecal.questphone.ui.navigation.Screen
 import java.io.File
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.items
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserInfoScreen(navController: NavController) {
     val context = LocalContext.current
 
-    val totalXpForNextLevel = xpToLevelUp(User.userInfo.level + 1)
-    val totalXpForCurrentLevel = xpToLevelUp(User.userInfo.level)
-    val xpProgress = (User.userInfo.xp - totalXpForCurrentLevel).toFloat() /
+    val totalXpForNextLevel = remember { xpToLevelUp(User.userInfo.level + 1) }
+    val totalXpForCurrentLevel = remember { xpToLevelUp(User.userInfo.level) }
+    val xpProgress = remember {
+        (User.userInfo.xp - totalXpForCurrentLevel).toFloat() /
             (totalXpForNextLevel - totalXpForCurrentLevel)
+    }
 
     val selectedInventoryItem = remember { mutableStateOf<InventoryItem?>(null) }
-
     val successfulDates = remember { mutableStateMapOf<LocalDate, List<String>>() }
 
-    LaunchedEffect (Unit) {
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
         val dao = StatsDatabaseProvider.getInstance(context).statsDao()
-
         var stats = dao.getAllStatsForUser().first()
-
         stats = stats.toMutableList()
         stats.addAll(dao.getAllUnSyncedStats().first())
 
+            withContext(Dispatchers.Default) {
         stats.forEach {
-            val prevList = (successfulDates[it.date]?: emptyList()).toMutableList()
+                    val prevList = (successfulDates[it.date] ?: emptyList()).toMutableList()
             prevList.add(it.quest_id)
             successfulDates[it.date] = prevList
+                }
+            }
         }
     }
 
-    if(selectedInventoryItem.value!=null){
+    if (selectedInventoryItem.value != null) {
         InventoryItemInfoDialog(selectedInventoryItem.value!!, onDismissRequest = {
             selectedInventoryItem.value = null
         })
     }
+
+    val listState = rememberLazyListState()
 
     Scaffold(
         topBar = {
@@ -115,43 +126,46 @@ fun UserInfoScreen(navController: NavController) {
             )
         }
     ) { innerPadding ->
-
-        Column(
+        LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .padding(innerPadding)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
+            item {
             // Avatar
             Box(
                 modifier = Modifier
                     .size(120.dp)
                     .clip(RoundedCornerShape(12.dp))
             ) {
-                val data = if (User.userInfo.has_profile){
-                    if(User.userInfo.isAnonymous){
+                    val profileData = remember(User.userInfo.has_profile, User.userInfo.isAnonymous, User.userInfo.id) {
+                        if (User.userInfo.has_profile) {
+                            if (User.userInfo.isAnonymous) {
                         val profileFile = File(context.filesDir, "profile")
                         profileFile.absolutePath
-                    }else{
+                            } else {
                         "https://hplszhlnchhfwngbojnc.supabase.co/storage/v1/object/public/profile/${User.userInfo.id}/profile"
+                            }
+                        } else {
+                            R.drawable.baseline_person_24
+                        }
                     }
-                } else R.drawable.baseline_person_24
 
                 Image(
                     painter = rememberAsyncImagePainter(
-
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(data)
+                                .data(profileData)
                             .crossfade(true)
                             .error(R.drawable.baseline_person_24)
                             .placeholder(R.drawable.baseline_person_24)
-                            .build(),
+                                .build()
                     ),
                     contentDescription = "Avatar",
-                    Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                 )
             }
 
@@ -168,10 +182,12 @@ fun UserInfoScreen(navController: NavController) {
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
+
             Spacer(modifier = Modifier.height(24.dp))
+            }
 
-
-            // Level Progress Bar
+            item {
+                // Level Progress Bar and stats box
             Column(
                 modifier = Modifier.width(250.dp)
             ) {
@@ -237,16 +253,19 @@ fun UserInfoScreen(navController: NavController) {
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+            }
 
+            item {
             HeatMapChart(
                 questMap = successfulDates,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
             )
+            }
 
             if(User.userInfo.active_boosts.isNotEmpty()) {
-
+                item {
                 Spacer(modifier = Modifier.height(32.dp))
 
                 Column(
@@ -266,12 +285,16 @@ fun UserInfoScreen(navController: NavController) {
                         }
                     }
 
+                    }
                 }
             }
 
+            item {
             Spacer(modifier = Modifier.height(32.dp))
+            }
 
-            // Inventory Section
+            item {
+                // Inventory Section header
             Column(
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -281,23 +304,20 @@ fun UserInfoScreen(navController: NavController) {
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    User.userInfo.inventory.forEach { it ->
-                        InventoryItemCard(it.key,it.value) { item ->
+                }
+            }
+
+            items(User.userInfo.inventory.toList(), key = { it.first.simpleName }) { (item, quantity) ->
+                InventoryItemCard(item, quantity) {
                             selectedInventoryItem.value = item
                         }
-
-                    }
+                Spacer(modifier = Modifier.height(12.dp))
                 }
 
-            }
+            item { Spacer(modifier = Modifier.height(32.dp)) }
         }
     }
 }
-
-
 
 @Composable
 fun StatItem(

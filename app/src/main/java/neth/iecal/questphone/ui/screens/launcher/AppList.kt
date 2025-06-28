@@ -23,9 +23,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -48,7 +51,6 @@ import neth.iecal.questphone.services.ServiceInfo
 import neth.iecal.questphone.ui.screens.launcher.components.AppItem
 import neth.iecal.questphone.ui.screens.launcher.components.CoinDialog
 import neth.iecal.questphone.ui.screens.launcher.components.LowCoinsDialog
-import neth.iecal.questphone.utils.getCachedApps
 import neth.iecal.questphone.utils.reloadApps
 
 data class AppGroup(val letter: Char, val apps: List<AppInfo>)
@@ -66,17 +68,19 @@ fun AppList(navController: NavController) {
 
     val sp = context.getSharedPreferences("distractions", Context.MODE_PRIVATE)
     val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
 
-    var distractions = emptySet<String>()
+    var distractions = remember { mutableStateOf(emptySet<String>()) }
+
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            distractions = sp.getStringSet("distracting_apps", emptySet<String>()) ?: emptySet()
+            distractions.value = sp.getStringSet("distracting_apps", emptySet<String>()) ?: emptySet()
         }
     }
 
     LaunchedEffect(Unit) {
         loadInitialApps(appsState, isLoading, context)
-        withContext(Dispatchers.IO) {
+        withContext(Dispatchers.Default) {
             reloadApps(packageManager, context)
                 .onSuccess { apps ->
                     appsState.value = apps
@@ -97,47 +101,35 @@ fun AppList(navController: NavController) {
             error = errorState.value,
             innerPadding = innerPadding,
             onAppClick = { packageName ->
-                if (distractions.contains(packageName)) {
-                    val cooldownUntil = ServiceInfo.unlockedApps[packageName] ?:0L
-                    if (cooldownUntil==-1L || System.currentTimeMillis() > cooldownUntil) {
-                        // Not under cooldown - show dialog
+                if (distractions.value.contains(packageName)) {
+                    val cooldownUntil = ServiceInfo.unlockedApps[packageName] ?: 0L
+                    if (cooldownUntil == -1L || System.currentTimeMillis() > cooldownUntil) {
                         showCoinDialog.value = true
                         selectedPackage.value = packageName
                     } else {
                         launchApp(context, packageName)
                     }
                 } else {
-                    // Not a distraction - launch directly
                     launchApp(context, packageName)
                 }
             }
         )
 
         if (showCoinDialog.value) {
-            if(User.userInfo.coins>5) {
+            if (User.userInfo.coins >= 10) {
                 CoinDialog(
                     coins = User.userInfo.coins,
                     onDismiss = { showCoinDialog.value = false },
                     onConfirm = {
-                        val cooldownTime = 10 * 60_000
-                        val intent = Intent().apply {
-                            action = INTENT_ACTION_UNLOCK_APP
-                            putExtra("selected_time", cooldownTime)
-                            putExtra("package_name", selectedPackage.value)
+                        scope.launch {
+                            User.useCoins(10)
+                            val intent = Intent(INTENT_ACTION_UNLOCK_APP).apply {
+                                putExtra("package", selectedPackage.value)
                         }
-                        context.sendBroadcast(intent)
-                        if (!ServiceInfo.isUsingAccessibilityService && ServiceInfo.appBlockerService == null) {
-                            startForegroundService(
-                                context,
-                                Intent(context, AppBlockerService::class.java)
-                            )
-                            ServiceInfo.unlockedApps[selectedPackage.value] =
-                                System.currentTimeMillis() + cooldownTime
-                        }
-                        User.useCoins(5)
+                            startForegroundService(context, intent)
+                            showCoinDialog.value = false
                         launchApp(context, selectedPackage.value)
-                        showCoinDialog.value = false
-
+                        }
                     },
                     appName = try {
                         packageManager.getApplicationInfo(selectedPackage.value, 0)
@@ -174,6 +166,7 @@ private fun AppListWithScrollbar(
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+
     // Map to store the starting index of each letter group
     val groupPositions = remember(groupedApps) {
         mutableMapOf<Char, Int>().apply {
@@ -210,18 +203,25 @@ private fun AppListWithScrollbar(
                     )
                 }
                 else -> {
-                    LazyColumn(state = listState) {
+                    LazyColumn(
+                        state = listState
+                    ) {
                         groupedApps.forEach { group ->
-                            stickyHeader {
+                            stickyHeader(key = "header_${group.letter}") {
                                 Text(
                                     text = group.letter.toString(),
                                     style = MaterialTheme.typography.headlineSmall,
                                     modifier = Modifier
-                                        .padding(16.dp)
+                                        .fillMaxWidth()
                                         .background(MaterialTheme.colorScheme.surface)
+                                        .padding(16.dp)
                                 )
                             }
-                            items(group.apps) { app ->
+                            items(
+                                count = group.apps.size,
+                                key = { index -> "${group.letter}_${group.apps[index].packageName}" }
+                            ) { index ->
+                                val app = group.apps[index]
                                 AppItem(
                                     name = app.name,
                                     packageName = app.packageName,
@@ -276,10 +276,12 @@ private suspend fun loadInitialApps(
     isLoading: MutableState<Boolean>,
     context: Context
 ) {
-    val cachedApps = getCachedApps(context)
+    withContext(Dispatchers.Default) {
+        val cachedApps = reloadApps(context.packageManager, context).getOrNull() ?: emptyList()
     if (cachedApps.isNotEmpty()) {
         appsState.value = cachedApps
         isLoading.value = false
+        }
     }
 }
 

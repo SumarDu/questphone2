@@ -14,6 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -120,22 +124,21 @@ fun HeatMapChart(
             .sortedBy { it.first } // Sort months chronologically
     }
 
-    val horizontalScrollState = rememberScrollState()
+    val weeksLazyListState = rememberLazyListState()
     var selectedDayInfo = remember { mutableStateOf<DailyQuestInfo?>(null) }
 
     Column(modifier = modifier) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(horizontalScrollState)
+            modifier = Modifier.fillMaxWidth()
         ) {
             DayLabelsColumn()
 
             Column {
-                MonthLabelsRow(monthLabelsData = monthLabelsData)
+                MonthLabelsLazyRow(monthLabelsData, weeksLazyListState)
                 Spacer(modifier = Modifier.height(4.dp))
-                ContributionGrid(
+                ContributionGridLazy(
                     weeksData = weeksData,
+                    listState = weeksLazyListState,
                     onCellClick = { selectedDayInfo.value = it }
                 )
             }
@@ -190,62 +193,63 @@ private fun DayLabelsColumn(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MonthLabelsRow(
-    monthLabelsData: List<Pair<Month, Int>> // List of (Month, numberOfWeeks)
+private fun MonthLabelsLazyRow(
+    monthLabelsData: List<Pair<Month, Int>>,
+    listState: LazyListState
 ) {
-    Row(
+    LazyRow(
+        state = listState,
         modifier = Modifier.height(MONTH_LABEL_HEIGHT),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(MONTH_SPACING)
     ) {
-        monthLabelsData.forEachIndexed { index, (month, weekCount) ->
+        items(
+            items = monthLabelsData,
+            key = { (month, _) -> "month_${month.ordinal}" }
+        ) { (month, weekCount) ->
             val totalWidth = (CELL_SIZE * weekCount) + (CELL_SPACING * (weekCount - 1))
-            if (index > 0) {
-                Spacer(modifier = Modifier.width(MONTH_SPACING))
-            }
             Text(
                 text = month.name.take(3)
                     .toLowerCase(Locale.current)
                     .replaceFirstChar { it.titlecase() },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                modifier = Modifier.width(totalWidth) // Assign width to push next label
+                modifier = Modifier.width(totalWidth)
             )
         }
     }
 }
 
 @Composable
-private fun ContributionGrid(
+private fun ContributionGridLazy(
     weeksData: Map<LocalDate, List<DailyQuestInfo>>,
+    listState: LazyListState,
     onCellClick: (DailyQuestInfo) -> Unit
 ) {
-    Row(
+    LazyRow(
+        state = listState,
         horizontalArrangement = Arrangement.spacedBy(CELL_SPACING)
     ) {
         val sortedWeeks = weeksData.keys.toList()
-        sortedWeeks.forEach { weekStartDate ->
+        items(sortedWeeks, key = { it.toEpochDays() }) { weekStartDate ->
             val weekDays = weeksData[weekStartDate] ?: emptyList()
             val daysInWeekMap = weekDays.associateBy { it.date.dayOfWeek }
 
             Column(
                 verticalArrangement = Arrangement.spacedBy(CELL_SPACING)
             ) {
-                // Iterate through Monday to Sunday
                 listOf(
                     DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY,
                     DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY
                 ).forEach { dayOfWeek ->
-                    // Use data if present, otherwise create a placeholder
                     val dayData = daysInWeekMap[dayOfWeek] ?: DailyQuestInfo(
-                        // Calculate the correct date for the placeholder cell
                         date = weekStartDate.plus(dayOfWeek.value - DayOfWeek.MONDAY.value, DateTimeUnit.DAY),
                         quests = emptyList(),
-                        isPlaceholder = true // Mark as placeholder
+                        isPlaceholder = true
                     )
                     ContributionCell(day = dayData, onClick = onCellClick)
                 }
             }
-
         }
     }
 }
