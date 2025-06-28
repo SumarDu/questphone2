@@ -64,6 +64,10 @@ fun SettingsScreen(navController: NavController) {
             SettingSwitch(title = "Enable Item Creation", isChecked = settings.isItemCreationEnabled, enabled = !settings.isSettingsLocked) { viewModel.onItemCreationChanged(it) }
             SettingSwitch(title = "Enable Item Deletion", isChecked = settings.isItemDeletionEnabled, enabled = !settings.isSettingsLocked) { viewModel.onItemDeletionChanged(it) }
 
+            Button(onClick = { navController.navigate(Screen.GestureSettings.route) }) {
+                Text("Configure Gestures")
+            }
+
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             var showLockDialog by rememberSaveable { mutableStateOf(false) }

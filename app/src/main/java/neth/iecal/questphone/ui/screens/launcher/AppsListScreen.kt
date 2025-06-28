@@ -3,63 +3,63 @@ package neth.iecal.questphone.ui.screens.launcher
 import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import neth.iecal.questphone.ui.navigation.Screen
-import androidx.core.graphics.drawable.toBitmap
-
-data class AppEntry(val label: String, val packageName: String)
+import neth.iecal.questphone.data.local.AppDatabase
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun AppsListScreen(navController: NavController) {
+fun AppsListScreen(
+    navController: NavController,
+    appsViewModel: AppsViewModel = viewModel(
+        factory = AppsViewModelFactory(
+            LocalContext.current,
+            AppDatabase.getDatabase(LocalContext.current).appAliasDao()
+        )
+    )
+) {
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var selectedApp by remember { mutableStateOf<AppInfo?>(null) }
     val ctx = LocalContext.current
     val pm = ctx.packageManager
-    val scope = rememberCoroutineScope()
+    val focusRequester = remember { FocusRequester() }
 
-    var apps by remember { mutableStateOf<List<AppEntry>>(emptyList()) }
+    val filteredApps by appsViewModel.filteredApps.collectAsState()
     var query by remember { mutableStateOf(TextFieldValue("")) }
 
     LaunchedEffect(Unit) {
-        scope.launch {
-            val entries = withContext(Dispatchers.IO) {
-                val intent = Intent(Intent.ACTION_MAIN, null).apply {
-                    addCategory(Intent.CATEGORY_LAUNCHER)
-                }
-                pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
-                    .map { ri ->
-                        val label = ri.loadLabel(pm).toString()
-                        AppEntry(label, ri.activityInfo.packageName)
-                    }
-                    .sortedBy { it.label.lowercase() }
-            }
-            apps = entries
-        }
+        focusRequester.requestFocus()
     }
 
-    val filtered = remember(apps, query) {
-        if (query.text.isBlank()) apps else apps.filter {
-            it.label.contains(query.text, true) || it.packageName.contains(query.text, true)
+    LaunchedEffect(filteredApps) {
+        if (filteredApps.size == 1 && query.text.isNotBlank()) {
+            val appToLaunch = filteredApps.first()
+            val launchIntent = pm.getLaunchIntentForPackage(appToLaunch.packageName)
+            if (launchIntent != null) {
+                ctx.startActivity(launchIntent)
+                query = TextFieldValue("")
+                appsViewModel.onQueryChanged("")
+            }
         }
     }
 
@@ -76,41 +76,113 @@ fun AppsListScreen(navController: NavController) {
         Column(modifier = Modifier.padding(padding)) {
             OutlinedTextField(
                 value = query,
-                onValueChange = { query = it },
+                onValueChange = {
+                    query = it
+                    appsViewModel.onQueryChanged(it.text)
+                },
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp),
+                    .padding(8.dp)
+                    .focusRequester(focusRequester),
                 placeholder = { Text("Search apps") },
                 singleLine = true
             )
-            LazyVerticalGrid(columns = GridCells.Adaptive(90.dp), contentPadding = PaddingValues(8.dp)) {
-                items(filtered, key = { entry -> entry.packageName }) { app ->
-                    AppGridItem(app) { pkg ->
+            LazyColumn(
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                items(filteredApps, key = { it.packageName }) { app ->
+                    AppListItem(app = app, onClick = { pkg ->
                         val launchIntent = pm.getLaunchIntentForPackage(pkg)
-                        ctx.startActivity(launchIntent)
-                    }
+                        if (launchIntent != null) {
+                            ctx.startActivity(launchIntent)
+                        }
+                    }, onLongClick = {
+                        selectedApp = app
+                        showRenameDialog = true
+                    })
                 }
             }
         }
     }
+
+    if (showRenameDialog) {
+        RenameDialog(
+            app = selectedApp!!,
+            onDismiss = { showRenameDialog = false },
+            onConfirm = { newName ->
+                appsViewModel.saveAlias(selectedApp!!.packageName, newName)
+                showRenameDialog = false
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun AppListItem(app: AppInfo, onClick: (String) -> Unit, onLongClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = { onClick(app.packageName) },
+                onLongClick = onLongClick
+            )
+            .padding(vertical = 8.dp, horizontal = 8.dp)
+    ) {
+        AsyncImage(
+            model = app.icon,
+            contentDescription = app.label,
+            modifier = Modifier.size(48.dp)
+        )
+        Spacer(Modifier.size(16.dp))
+        Text(
+            text = app.label,
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
 }
 
 @Composable
-private fun AppGridItem(app: AppEntry, onClick: (String) -> Unit) {
-    val ctx = LocalContext.current
-    val pm = ctx.packageManager
-    val icon = remember(app.packageName) {
-        pm.getApplicationIcon(app.packageName)
-    }
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .padding(8.dp)
-            .clickable { onClick(app.packageName) }
-    ) {
-        Image(bitmap = icon.toBitmap().asImageBitmap(), contentDescription = app.label, modifier = Modifier.size(56.dp))
-        Spacer(Modifier.height(4.dp))
-        Text(app.label, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+fun RenameDialog(app: AppInfo, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+    var text by remember { mutableStateOf(app.label) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename App") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("New name") },
+                singleLine = true
+            )
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(text) }) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+class AppsViewModelFactory(
+    private val context: android.content.Context,
+    private val appAliasDao: neth.iecal.questphone.data.local.AppAliasDao
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(AppsViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return AppsViewModel(context, appAliasDao) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 } 

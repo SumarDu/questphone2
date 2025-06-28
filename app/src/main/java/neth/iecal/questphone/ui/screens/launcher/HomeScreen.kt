@@ -44,6 +44,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import neth.iecal.questphone.data.preferences.GestureSettingsRepository
+import kotlin.math.abs
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -74,6 +78,12 @@ import neth.iecal.questphone.utils.openDefaultLauncherSettings
 @Composable
 fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val gestureRepo = remember { GestureSettingsRepository(context) }
+    val swipeUpApp by gestureRepo.swipeUpApp.collectAsState(initial = null)
+    val swipeDownApp by gestureRepo.swipeDownApp.collectAsState(initial = null)
+    val swipeLeftApp by gestureRepo.swipeLeftApp.collectAsState(initial = null)
+    val swipeRightApp by gestureRepo.swipeRightApp.collectAsState(initial = null)
 
     val dao = QuestDatabaseProvider.getInstance(context).questDao()
 
@@ -151,15 +161,55 @@ fun HomeScreen(navController: NavController) {
             .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown()
-                    var drag = 0f
+                    var dragX = 0f
+                    var dragY = 0f
                     do {
                         val ev = awaitPointerEvent()
                         val change = ev.changes.first()
-                        drag += change.positionChange().y
-                        if (drag < -20) { // swipe up threshold
-                            navController.navigate(Screen.AppList.route)
-                            VibrationHelper.vibrate(30)
-                            break
+                        dragX += change.positionChange().x
+                        dragY += change.positionChange().y
+
+                        val swipeThreshold = 50f
+
+                        if (abs(dragX) > abs(dragY)) { // Horizontal swipe
+                            if (dragX > swipeThreshold) { // Swipe Right
+                                scope.launch {
+                                    swipeRightApp?.let { pkg ->
+                                        context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
+                                    }
+                                }
+                                VibrationHelper.vibrate(30)
+                                break
+                            } else if (dragX < -swipeThreshold) { // Swipe Left
+                                scope.launch {
+                                    swipeLeftApp?.let { pkg ->
+                                        context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
+                                    }
+                                }
+                                VibrationHelper.vibrate(30)
+                                break
+                            }
+                        } else { // Vertical swipe
+                            if (dragY < -swipeThreshold) { // Swipe Up
+                                scope.launch {
+                                    val pkg = swipeUpApp
+                                    if (pkg != null) {
+                                        context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
+                                    } else {
+                                        navController.navigate(Screen.AppList.route)
+                                    }
+                                }
+                                VibrationHelper.vibrate(30)
+                                break
+                            } else if (dragY > swipeThreshold) { // Swipe Down
+                                scope.launch {
+                                    swipeDownApp?.let { pkg ->
+                                        context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
+                                    }
+                                }
+                                VibrationHelper.vibrate(30)
+                                break
+                            }
                         }
                     } while (change.pressed)
                 }

@@ -36,6 +36,7 @@ import neth.iecal.questphone.ui.screens.quest.RewardDialogMaker
 import neth.iecal.questphone.ui.screens.quest.ViewQuest
 import neth.iecal.questphone.ui.screens.game.CreateAppUnlockerScreen
 import neth.iecal.questphone.ui.screens.quest.setup.SetIntegration
+import neth.iecal.questphone.ui.screens.settings.GestureSettingsScreen
 import neth.iecal.questphone.ui.screens.settings.SettingsScreen
 import neth.iecal.questphone.ui.screens.quest.stats.specific.BaseQuestStatsView
 import neth.iecal.questphone.ui.theme.LauncherTheme
@@ -115,6 +116,9 @@ class MainActivity : ComponentActivity() {
 
                         composable(Screen.Settings.route) {
                             SettingsScreen(navController)
+                        }
+                        composable(Screen.GestureSettings.route) {
+                            GestureSettingsScreen()
                         }
                         composable(
                             route = "${Screen.SelectApps.route}{mode}",

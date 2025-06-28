@@ -17,6 +17,7 @@ sealed class Screen(val route: String) {
     data object Store : Screen("store/")
     data object UserInfo : Screen("userInfo/")
     data object Settings : Screen("settings/")
+    object GestureSettings : Screen("settings/gestures")
     data object QuestStats : Screen("quest_stats/")
     data object CreateAppUnlocker : Screen("create_app_unlocker/")
 
