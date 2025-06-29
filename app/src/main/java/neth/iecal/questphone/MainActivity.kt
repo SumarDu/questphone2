@@ -1,10 +1,13 @@
 package neth.iecal.questphone
 
+import android.Manifest
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +58,24 @@ class MainActivity : ComponentActivity() {
 
 
         setContent {
+            val permissionsToRequest = arrayOf(
+                Manifest.permission.READ_CONTACTS,
+                Manifest.permission.CALL_PHONE
+            )
+
+            val launcher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestMultiplePermissions(),
+                onResult = { permissions ->
+                    permissions.entries.forEach { (permission, isGranted) ->
+                        Log.d("MainActivity", "Permission: $permission, Granted: $isGranted")
+                    }
+                }
+            )
+
+            LaunchedEffect(Unit) {
+                launcher.launch(permissionsToRequest)
+            }
+
             val isUserOnboarded = remember {mutableStateOf(true)}
             val isPetDialogVisible = remember { mutableStateOf(true) }
             LaunchedEffect(Unit) {

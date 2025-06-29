@@ -28,10 +28,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import neth.iecal.questphone.data.local.AppDatabase
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import neth.iecal.questphone.data.preferences.GestureSettingsRepository
 import neth.iecal.questphone.ui.screens.launcher.AppInfo
 import neth.iecal.questphone.ui.screens.launcher.AppsViewModel
 import neth.iecal.questphone.ui.screens.launcher.AppsViewModelFactory
+import neth.iecal.questphone.ui.screens.launcher.ListItem
 import androidx.compose.foundation.Image
 
 class GestureSettingsViewModel(private val repository: GestureSettingsRepository) : ViewModel() {
@@ -79,7 +81,11 @@ fun GestureSettingsScreen() {
     val swipeDownApp by viewModel.swipeDownApp.collectAsState()
     val swipeLeftApp by viewModel.swipeLeftApp.collectAsState()
     val swipeRightApp by viewModel.swipeRightApp.collectAsState()
-    val allApps by appsViewModel.apps.collectAsState()
+
+    val listItems by appsViewModel.listItems.collectAsStateWithLifecycle()
+    val allApps = remember(listItems) {
+        listItems.mapNotNull { (it as? ListItem.App)?.appInfo }
+    }
 
     var showAppPickerDialog by rememberSaveable { mutableStateOf(false) }
     var gestureToSet by remember { mutableStateOf<((String) -> Unit)?>(null) }

@@ -5,10 +5,16 @@ import android.content.Intent
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.content.pm.ApplicationInfo
+import android.database.Cursor
+import android.net.Uri
+import android.os.UserHandle
+import android.provider.ContactsContract
 import android.os.UserManager
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +22,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
@@ -25,67 +35,100 @@ import kotlinx.coroutines.withContext
 import neth.iecal.questphone.data.local.AppAlias
 import neth.iecal.questphone.data.local.AppAliasDao
 
-data class AppInfo(val originalLabel: String, val label: String, val packageName: String, val applicationInfo: ApplicationInfo)
+sealed class ListItem {
+    data class App(val appInfo: AppInfo) : ListItem()
+    data class Contact(val contactInfo: ContactInfo) : ListItem()
+}
 
+data class AppInfo(val originalLabel: String, val label: String, val packageName: String, val applicationInfo: ApplicationInfo, val user: UserHandle)
+data class ContactInfo(val id: Long, val name: String, val phoneNumber: String)
+
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class AppsViewModel(private val context: Context, private val appAliasDao: AppAliasDao) : ViewModel() {
-    private val _apps = MutableStateFlow<List<AppInfo>>(emptyList())
-    val apps = _apps.asStateFlow()
+    private val _listItems = MutableStateFlow<List<ListItem>>(emptyList())
+    val listItems = _listItems.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
 
-    val filteredApps = _searchQuery
-        .debounce(300)
-        .distinctUntilChanged()
-        .flatMapLatest { query ->
-            flow {
-                val filtered = if (query.isBlank()) {
-                    _apps.value
-                } else {
-                    _apps.value.filter {
-                        it.label.contains(query, true) || it.packageName.contains(query, true)
-                    }
+    val filteredListItems = combine(listItems, _searchQuery.debounce(300)) { items, query ->
+        if (query.isBlank()) {
+            items
+        } else {
+            items.filter {
+                when (it) {
+                    is ListItem.App -> it.appInfo.label.startsWith(query, true) || it.appInfo.packageName.startsWith(query, true)
+                    is ListItem.Contact -> it.contactInfo.name.startsWith(query, true) || it.contactInfo.phoneNumber.startsWith(query, true)
                 }
-                emit(filtered)
             }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+
 
     init {
         viewModelScope.launch {
-            loadApps()
+            combine(loadApps(), loadContacts()) { apps: List<AppInfo>, contacts: List<ContactInfo> ->
+                val appItems = apps.map { ListItem.App(it) }
+                val contactItems = contacts.map { ListItem.Contact(it) }
+                (appItems + contactItems).sortedBy {
+                    when (it) {
+                        is ListItem.App -> it.appInfo.label.lowercase()
+                        is ListItem.Contact -> it.contactInfo.name.lowercase()
+                    }
+                }
+            }.collect { combinedList ->
+                _listItems.value = combinedList
+            }
         }
     }
 
-    private suspend fun loadApps() {
+    private fun loadContacts(): Flow<List<ContactInfo>> = flow {
+        val contacts = mutableListOf<ContactInfo>()
+        val contentResolver = context.contentResolver
+        val cursor: Cursor? = contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null, null, null, null)
+
+        cursor?.use {
+            val idColumn = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone._ID)
+            val nameColumn = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+            val numberColumn = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+
+            while (it.moveToNext()) {
+                val id = it.getLong(idColumn)
+                val name = it.getString(nameColumn)
+                val number = it.getString(numberColumn)
+                contacts.add(ContactInfo(id, name, number))
+            }
+        }
+        emit(contacts)
+    }.flowOn(Dispatchers.IO)
+
+    private fun loadApps(): Flow<List<AppInfo>> {
         val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
         val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
 
-        val systemAppsFlow = withContext(Dispatchers.IO) {
+        val systemAppsFlow: Flow<List<AppInfo>> = flow {
             val profiles = userManager.userProfiles
             val apps = profiles.flatMap { userHandle ->
                 launcherApps.getActivityList(null, userHandle).mapNotNull { activityInfo ->
                     try {
                         val applicationInfo = activityInfo.applicationInfo
                         val label = activityInfo.label.toString()
-                        AppInfo(label, label, applicationInfo.packageName, applicationInfo)
+                        AppInfo(label, label, applicationInfo.packageName, applicationInfo, activityInfo.user)
                     } catch (e: Exception) {
                         null
                     }
                 }
             }
-            .distinctBy { it.packageName }
-            MutableStateFlow(apps)
-        }
-
-        appAliasDao.getAllAliases().combine(systemAppsFlow) { aliases, systemApps ->
+            .distinctBy { it.packageName to it.user }
+            emit(apps)
+        }.flowOn(Dispatchers.IO)
+        return appAliasDao.getAllAliases().combine(systemAppsFlow) { aliases: List<AppAlias>, systemApps: List<AppInfo> ->
             val aliasMap = aliases.associateBy { it.packageName }
-            val combinedApps = systemApps.map {
-                it.copy(label = aliasMap[it.packageName]?.alias ?: it.originalLabel)
-            }.sortedBy { it.label.lowercase() }
-            _apps.value = combinedApps
-            // Initial filtering is now handled by the flow
-        }.collect {}
+            systemApps.map { appInfo ->
+                appInfo.copy(label = aliasMap[appInfo.packageName]?.alias ?: appInfo.originalLabel)
+            }
+        }
     }
 
     fun onQueryChanged(newQuery: String) {
@@ -93,7 +136,7 @@ class AppsViewModel(private val context: Context, private val appAliasDao: AppAl
     }
 
     fun saveAlias(packageName: String, alias: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             appAliasDao.insertAlias(AppAlias(packageName, alias))
         }
     }
