@@ -4,13 +4,22 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -23,6 +32,7 @@ import neth.iecal.questphone.data.preferences.GestureSettingsRepository
 import neth.iecal.questphone.ui.screens.launcher.AppInfo
 import neth.iecal.questphone.ui.screens.launcher.AppsViewModel
 import neth.iecal.questphone.ui.screens.launcher.AppsViewModelFactory
+import androidx.compose.foundation.Image
 
 class GestureSettingsViewModel(private val repository: GestureSettingsRepository) : ViewModel() {
     val swipeUpApp = repository.swipeUpApp.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -34,6 +44,11 @@ class GestureSettingsViewModel(private val repository: GestureSettingsRepository
     fun setSwipeDownApp(packageName: String) = viewModelScope.launch { repository.saveSwipeDownApp(packageName) }
     fun setSwipeLeftApp(packageName: String) = viewModelScope.launch { repository.saveSwipeLeftApp(packageName) }
     fun setSwipeRightApp(packageName: String) = viewModelScope.launch { repository.saveSwipeRightApp(packageName) }
+
+    fun clearSwipeUpApp() = viewModelScope.launch { repository.saveSwipeUpApp("") }
+    fun clearSwipeDownApp() = viewModelScope.launch { repository.saveSwipeDownApp("") }
+    fun clearSwipeLeftApp() = viewModelScope.launch { repository.saveSwipeLeftApp("") }
+    fun clearSwipeRightApp() = viewModelScope.launch { repository.saveSwipeRightApp("") }
 }
 
 class GestureSettingsViewModelFactory(private val repository: GestureSettingsRepository) : ViewModelProvider.Factory {
@@ -85,49 +100,130 @@ fun GestureSettingsScreen() {
             TopAppBar(title = { Text("Gesture Settings") })
         }
     ) { paddingValues ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(paddingValues)
-                .padding(16.dp)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            GestureRow("Swipe Up", swipeUpApp ?: "Not set") { 
-                gestureToSet = viewModel::setSwipeUpApp
-                showAppPickerDialog = true 
+            item { 
+                GesturePreference(
+                    gestureIcon = Icons.Filled.ArrowUpward,
+                    gestureName = "Swipe Up", 
+                    assignedAppPackage = swipeUpApp,
+                    allApps = allApps,
+                    onChangeClick = { 
+                        gestureToSet = viewModel::setSwipeUpApp
+                        showAppPickerDialog = true 
+                    },
+                    onClearClick = { viewModel.clearSwipeUpApp() }
+                )
             }
-            GestureRow("Swipe Down", swipeDownApp ?: "Not set") { 
-                gestureToSet = viewModel::setSwipeDownApp
-                showAppPickerDialog = true 
+            item { 
+                GesturePreference(
+                    gestureIcon = Icons.Filled.ArrowDownward,
+                    gestureName = "Swipe Down", 
+                    assignedAppPackage = swipeDownApp,
+                    allApps = allApps,
+                    onChangeClick = { 
+                        gestureToSet = viewModel::setSwipeDownApp
+                        showAppPickerDialog = true 
+                    },
+                    onClearClick = { viewModel.clearSwipeDownApp() }
+                )
             }
-            GestureRow("Swipe Left", swipeLeftApp ?: "Not set") { 
-                gestureToSet = viewModel::setSwipeLeftApp
-                showAppPickerDialog = true 
+            item { 
+                GesturePreference(
+                    gestureIcon = Icons.AutoMirrored.Filled.ArrowForward,
+                    gestureName = "Swipe Left", 
+                    assignedAppPackage = swipeLeftApp,
+                    allApps = allApps,
+                    onChangeClick = { 
+                        gestureToSet = viewModel::setSwipeLeftApp
+                        showAppPickerDialog = true 
+                    },
+                    onClearClick = { viewModel.clearSwipeLeftApp() }
+                )
             }
-            GestureRow("Swipe Right", swipeRightApp ?: "Not set") { 
-                gestureToSet = viewModel::setSwipeRightApp
-                showAppPickerDialog = true 
+            item { 
+                GesturePreference(
+                    gestureIcon = Icons.AutoMirrored.Filled.ArrowForward,
+                    gestureName = "Swipe Right", 
+                    assignedAppPackage = swipeRightApp,
+                    allApps = allApps,
+                    onChangeClick = { 
+                        gestureToSet = viewModel::setSwipeRightApp
+                        showAppPickerDialog = true 
+                    },
+                    onClearClick = { viewModel.clearSwipeRightApp() }
+                )
             }
         }
     }
 }
 
 @Composable
-fun GestureRow(gestureName: String, assignedApp: String, onChangeClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text("$gestureName: $assignedApp")
-        Button(onClick = onChangeClick) {
-            Text("Change")
+fun GesturePreference(
+    gestureIcon: ImageVector,
+    gestureName: String,
+    assignedAppPackage: String?,
+    allApps: List<AppInfo>,
+    onChangeClick: () -> Unit,
+    onClearClick: () -> Unit
+) {
+    val context = LocalContext.current
+    val assignedAppInfo = allApps.find { it.packageName == assignedAppPackage }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(gestureIcon, contentDescription = gestureName, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(gestureName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (assignedAppInfo != null) {
+                    val appIcon = remember(assignedAppInfo.packageName) {
+                        try {
+                            context.packageManager.getApplicationIcon(assignedAppInfo.packageName)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    appIcon?.let {
+                        Image(
+                            bitmap = it.toBitmap().asImageBitmap(),
+                            contentDescription = "App Icon",
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(assignedAppInfo.label, modifier = Modifier.weight(1f))
+                } else {
+                    Text("Not set", modifier = Modifier.weight(1f))
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                if (assignedAppInfo != null) {
+                    IconButton(onClick = onClearClick) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Button(onClick = onChangeClick) {
+                    Text("Change")
+                }
+            }
         }
     }
 }
 
 @Composable
 fun AppPickerDialog(apps: List<AppInfo>, onDismiss: () -> Unit, onAppSelected: (AppInfo) -> Unit) {
+    val context = LocalContext.current
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Select an App") },
@@ -141,6 +237,21 @@ fun AppPickerDialog(apps: List<AppInfo>, onDismiss: () -> Unit, onAppSelected: (
                             .padding(vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val appIcon = remember(app.packageName) {
+                            try {
+                                context.packageManager.getApplicationIcon(app.packageName)
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
+                        appIcon?.let {
+                            Image(
+                                bitmap = it.toBitmap().asImageBitmap(),
+                                contentDescription = "App Icon",
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
                         Text(app.label)
                     }
                 }

@@ -3,6 +3,8 @@ package neth.iecal.questphone.ui.screens.settings
 import android.app.Application
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -100,27 +102,55 @@ fun SettingsScreen(navController: NavController) {
             modifier = Modifier
                 .padding(paddingValues)
                 .padding(16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             val settings by viewModel.settings.collectAsState()
 
-            SettingSwitch(title = "Enable Quest Creation", isChecked = settings.isQuestCreationEnabled, enabled = !settings.isSettingsLocked) { viewModel.onQuestCreationChanged(it) }
-            SettingSwitch(title = "Enable Quest Deletion", isChecked = settings.isQuestDeletionEnabled, enabled = !settings.isSettingsLocked) { viewModel.onQuestDeletionChanged(it) }
-            SettingSwitch(title = "Enable Item Creation", isChecked = settings.isItemCreationEnabled, enabled = !settings.isSettingsLocked) { viewModel.onItemCreationChanged(it) }
-            SettingSwitch(title = "Enable Item Deletion", isChecked = settings.isItemDeletionEnabled, enabled = !settings.isSettingsLocked) { viewModel.onItemDeletionChanged(it) }
+            val isEditingEnabled = settings.isQuestCreationEnabled &&
+                settings.isQuestDeletionEnabled &&
+                settings.isItemCreationEnabled &&
+                settings.isItemDeletionEnabled
+
+            SettingSwitch(
+                title = "Editing permission",
+                isChecked = isEditingEnabled,
+                enabled = !settings.isSettingsLocked
+            ) {
+                viewModel.onEditingPermissionChanged(it)
+            }
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-            Button(onClick = { navController.navigate(Screen.GestureSettings.route) }) {
+            Button(onClick = { navController.navigate(Screen.GestureSettings.route) }, enabled = !settings.isSettingsLocked) {
                 Text("Configure Gestures")
             }
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-            UninstallProtectionSwitch()
+            val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            val componentName = ComponentName(context, AdminReceiver::class.java)
+            val isAdminActive by remember { mutableStateOf(dpm.isAdminActive(componentName)) }
+
+            SettingSwitch(
+                title = "Uninstall Protection",
+                isChecked = isAdminActive,
+                enabled = !settings.isSettingsLocked,
+                onCheckedChange = { isChecked ->
+                    if (isChecked) {
+                        val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                            putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, componentName)
+                            putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Enable this to prevent accidental uninstallation of the app.")
+                        }
+                        context.startActivity(intent)
+                    } else {
+                        dpm.removeActiveAdmin(componentName)
+                    }
+                }
+            )
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-            AccessibilityProtectionSwitch()
+            AccessibilityProtectionSwitch(enabled = !settings.isSettingsLocked)
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -183,7 +213,8 @@ fun SettingsScreen(navController: NavController) {
                 onClick = {
                     navController.navigate(Screen.SelectApps.route + SelectAppsModes.ALLOW_ADD_AND_REMOVE.ordinal)
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !settings.isSettingsLocked
             ) {
                 Text("Manage Distraction Apps")
             }
@@ -230,7 +261,7 @@ fun UninstallProtectionSwitch() {
 }
 
 @Composable
-fun AccessibilityProtectionSwitch() {
+fun AccessibilityProtectionSwitch(enabled: Boolean) {
     val context = LocalContext.current
     var isServiceEnabled by remember { mutableStateOf(isAccessibilityServiceEnabled(context)) }
 
@@ -248,6 +279,7 @@ fun AccessibilityProtectionSwitch() {
         Text("Accessibility Protection")
         Switch(
             checked = isServiceEnabled,
+            enabled = enabled,
             onCheckedChange = { isChecked ->
                 if (isChecked) {
                     context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))

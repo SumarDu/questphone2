@@ -74,6 +74,16 @@ class SettingsRepository(context: Context) {
         saveSettings(newSettings)
     }
 
+    suspend fun updateEditingPermission(isEnabled: Boolean) {
+        val newSettings = _settings.value.copy(
+            isQuestCreationEnabled = isEnabled,
+            isQuestDeletionEnabled = isEnabled,
+            isItemCreationEnabled = isEnabled,
+            isItemDeletionEnabled = isEnabled
+        )
+        saveSettings(newSettings)
+    }
+
     suspend fun updateSettingsLock(isLocked: Boolean, password: String?, lockoutEndDate: Long?) {
         val newSettings = _settings.value.copy(
             isSettingsLocked = isLocked,

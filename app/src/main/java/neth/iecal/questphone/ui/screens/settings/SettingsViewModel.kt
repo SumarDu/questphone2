@@ -38,6 +38,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun onEditingPermissionChanged(isEnabled: Boolean) {
+        viewModelScope.launch {
+            repository.updateEditingPermission(isEnabled)
+        }
+    }
+
     fun onSettingsLockChanged(isLocked: Boolean, password: String?, lockoutEndDate: Long?) {
         viewModelScope.launch {
         repository.updateSettingsLock(isLocked, password, lockoutEndDate)
