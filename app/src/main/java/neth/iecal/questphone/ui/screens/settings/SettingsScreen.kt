@@ -38,6 +38,14 @@ import java.util.Calendar
 import java.util.Date
 import neth.iecal.questphone.ui.navigation.Screen
 import neth.iecal.questphone.ui.screens.onboard.SelectAppsModes
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.provider.Settings
+import android.text.TextUtils
+import neth.iecal.questphone.receivers.AdminReceiver
+import androidx.compose.runtime.LaunchedEffect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +54,42 @@ fun SettingsScreen(navController: NavController) {
     val viewModel: SettingsViewModel = viewModel(
         factory = SettingsViewModelFactory(context.applicationContext as Application)
     )
+
+    @Composable
+    fun UninstallProtectionSwitch() {
+        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+        val componentName = ComponentName(context, AdminReceiver::class.java)
+        var isAdminActive by remember { mutableStateOf(dpm.isAdminActive(componentName)) }
+
+        // This will refresh the status when the user returns to the screen
+        LaunchedEffect(Unit) {
+            isAdminActive = dpm.isAdminActive(componentName)
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Uninstall Protection")
+            Switch(
+                checked = isAdminActive,
+                onCheckedChange = { isChecked ->
+                    if (isChecked) {
+                        val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                            putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, componentName)
+                            putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Enable this to prevent accidental uninstallation of the app.")
+                        }
+                        context.startActivity(intent)
+                    } else {
+                        dpm.removeActiveAdmin(componentName)
+                    }
+                }
+            )
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -64,9 +108,19 @@ fun SettingsScreen(navController: NavController) {
             SettingSwitch(title = "Enable Item Creation", isChecked = settings.isItemCreationEnabled, enabled = !settings.isSettingsLocked) { viewModel.onItemCreationChanged(it) }
             SettingSwitch(title = "Enable Item Deletion", isChecked = settings.isItemDeletionEnabled, enabled = !settings.isSettingsLocked) { viewModel.onItemDeletionChanged(it) }
 
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
             Button(onClick = { navController.navigate(Screen.GestureSettings.route) }) {
                 Text("Configure Gestures")
             }
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            UninstallProtectionSwitch()
+
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            AccessibilityProtectionSwitch()
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -135,6 +189,93 @@ fun SettingsScreen(navController: NavController) {
             }
         }
     }
+}
+
+@Composable
+fun UninstallProtectionSwitch() {
+    val context = LocalContext.current
+    val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    val componentName = ComponentName(context, AdminReceiver::class.java)
+    var isAdminActive by remember { mutableStateOf(dpm.isAdminActive(componentName)) }
+
+    // This will refresh the status when the user returns to the screen
+    LaunchedEffect(Unit) {
+        isAdminActive = dpm.isAdminActive(componentName)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text("Uninstall Protection")
+        Switch(
+            checked = isAdminActive,
+            onCheckedChange = { isChecked ->
+                if (isChecked) {
+                    val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                        putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, componentName)
+                        putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Enable this to prevent accidental uninstallation of the app.")
+                    }
+                    context.startActivity(intent)
+                } else {
+                    dpm.removeActiveAdmin(componentName)
+                }
+                // The state will be updated by LaunchedEffect when returning to the screen
+            }
+        )
+    }
+}
+
+@Composable
+fun AccessibilityProtectionSwitch() {
+    val context = LocalContext.current
+    var isServiceEnabled by remember { mutableStateOf(isAccessibilityServiceEnabled(context)) }
+
+    LaunchedEffect(Unit) {
+        isServiceEnabled = isAccessibilityServiceEnabled(context)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text("Accessibility Protection")
+        Switch(
+            checked = isServiceEnabled,
+            onCheckedChange = { isChecked ->
+                if (isChecked) {
+                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                } else {
+                    // Cannot be disabled programmatically, user must do it from settings
+                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    Toast.makeText(context, "Please disable the service manually", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
+}
+
+private fun isAccessibilityServiceEnabled(context: Context): Boolean {
+    val expectedComponentName = ComponentName(context, neth.iecal.questphone.services.AccessibilityService::class.java)
+    val enabledServices = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+    if (enabledServices == null || enabledServices.isEmpty()) {
+        return false
+    }
+    val splitter = TextUtils.SimpleStringSplitter(':')
+    splitter.setString(enabledServices)
+    while (splitter.hasNext()) {
+        val componentName = ComponentName.unflattenFromString(splitter.next())
+        if (componentName != null && componentName == expectedComponentName) {
+            return true
+        }
+    }
+    return false
 }
 
 @Composable

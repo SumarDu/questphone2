@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import neth.iecal.questphone.data.local.AppDatabase
@@ -44,20 +45,19 @@ fun AppsListScreen(
     val pm = ctx.packageManager
     val focusRequester = remember { FocusRequester() }
 
-    val filteredApps by appsViewModel.filteredApps.collectAsState()
-    var query by remember { mutableStateOf(TextFieldValue("")) }
+    val filteredApps by appsViewModel.filteredApps.collectAsStateWithLifecycle()
+    val query by appsViewModel.searchQuery.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
 
     LaunchedEffect(filteredApps) {
-        if (filteredApps.size == 1 && query.text.isNotBlank()) {
+        if (filteredApps.size == 1 && query.isNotBlank()) {
             val appToLaunch = filteredApps.first()
             val launchIntent = pm.getLaunchIntentForPackage(appToLaunch.packageName)
             if (launchIntent != null) {
                 ctx.startActivity(launchIntent)
-                query = TextFieldValue("")
                 appsViewModel.onQueryChanged("")
             }
         }
@@ -76,10 +76,7 @@ fun AppsListScreen(
         Column(modifier = Modifier.padding(padding)) {
             OutlinedTextField(
                 value = query,
-                onValueChange = {
-                    query = it
-                    appsViewModel.onQueryChanged(it.text)
-                },
+                onValueChange = { appsViewModel.onQueryChanged(it) },
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -91,7 +88,7 @@ fun AppsListScreen(
             LazyColumn(
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
             ) {
-                items(filteredApps, key = { it.packageName }) { app ->
+                items(filteredApps.distinctBy { it.packageName }, key = { it.packageName }) { app ->
                     AppListItem(app = app, onClick = { pkg ->
                         val launchIntent = pm.getLaunchIntentForPackage(pkg)
                         if (launchIntent != null) {
@@ -132,7 +129,7 @@ private fun AppListItem(app: AppInfo, onClick: (String) -> Unit, onLongClick: ()
             .padding(vertical = 8.dp, horizontal = 8.dp)
     ) {
         AsyncImage(
-            model = app.icon,
+            model = app.applicationInfo,
             contentDescription = app.label,
             modifier = Modifier.size(48.dp)
         )

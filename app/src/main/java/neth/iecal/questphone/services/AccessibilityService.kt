@@ -16,6 +16,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.app.NotificationCompat
 import neth.iecal.questphone.blockers.AppBlocker
 
@@ -32,20 +33,75 @@ class AccessibilityService : AccessibilityService() {
     private var currentCooldownPackage = ""
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Only process TYPE_WINDOW_STATE_CHANGED events to detect app switches
-        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||event.packageName == packageName) {
+        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             return
         }
 
-        val packageName = event.packageName?.toString() ?: return
+        val rootNode = rootInActiveWindow ?: return
+        try {
+            val eventPackageName = event.packageName?.toString()
+            val texts by lazy { // Use lazy initialization to collect text only when needed
+                val collected = mutableSetOf<String>()
+                collectAllText(rootNode, collected)
+                collected
+            }
+            val appName by lazy { getString(neth.iecal.questphone.R.string.app_name) }
 
-        // Avoid processing the same package multiple times
-        if (lastPackage == packageName) return
+            // --- Protection Logic ---
+            val appNameFound by lazy { texts.any { it.equals(appName, ignoreCase = true) } }
 
-        lastPackage = packageName
-        Log.d("AppBlockerService", "Switched to app $packageName")
-        handleAppBlockerResult(appBlocker.doesAppNeedToBeBlocked(packageName), packageName)
-        handleDeepFocusResult(ServiceInfo.deepFocus.doesAppNeedToBeBlocked(packageName))
+            // Scenario 1: Uninstall confirmation dialog (package-agnostic)
+            val uninstallDialogText = "Do you want to uninstall this app?"
+            if (texts.any { it.equals(uninstallDialogText, ignoreCase = true) } && appNameFound) {
+                Log.d("AccessibilityLog", "Uninstall confirmation dialog detected. Going back.")
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                return // Exit early
+            }
+
+            // Scenario 2: System Settings screens
+            if (eventPackageName == "com.android.settings") {
+                // App Info page
+                if (texts.any { it.equals("Uninstall", ignoreCase = true) } && appNameFound) {
+                    Log.d("AccessibilityLog", "App Info screen detected. Going back.")
+                    performGlobalAction(GLOBAL_ACTION_BACK)
+                    return
+                }
+                // Accessibility settings page
+                if (texts.any { it.equals("Accessibility", ignoreCase = true) } && appNameFound) {
+                    Log.d("AccessibilityLog", "Accessibility settings screen detected. Going back.")
+                    performGlobalAction(GLOBAL_ACTION_BACK)
+                    return
+                }
+                // "Add a language" page
+                if (texts.any { it.equals("Add a language", ignoreCase = true) }) {
+                    Log.d("AccessibilityLog", "'Add a language' screen detected. Going back.")
+                    performGlobalAction(GLOBAL_ACTION_BACK)
+                    return
+                }
+            }
+
+            // --- Original AppBlocker logic ---
+            if (event.packageName == packageName) return
+            val currentPackageName = event.packageName?.toString() ?: return
+            if (lastPackage == currentPackageName) return
+            lastPackage = currentPackageName
+            Log.d("AppBlockerService", "Switched to app $currentPackageName")
+            handleAppBlockerResult(appBlocker.doesAppNeedToBeBlocked(currentPackageName), currentPackageName)
+            handleDeepFocusResult(ServiceInfo.deepFocus.doesAppNeedToBeBlocked(currentPackageName))
+        } finally {
+            // IMPORTANT: Always recycle the root node after we are done with it to prevent memory leaks.
+            rootNode.recycle()
+        }
+    }
+
+    private fun collectAllText(node: AccessibilityNodeInfo?, texts: MutableSet<String>) {
+        if (node == null) return
+        node.text?.let { texts.add(it.toString()) }
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i)
+            collectAllText(child, texts)
+            child?.recycle()
+        }
     }
 
     private fun handleDeepFocusResult(isBlocked: Boolean) {

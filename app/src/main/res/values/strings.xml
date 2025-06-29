@@ -5,4 +5,5 @@
     <string name="accessibility_permission_app_blocker">block app </string>
     <string name="title_activity_locked">LockedActivity</string>
     <string name="title_activity_onboard">OnboardActivity</string>
+    <string name="accessibility_service_description">This service is required to block distracting apps and prevent uninstallation.</string>
 </resources>
