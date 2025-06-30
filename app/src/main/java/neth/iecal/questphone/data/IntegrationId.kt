@@ -100,7 +100,7 @@ enum class IntegrationId(
                 baseQuest
             )
         },
-        isLoginRequired = true,
+        isLoginRequired = false,
         docLink = "https://raw.githubusercontent.com/questphone/docs/refs/heads/main/integration/AiSnap.md"
     )
 }
