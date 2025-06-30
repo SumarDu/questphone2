@@ -25,6 +25,9 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -98,35 +101,41 @@ fun AppsListScreen(
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp)
                     .focusRequester(focusRequester)
-                    .onKeyEvent {
-                        if (it.key == Key.Enter) {
-                            if (filteredListItems.isNotEmpty()) {
-                                when (val item = filteredListItems.first()) {
-                                    is ListItem.App -> {
-                                        val appToLaunch = item.appInfo
-                                        val launchIntent = pm.getLaunchIntentForPackage(appToLaunch.packageName)
-                                        if (launchIntent?.component != null) {
-                                            launcherApps.startMainActivity(launchIntent.component, appToLaunch.user, null, null)
-                                            appsViewModel.onQueryChanged("")
-                                        }
-                                    }
-                                    is ListItem.Contact -> {
-                                        val contactToCall = item.contactInfo
-                                        val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:${contactToCall.phoneNumber}"))
-                                        ctx.startActivity(intent)
+                    .padding(8.dp),
+                placeholder = { Text("Search apps") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(
+                    onSearch = {
+                        if (filteredListItems.isNotEmpty()) {
+                            val item = filteredListItems.first()
+                            when (item) {
+                                is ListItem.App -> {
+                                    val appToLaunch = item.appInfo
+                                    val launchIntent = pm.getLaunchIntentForPackage(appToLaunch.packageName)
+                                    if (launchIntent?.component != null) {
+                                        launcherApps.startMainActivity(
+                                            launchIntent.component,
+                                            appToLaunch.user,
+                                            null,
+                                            null
+                                        )
                                         appsViewModel.onQueryChanged("")
                                     }
                                 }
+                                is ListItem.Contact -> {
+                                    val intent = Intent(
+                                        Intent.ACTION_CALL,
+                                        Uri.parse("tel:${item.contactInfo.phoneNumber}")
+                                    )
+                                    ctx.startActivity(intent)
+                                    appsViewModel.onQueryChanged("")
+                                }
                             }
-                            true
-                        } else {
-                            false
                         }
-                    },
-                placeholder = { Text("Search apps") },
-                singleLine = true
+                    }
+                )
             )
             LazyColumn(
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)

@@ -113,8 +113,13 @@ class AppsViewModel(private val context: Context, private val appAliasDao: AppAl
                 launcherApps.getActivityList(null, userHandle).mapNotNull { activityInfo ->
                     try {
                         val applicationInfo = activityInfo.applicationInfo
-                        val label = activityInfo.label.toString()
-                        AppInfo(label, label, applicationInfo.packageName, applicationInfo, activityInfo.user)
+                        val packageName = applicationInfo.packageName
+                        val label = activityInfo.label?.toString()
+                        if (packageName != null && label != null) {
+                            AppInfo(label, label, packageName, applicationInfo, activityInfo.user)
+                        } else {
+                            null
+                        }
                     } catch (e: Exception) {
                         null
                     }

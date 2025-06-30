@@ -235,7 +235,7 @@ fun AppPickerDialog(apps: List<AppInfo>, onDismiss: () -> Unit, onAppSelected: (
         title = { Text("Select an App") },
         text = {
             LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                items(apps, key = { it.packageName }) { app ->
+                items(apps, key = { "${it.packageName}:${it.user.hashCode()}" }) { app ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
