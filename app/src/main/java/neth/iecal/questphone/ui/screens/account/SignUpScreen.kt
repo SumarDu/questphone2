@@ -50,17 +50,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.jan.supabase.auth.OtpType
-import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.exception.AuthRestException
-import io.github.jan.supabase.auth.providers.builtin.Email
-import io.github.jan.supabase.auth.status.SessionStatus
+
 import kotlinx.coroutines.launch
 import neth.iecal.questphone.BuildConfig
 import neth.iecal.questphone.R
 import neth.iecal.questphone.data.game.User
 import neth.iecal.questphone.data.game.saveUserInfo
-import neth.iecal.questphone.utils.Supabase
+
 
 enum class SignUpStep {
     FORM,
@@ -88,12 +84,6 @@ fun SignUpScreen(loginStep: MutableState<LoginStep>) {
     val isEmailValid = email.contains("@") && email.contains(".")
     val isPasswordValid = password.length >= 8
     val doPasswordsMatch = password == confirmPassword
-
-    // Supabase session status
-    val sessionStatus by Supabase.supabase.auth.sessionStatus.collectAsStateWithLifecycle(
-        initialValue = SessionStatus.Initializing
-    )
-
 
     Box(
         modifier = Modifier
@@ -275,13 +265,9 @@ fun SignUpScreen(loginStep: MutableState<LoginStep>) {
                                         isLoading = true
                                         errorMessage = null
                                         try {
-                                            Supabase.supabase.auth.signUpWith(Email) {
-                                                this.email = email
-                                                this.password = password
-                                            }
                                             signUpStep = SignUpStep.VERIFICATION
-                                        } catch (e: AuthRestException) {
-                                            errorMessage = e.message ?: "Sign-up failed"
+                                        } catch (e: Exception) {
+                                            errorMessage = e.message
                                         } finally {
                                             isLoading = false
                                         }
@@ -330,10 +316,7 @@ fun SignUpScreen(loginStep: MutableState<LoginStep>) {
                             scope.launch {
                                 isLoading = true
                                 try {
-                                    Supabase.supabase.auth.resendEmail(
-                                        email = email,
-                                        type = OtpType.Email.SIGNUP
-                                    )
+
                                 } catch (e: Exception) {
                                     errorMessage = "Failed to resend email: ${e.message}"
                                 } finally {

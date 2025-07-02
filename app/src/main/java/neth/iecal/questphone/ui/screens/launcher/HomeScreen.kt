@@ -29,8 +29,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -38,7 +41,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.first
+import java.util.concurrent.TimeUnit
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -60,10 +67,12 @@ import neth.iecal.questphone.data.game.StreakCheckReturn
 import neth.iecal.questphone.data.game.User
 import neth.iecal.questphone.data.game.checkIfStreakFailed
 import neth.iecal.questphone.data.game.continueStreak
+import neth.iecal.questphone.data.IntegrationId
 import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.ui.navigation.Screen
 import neth.iecal.questphone.ui.screens.launcher.components.LiveClock
+import neth.iecal.questphone.ui.screens.launcher.components.LiveTimer
 import neth.iecal.questphone.ui.screens.quest.DialogState
 import neth.iecal.questphone.ui.screens.quest.RewardDialogInfo
 import neth.iecal.questphone.utils.QuestHelper
@@ -81,6 +90,20 @@ fun HomeScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val gestureRepo = remember { GestureSettingsRepository(context) }
     val swipeUpApp by gestureRepo.swipeUpApp.collectAsState(initial = null)
+
+    val timerViewModel: TimerViewModel = viewModel()
+    var showStartConfirmation by remember { mutableStateOf(false) }
+    var selectedQuestForConfirmation by remember { mutableStateOf<CommonQuestInfo?>(null) }
+    var showQuestFinishedDialog by remember { mutableStateOf(false) }
+    var finishedQuestId by remember { mutableStateOf<String?>(null) }
+    var showAddTimeDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        timerViewModel.questFinishedEvent.collect { questId ->
+            finishedQuestId = questId
+            showQuestFinishedDialog = true
+        }
+    }
     val swipeDownApp by gestureRepo.swipeDownApp.collectAsState(initial = null)
     val swipeLeftApp by gestureRepo.swipeLeftApp.collectAsState(initial = null)
     val swipeRightApp by gestureRepo.swipeRightApp.collectAsState(initial = null)
@@ -287,11 +310,15 @@ fun HomeScreen(navController: NavController) {
                 .align(Alignment.Center)
         ) {
 
-            LiveClock(
-                Modifier
-                    .padding(bottom = 16.dp)
-                    .align(Alignment.CenterHorizontally)
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                LiveClock(modifier = Modifier)
+                LiveTimer()
+            }
 
             // QUESTS header
 //            Text(
@@ -333,8 +360,13 @@ fun HomeScreen(navController: NavController) {
                         isCompleted = completedQuests.contains(baseQuest.title),
                         isFailed = isOver,
                         modifier = Modifier.clickable {
-                            viewQuest(baseQuest,navController)
-                    })
+                            if (baseQuest.integration_id == IntegrationId.SWIFT_MARK) {
+                                selectedQuestForConfirmation = baseQuest
+                                showStartConfirmation = true
+                            } else {
+                                viewQuest(baseQuest, navController)
+                            }
+                        })
                 }
                 item {
                     QuestItem(
@@ -392,6 +424,121 @@ fun HomeScreen(navController: NavController) {
 
         }
     }}
+
+    if (showStartConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showStartConfirmation = false },
+            title = { Text("Start Quest") },
+            text = { Text("Are you ready to begin?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showStartConfirmation = false
+                        selectedQuestForConfirmation?.let {
+                            scope.launch {
+                                val quest = it.copy(quest_started_at = System.currentTimeMillis())
+                                val dao = QuestDatabaseProvider.getInstance(context).questDao()
+                                dao.upsertQuest(quest)
+                            }
+                        }
+                    }
+                ) {
+                    Text("Start")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showStartConfirmation = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showQuestFinishedDialog) {
+        AlertDialog(
+            onDismissRequest = { showQuestFinishedDialog = false },
+            title = { Text("Quest Finished") },
+            text = {
+                Text("The quest timer has ended. What would you like to do?")
+            },
+            confirmButton = {
+                TextButton(onClick = { showQuestFinishedDialog = false }) {
+                    Text("Later")
+                }
+            },
+            dismissButton = {
+                Column {
+                    TextButton(
+                        onClick = {
+                            showQuestFinishedDialog = false
+                            finishedQuestId?.let { navController.navigate(Screen.ViewQuest.route + it) }
+                        }
+                    ) {
+                        Text("Complete Quest")
+                    }
+                    TextButton(
+                        onClick = {
+                            showQuestFinishedDialog = false
+                            showAddTimeDialog = true
+                        }
+                    ) {
+                        Text("Add Time")
+                    }
+                }
+            }
+        )
+    }
+
+    if (showAddTimeDialog) {
+        val timeOptions = listOf(5, 10, 20, 30, 60)
+        AlertDialog(
+            onDismissRequest = { showAddTimeDialog = false },
+            title = { Text("Add Extra Time") },
+            text = {
+                Column {
+                    Text("Select how much time to add.")
+                    timeOptions.forEach { minutes ->
+                        TextButton(
+                            onClick = {
+                                scope.launch {
+                                    finishedQuestId?.let { questId ->
+                                        val dao = QuestDatabaseProvider.getInstance(context).questDao()
+                                        val quest = dao.getAllQuests().first().find { q -> q.id == questId }
+                                        quest?.let { currentQuest ->
+                                            val now = System.currentTimeMillis()
+                                            val questStartTime = currentQuest.quest_started_at
+                                            val questDurationMillis = TimeUnit.MINUTES.toMillis(currentQuest.quest_duration_minutes.toLong())
+                                            val questEndTime = questStartTime + questDurationMillis
+
+                                            val overtimeMillis = if (now > questEndTime) {
+                                                now - questEndTime
+                                            } else {
+                                                0L
+                                            }
+
+                                            val updatedQuest = currentQuest.copy(
+                                                quest_duration_minutes = currentQuest.quest_duration_minutes + minutes,
+                                                quest_started_at = currentQuest.quest_started_at + overtimeMillis
+                                            )
+                                            dao.upsertQuest(updatedQuest)
+                                        }
+                                    }
+                                }
+                                showAddTimeDialog = false
+                            }
+                        ) {
+                            Text("$minutes minutes")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAddTimeDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 fun viewQuest(baseQuest: CommonQuestInfo, navController: NavController) {

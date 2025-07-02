@@ -5,7 +5,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import neth.iecal.questphone.data.ai.GeminiPro
 import neth.iecal.questphone.data.settings.SettingsRepository
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -13,6 +16,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val repository = SettingsRepository(application)
 
     val settings = repository.settings
+
+    private val _geminiResponse = MutableStateFlow<String?>(null)
+    val geminiResponse = _geminiResponse.asStateFlow()
 
     fun onQuestCreationChanged(isEnabled: Boolean) {
         viewModelScope.launch {
@@ -48,6 +54,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
         repository.updateSettingsLock(isLocked, password, lockoutEndDate)
         }
+    }
+
+    fun generateTextWithGemini(prompt: String) {
+        val apiKey = settings.value.geminiApiKey ?: ""
+        viewModelScope.launch {
+            _geminiResponse.value = GeminiPro.generate(prompt, apiKey)
+        }
+    }
+
+    fun saveGeminiApiKey(apiKey: String) {
+        viewModelScope.launch {
+            repository.updateGeminiApiKey(apiKey)
+        }
+    }
+
+    fun clearGeminiResponse() {
+        _geminiResponse.value = null
     }
 }
 

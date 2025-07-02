@@ -59,7 +59,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
-import io.github.jan.supabase.auth.auth
+
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -78,7 +78,7 @@ import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.data.quest.stats.StatsDatabaseProvider
 import neth.iecal.questphone.data.quest.stats.StatsInfo
-import neth.iecal.questphone.utils.Supabase
+
 import neth.iecal.questphone.utils.daysSince
 import neth.iecal.questphone.utils.formatHour
 import neth.iecal.questphone.utils.getStartOfWeek

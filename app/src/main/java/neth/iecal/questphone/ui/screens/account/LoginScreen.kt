@@ -23,13 +23,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.exception.AuthRestException
-import io.github.jan.supabase.auth.providers.builtin.Email
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import neth.iecal.questphone.R
-import neth.iecal.questphone.utils.Supabase
+
 
 
 @Composable
@@ -193,12 +191,9 @@ fun LoginScreen(loginStep : MutableState<LoginStep>, onLoginSucess: ()->Unit) {
 
                         coroutineScope.launch(Dispatchers.IO) {
                             try {
-                                Supabase.supabase.auth.signInWith(Email) {
-                                    this.email = email
-                                    this.password = password
-                                }
-                            } catch (e: AuthRestException) {
-                                errorMessage = e.errorDescription
+
+                            } catch (e: Exception) {
+                                errorMessage = e.message
                                 isLoading = false
                             }
                             onLoginSucess()

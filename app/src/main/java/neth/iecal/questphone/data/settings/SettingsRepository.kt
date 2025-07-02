@@ -14,7 +14,8 @@ data class SettingsData(
     val isItemDeletionEnabled: Boolean = true,
     val isSettingsLocked: Boolean = false,
     val settingsLockPassword: String? = null,
-    val settingsLockoutEndDate: Long? = null
+    val settingsLockoutEndDate: Long? = null,
+    val geminiApiKey: String? = null
 )
 
 class SettingsRepository(context: Context) {
@@ -90,6 +91,11 @@ class SettingsRepository(context: Context) {
             settingsLockPassword = password,
             settingsLockoutEndDate = lockoutEndDate
         )
+        saveSettings(newSettings)
+    }
+
+    suspend fun updateGeminiApiKey(apiKey: String) {
+        val newSettings = _settings.value.copy(geminiApiKey = apiKey)
         saveSettings(newSettings)
     }
 }

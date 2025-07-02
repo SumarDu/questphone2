@@ -40,11 +40,11 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import io.github.jan.supabase.auth.auth
+
 import kotlinx.coroutines.launch
 import neth.iecal.questphone.R
 import neth.iecal.questphone.ui.navigation.Screen
-import neth.iecal.questphone.utils.Supabase
+
 
 @Composable
 fun SetupNewPassword(navController: NavController) {
@@ -85,7 +85,7 @@ fun SetupNewPassword(navController: NavController) {
 
 
                 coroutineScope.launch {
-                    Supabase.supabase.auth.updateUser { password = confirmPassword}
+
                     navController.navigate(Screen.OnBoard.route)
                 }
             }

@@ -141,23 +141,16 @@ fun UserInfoScreen(navController: NavController) {
                     .size(120.dp)
                     .clip(RoundedCornerShape(12.dp))
             ) {
-                    val profileData = remember(User.userInfo.has_profile, User.userInfo.isAnonymous, User.userInfo.id) {
-                        if (User.userInfo.has_profile) {
-                            if (User.userInfo.isAnonymous) {
-                        val profileFile = File(context.filesDir, "profile")
-                        profileFile.absolutePath
-                            } else {
-                        "https://hplszhlnchhfwngbojnc.supabase.co/storage/v1/object/public/profile/${User.userInfo.id}/profile"
-                            }
-                        } else {
-                            R.drawable.baseline_person_24
-                        }
-                    }
-
                 Image(
                     painter = rememberAsyncImagePainter(
-                        model = ImageRequest.Builder(LocalContext.current)
-                                .data(profileData)
+                        model = ImageRequest.Builder(context)
+                            .data(
+                                if (User.userInfo.has_profile) {
+                                    File(context.filesDir, "profile")
+                                } else {
+                                    R.drawable.baseline_person_24
+                                }
+                            )
                             .crossfade(true)
                             .error(R.drawable.baseline_person_24)
                             .placeholder(R.drawable.baseline_person_24)

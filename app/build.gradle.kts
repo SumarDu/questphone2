@@ -29,8 +29,6 @@ android {
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "SUPABASE_URL", "\"${localProperties["SUPABASE_URL"]}\"")
-        buildConfigField("String", "SUPABASE_API_KEY", "\"${localProperties["SUPABASE_API_KEY"]}\"")
     }
 
     flavorDimensions += "distribution"
@@ -109,12 +107,17 @@ dependencies {
     // DataStore Preferences
     implementation(libs.androidx.datastore.preferences)
 
+    // Gemini API
+    implementation("com.google.ai.client.generativeai:generativeai:0.8.0")
 
-    implementation(libs.supabase.auth)
-    implementation(libs.supabase.storage)
-    implementation(libs.postgrest.kt)
+
+
+
 
     implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.kotlinx.datetime)
 
     implementation (libs.androidx.work.runtime.ktx)
 

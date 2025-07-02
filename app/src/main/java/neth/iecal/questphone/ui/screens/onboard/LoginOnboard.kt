@@ -9,14 +9,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
-import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.auth.status.SessionStatus
+
 import kotlinx.coroutines.flow.collectLatest
 import neth.iecal.questphone.ui.screens.account.ForgotPasswordScreen
 import neth.iecal.questphone.ui.screens.account.LoginScreen
 import neth.iecal.questphone.ui.screens.account.LoginStep
 import neth.iecal.questphone.ui.screens.account.SignUpScreen
-import neth.iecal.questphone.utils.Supabase
+
 import neth.iecal.questphone.utils.isOnline
 import neth.iecal.questphone.utils.triggerProfileSync
 import neth.iecal.questphone.utils.triggerQuestSync
@@ -30,34 +29,9 @@ fun LoginOnboard(isNextEnabled: MutableState<Boolean>, navController: NavHostCon
 
     val loginStep = remember { mutableStateOf(LoginStep.SIGNUP) }
 
-//    LaunchedEffect(Unit ) {
-//        val isUserLoggedIn = Supabase.supabase.auth.currentUserOrNull() != null
-//        isNextEnabled.value = isUserLoggedIn
-//        if (isUserLoggedIn) {
-//            loginStep.value = LoginStep.COMPLETE
-//        }
-//    }
 
-    LaunchedEffect(Unit) {
-        Supabase.supabase.auth.sessionStatus.collectLatest { authState ->
-            Log.d("authState",authState.toString())
-            when (authState) {
-                is SessionStatus.Authenticated -> {
-                    loginStep.value = LoginStep.COMPLETE
-                    isNextEnabled.value = true
-                }
 
-                is SessionStatus.NotAuthenticated -> {
-                    isNextEnabled.value = false
-                }
-                is SessionStatus.Initializing -> {
-                    Log.d("Signup", "Initializing session...")
-                }
 
-                else -> {}
-            }
-        }
-    }
 
     when(loginStep.value) {
         LoginStep.LOGIN -> {

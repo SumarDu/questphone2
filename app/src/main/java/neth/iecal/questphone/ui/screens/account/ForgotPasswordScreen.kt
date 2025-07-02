@@ -42,9 +42,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import io.github.jan.supabase.auth.auth
+
 import kotlinx.coroutines.launch
-import neth.iecal.questphone.utils.Supabase
+
 
 enum class ForgotPasswordStep {
     EMAIL,
@@ -78,7 +78,7 @@ fun ForgotPasswordScreen(loginStep: MutableState<LoginStep>) {
             isLoading = true
 
             coroutineScope.launch {
-                Supabase.supabase.auth.resetPasswordForEmail(email)
+
             }
 
             forgotPasswordStep = ForgotPasswordStep.VERIFICATION

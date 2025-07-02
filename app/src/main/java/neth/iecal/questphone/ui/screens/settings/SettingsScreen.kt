@@ -121,6 +121,85 @@ fun SettingsScreen(navController: NavController) {
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
+
+
+            Text(
+                "Gemini AI Assistant",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            val settingsState by viewModel.settings.collectAsState()
+            var apiKeyInput by rememberSaveable(settingsState.geminiApiKey) { mutableStateOf(settingsState.geminiApiKey ?: "") }
+
+            OutlinedTextField(
+                value = apiKeyInput,
+                onValueChange = { apiKeyInput = it },
+                label = { Text("Gemini API Key") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation()
+            )
+
+            Button(
+                onClick = {
+                    viewModel.saveGeminiApiKey(apiKeyInput)
+                    Toast.makeText(context, "API Key Saved", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.padding(top = 8.dp),
+                enabled = apiKeyInput.isNotBlank() && apiKeyInput != settingsState.geminiApiKey
+            ) {
+                Text("Save Key")
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 16.dp))
+
+            val geminiResponse by viewModel.geminiResponse.collectAsState()
+            var prompt by rememberSaveable { mutableStateOf("") }
+            val isApiKeySet = settingsState.geminiApiKey?.isNotBlank() == true
+
+            // Clear prompt and response if key changes
+            LaunchedEffect(isApiKeySet) {
+                if (!isApiKeySet) {
+                    prompt = ""
+                    viewModel.clearGeminiResponse()
+                }
+            }
+
+            OutlinedTextField(
+                value = prompt,
+                onValueChange = {
+                    prompt = it
+                    // Clear previous response when user starts typing new prompt
+                    if (geminiResponse != null) {
+                        viewModel.clearGeminiResponse()
+                    }
+                },
+                label = { if (isApiKeySet) "Ask Gemini..." else "Set API Key to enable" },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = isApiKeySet
+            )
+
+            Button(
+                onClick = {
+                    if (prompt.isNotBlank()) {
+                        viewModel.generateTextWithGemini(prompt)
+                    }
+                },
+                modifier = Modifier.padding(top = 8.dp),
+                enabled = prompt.isNotBlank() && isApiKeySet
+            ) {
+                Text("Generate")
+            }
+
+            geminiResponse?.let {
+                Text(
+                    text = it,
+                    modifier = Modifier.padding(top = 16.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
             Button(onClick = { navController.navigate(Screen.GestureSettings.route) }, enabled = !settings.isSettingsLocked) {
                 Text("Configure Gestures")
             }

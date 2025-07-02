@@ -12,13 +12,13 @@ import androidx.compose.runtime.remember
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import io.github.jan.supabase.auth.handleDeeplinks
+
 import neth.iecal.questphone.ui.navigation.Screen
 import neth.iecal.questphone.ui.screens.account.SetupNewPassword
 import neth.iecal.questphone.ui.screens.onboard.OnBoardScreen
 import neth.iecal.questphone.ui.screens.pet.PetDialog
 import neth.iecal.questphone.ui.theme.LauncherTheme
-import neth.iecal.questphone.utils.Supabase
+
 
 
 class OnboardActivity : ComponentActivity() {
@@ -28,19 +28,10 @@ class OnboardActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            val isPetDialogVisible = remember { mutableStateOf(true) }
-            val isLoginResetPassword = remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                Supabase.supabase.handleDeeplinks(intent){
-                    if(it.type == "recovery"){
-                        isLoginResetPassword.value = true
-                    }
-                    Log.d("Supabase Deeplink",it.type.toString())
-                }
-            }
             LauncherTheme {
                 Surface {
                     val navController = rememberNavController()
+                    val isPetDialogVisible = remember { mutableStateOf(true) }
 
                     PetDialog(
                         petId = "turtie",
@@ -50,8 +41,7 @@ class OnboardActivity : ComponentActivity() {
 
                     NavHost(
                         navController = navController,
-                        startDestination = if (isLoginResetPassword.value) Screen.ResetPass.route
-                        else Screen.OnBoard.route
+                        startDestination = Screen.OnBoard.route
                     ) {
 
                         composable(Screen.OnBoard.route) {

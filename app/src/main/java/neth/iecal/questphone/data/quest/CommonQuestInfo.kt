@@ -4,9 +4,11 @@ import neth.iecal.questphone.data.game.AppUnlockerItem
 import neth.iecal.questphone.data.game.AppUnlockerItemDao
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.room.Dao
@@ -60,6 +62,12 @@ data class CommonQuestInfo(
     var instructions: String = "",
     var quest_json: String = "",
     var is_destroyed : Boolean = false,
+    var ai_photo_proof: Boolean = false,
+    var ai_photo_proof_description: String = "",
+    var quest_duration_minutes: Int = 0,
+    var break_duration_minutes: Int = 0,
+    var last_completed_at: Long = 0,
+    var quest_started_at: Long = 0,
     @Transient
     var synced: Boolean = false,
     var last_updated: Long = System.currentTimeMillis(),  // Epoch millis
@@ -76,6 +84,12 @@ class QuestInfoState(
     initialSelectedDays: Set<DayOfWeek> = emptySet(),
     initialAutoDestruct: String = "9999-12-31",
     initialTimeRange: List<Int> = listOf(0,24),
+    initialAiPhotoProof: Boolean = false,
+    initialAiPhotoProofDescription: String = "",
+    initialQuestDurationMinutes: Int = 0,
+    initialBreakDurationMinutes: Int = 0,
+    initialLastCompletedAt: Long = 0,
+    initialQuestStartedAt: Long = 0
 ) {
     var id = UUID.randomUUID().toString()
     var title by mutableStateOf(initialTitle)
@@ -86,6 +100,13 @@ class QuestInfoState(
     var instructions by mutableStateOf(initialInstructions)
     var initialAutoDestruct by mutableStateOf(initialAutoDestruct)
     var initialTimeRange by mutableStateOf(initialTimeRange)
+    var aiPhotoProof by mutableStateOf(initialAiPhotoProof)
+    var aiPhotoProofDescription by mutableStateOf(initialAiPhotoProofDescription)
+    var questDurationMinutes by mutableIntStateOf(initialQuestDurationMinutes)
+    var breakDurationMinutes by mutableIntStateOf(initialBreakDurationMinutes)
+    var lastCompletedAt by mutableLongStateOf(initialLastCompletedAt)
+    var questStartedAt by mutableLongStateOf(initialQuestStartedAt)
+
     inline fun < reified T : Any> toBaseQuest(questInfo: T? = null) = CommonQuestInfo(
         id = id,
         title = title,
@@ -96,7 +117,13 @@ class QuestInfoState(
         auto_destruct = initialAutoDestruct,
         time_range = initialTimeRange,
         instructions = instructions,
-        quest_json = if(questInfo!=null) json.encodeToString(questInfo) else ""
+        quest_json = if(questInfo!=null) json.encodeToString(questInfo) else "",
+        ai_photo_proof = aiPhotoProof,
+        ai_photo_proof_description = aiPhotoProofDescription,
+        quest_duration_minutes = questDurationMinutes,
+        break_duration_minutes = breakDurationMinutes,
+        last_completed_at = lastCompletedAt,
+        quest_started_at = questStartedAt
     )
     fun fromBaseQuest(commonQuestInfo: CommonQuestInfo){
         id = commonQuestInfo.id
@@ -108,6 +135,12 @@ class QuestInfoState(
         initialAutoDestruct = commonQuestInfo.auto_destruct
         instructions = commonQuestInfo.instructions
         initialTimeRange = commonQuestInfo.time_range
+        aiPhotoProof = commonQuestInfo.ai_photo_proof
+        aiPhotoProofDescription = commonQuestInfo.ai_photo_proof_description
+        questDurationMinutes = commonQuestInfo.quest_duration_minutes
+        breakDurationMinutes = commonQuestInfo.break_duration_minutes
+        lastCompletedAt = commonQuestInfo.last_completed_at
+        questStartedAt = commonQuestInfo.quest_started_at
     }
 }
 
@@ -131,7 +164,14 @@ object BaseQuestConverter {
     fun fromIntegrationId(id: IntegrationId): String = id.name
 
     @TypeConverter
-    fun toIntegrationId(name: String): IntegrationId = IntegrationId.valueOf(name)
+    fun toIntegrationId(name: String): IntegrationId {
+        return try {
+            IntegrationId.valueOf(name)
+        } catch (e: IllegalArgumentException) {
+            Log.w("QuestConverter", "Unknown integration_id '$name', defaulting to DEEP_FOCUS")
+            IntegrationId.DEEP_FOCUS
+        }
+    }
 }
 
 @Dao
@@ -176,7 +216,8 @@ interface QuestDao {
 
 
 
-@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class], version = 3, exportSchema = false)
+
+@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class], version = 7, exportSchema = false)
 @TypeConverters(BaseQuestConverter::class)
 abstract class QuestDatabase : RoomDatabase() {
     abstract fun appUnlockerItemDao(): AppUnlockerItemDao

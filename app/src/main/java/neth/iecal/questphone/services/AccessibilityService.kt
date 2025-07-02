@@ -186,7 +186,7 @@ class AccessibilityService : AccessibilityService() {
 
     private fun setupAppBlocker() {
         val sp = getSharedPreferences("distractions", MODE_PRIVATE)
-        appBlocker.blockedAppsList = sp.getStringSet("distracting_apps", emptySet<String>()) as HashSet<String>
+        appBlocker.blockedAppsList = HashSet(sp.getStringSet("distracting_apps", null) ?: emptySet())
     }
 
     override fun onInterrupt() {
