@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
@@ -15,6 +16,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -26,6 +28,7 @@ import neth.iecal.questphone.data.IntegrationId
 import neth.iecal.questphone.data.game.User
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.data.quest.stats.StatsDatabaseProvider
+import neth.iecal.questphone.data.timer.TimerService
 import neth.iecal.questphone.services.AppBlockerService
 import neth.iecal.questphone.ui.navigation.Navigator
 import neth.iecal.questphone.ui.navigation.Screen
@@ -45,6 +48,7 @@ import neth.iecal.questphone.ui.screens.quest.stats.specific.BaseQuestStatsView
 import neth.iecal.questphone.ui.theme.LauncherTheme
 import neth.iecal.questphone.utils.isOnline
 import neth.iecal.questphone.utils.triggerQuestSync
+import neth.iecal.questphone.utils.requestNotificationPermission
 import neth.iecal.questphone.ui.screens.game.StoreScreen
 import neth.iecal.questphone.ui.screens.launcher.AppsListScreen
 
@@ -53,27 +57,23 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        val serviceIntent = Intent(this, TimerService::class.java)
+        ContextCompat.startForegroundService(this, serviceIntent)
+
         enableEdgeToEdge()
         val data = getSharedPreferences("onboard", MODE_PRIVATE)
 
 
         setContent {
-            val permissionsToRequest = arrayOf(
-                Manifest.permission.READ_CONTACTS,
-                Manifest.permission.CALL_PHONE
-            )
-
-            val launcher = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.RequestMultiplePermissions(),
-                onResult = { permissions ->
-                    permissions.entries.forEach { (permission, isGranted) ->
-                        Log.d("MainActivity", "Permission: $permission, Granted: $isGranted")
-                    }
+            val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission(),
+                onResult = { isGranted ->
+                    Log.d("MainActivity", "Notification permission granted: $isGranted")
                 }
             )
 
             LaunchedEffect(Unit) {
-                launcher.launch(permissionsToRequest)
+                requestNotificationPermission(this@MainActivity, notificationPermissionLauncher)
             }
 
             val isUserOnboarded = remember {mutableStateOf(true)}

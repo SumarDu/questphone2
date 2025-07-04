@@ -170,13 +170,18 @@ fun SwiftMarkQuestView(
     BaseQuestView(
         hideStartQuestBtn = isQuestComplete.value || !isInTimeRange.value || isFailed.value,
         onQuestStarted = {
-            when (PackageManager.PERMISSION_GRANTED) {
-                ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) -> {
-                    cameraLauncher.launch(null)
+            if (commonQuestInfo.ai_photo_proof) {
+                when (PackageManager.PERMISSION_GRANTED) {
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) -> {
+                        cameraLauncher.launch(null)
+                    }
+
+                    else -> {
+                        permissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
                 }
-                else -> {
-                    permissionLauncher.launch(Manifest.permission.CAMERA)
-                }
+            } else {
+                onQuestCompleted()
             }
         },
         progress = progress,

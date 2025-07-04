@@ -24,7 +24,7 @@ fun LiveTimer(
         TimerMode.QUEST_COUNTDOWN -> MaterialTheme.colorScheme.primary
         TimerMode.OVERTIME -> MaterialTheme.colorScheme.error
         TimerMode.BREAK -> Color.Green // Example color
-        TimerMode.UNSCHEDULED_BREAK -> Color.Yellow // Example color
+
         TimerMode.INACTIVE -> MaterialTheme.colorScheme.onSurface
     }
 

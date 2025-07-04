@@ -10,6 +10,7 @@ import neth.iecal.questphone.services.reloadServiceInfo
 import neth.iecal.questphone.utils.isOnline
 import neth.iecal.questphone.utils.triggerQuestSync
 import neth.iecal.questphone.utils.triggerStatsSync
+import neth.iecal.questphone.utils.NotificationHelper
 
 class MyApp : Application() {
 
@@ -22,6 +23,7 @@ class MyApp : Application() {
         User.init(this)
         VibrationHelper.init(this)
         Pet.init(this)
+        NotificationHelper(this).createNotificationChannels()
         reloadServiceInfo(this)
         connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
 

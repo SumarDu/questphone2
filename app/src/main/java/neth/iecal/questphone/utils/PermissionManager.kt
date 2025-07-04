@@ -2,6 +2,7 @@ package neth.iecal.questphone.utils
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
@@ -10,6 +11,7 @@ import android.os.Build
 import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
+import androidx.activity.result.ActivityResultLauncher
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 
@@ -39,6 +41,18 @@ fun checkNotificationPermission(context: Context): Boolean {
         ) == PackageManager.PERMISSION_GRANTED
     }
     return true
+}
+
+fun requestNotificationPermission(activity: Activity, launcher: ActivityResultLauncher<String>) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (ContextCompat.checkSelfPermission(
+                activity,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 }
 
 fun isIgnoringBatteryOptimizations(context: Context): Boolean {

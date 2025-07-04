@@ -193,6 +193,9 @@ interface QuestDao {
     @Query("SELECT * FROM CommonQuestInfo")
     fun getAllQuests(): Flow<List<CommonQuestInfo>>
 
+    @Query("SELECT * FROM CommonQuestInfo")
+    suspend fun getAllQuestsSuspend(): List<CommonQuestInfo>
+
     @Query("SELECT * FROM CommonQuestInfo WHERE synced = 0")
     fun getUnSyncedQuests(): Flow<List<CommonQuestInfo>>
 

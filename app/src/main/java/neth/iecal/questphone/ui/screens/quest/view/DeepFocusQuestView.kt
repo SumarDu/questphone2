@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -57,6 +58,7 @@ import neth.iecal.questphone.utils.formatHour
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.utils.json
 import neth.iecal.questphone.utils.sendRefreshRequest
+import neth.iecal.questphone.data.timer.TimerService
 import java.util.UUID
 
 private const val PREF_NAME = "deep_focus_prefs"
@@ -75,6 +77,7 @@ fun DeepFocusQuestView(
     val deepFocus = json.decodeFromString<DeepFocus>(commonQuestInfo.quest_json)
     val duration = deepFocus.nextFocusDurationInMillis
     val isInTimeRange = remember { mutableStateOf(QuestHelper.Companion.isInTimeRange(commonQuestInfo)) }
+    val timerState by TimerService.timerState.collectAsState()
 
 
     LaunchedEffect(Unit) {
@@ -321,6 +324,12 @@ fun DeepFocusQuestView(
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
+
+            Text(
+                text = timerState.toString(),
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin),
+                modifier = Modifier.padding(top = 32.dp)
+            )
 
             Text(
                 text = if (!isQuestComplete.value) "Duration: ${duration / 60_000}m" else "Next Duration: ${duration / 60_000}m",
