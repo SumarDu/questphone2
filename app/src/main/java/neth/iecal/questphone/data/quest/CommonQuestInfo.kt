@@ -70,7 +70,7 @@ data class CommonQuestInfo(
     var quest_started_at: Long = 0,
     @Transient
     var synced: Boolean = false,
-    var last_updated: Long = System.currentTimeMillis(),  // Epoch millis
+    var last_updated: Long = System.currentTimeMillis()
 )
 
 

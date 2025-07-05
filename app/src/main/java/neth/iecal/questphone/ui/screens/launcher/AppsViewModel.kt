@@ -84,23 +84,28 @@ class AppsViewModel(private val context: Context, private val appAliasDao: AppAl
     }
 
     private fun loadContacts(): Flow<List<ContactInfo>> = flow {
-        val contacts = mutableListOf<ContactInfo>()
-        val contentResolver = context.contentResolver
-        val cursor: Cursor? = contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null, null, null, null)
+        try {
+            val contacts = mutableListOf<ContactInfo>()
+            val contentResolver = context.contentResolver
+            val cursor: Cursor? = contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null, null, null, null)
 
-        cursor?.use {
-            val idColumn = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone._ID)
-            val nameColumn = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-            val numberColumn = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+            cursor?.use {
+                val idColumn = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone._ID)
+                val nameColumn = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+                val numberColumn = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
 
-            while (it.moveToNext()) {
-                val id = it.getLong(idColumn)
-                val name = it.getString(nameColumn)
-                val number = it.getString(numberColumn)
-                contacts.add(ContactInfo(id, name, number))
+                while (it.moveToNext()) {
+                    val id = it.getLong(idColumn)
+                    val name = it.getString(nameColumn)
+                    val number = it.getString(numberColumn)
+                    contacts.add(ContactInfo(id, name, number))
+                }
             }
+            emit(contacts)
+        } catch (e: SecurityException) {
+            // To prevent crash if READ_CONTACTS permission is not granted
+            emit(emptyList())
         }
-        emit(contacts)
     }.flowOn(Dispatchers.IO)
 
     private fun loadApps(): Flow<List<AppInfo>> {

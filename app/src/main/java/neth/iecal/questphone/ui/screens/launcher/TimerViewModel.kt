@@ -34,7 +34,7 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
                 _timerMode.value = currentMode
                 _timerText.value = formatDuration(state.time)
 
-                if (currentMode == TimerMode.OVERTIME && previousMode != TimerMode.OVERTIME && state.activeQuestId != null) {
+                                if (currentMode == TimerMode.OVERTIME && previousMode == TimerMode.QUEST_COUNTDOWN && state.activeQuestId != null) {
                     viewModelScope.launch {
                         _questFinishedEvent.emit(state.activeQuestId!!)
                     }
@@ -47,11 +47,22 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
     private fun formatDuration(duration: Duration): String {
         val seconds = duration.seconds
         val absSeconds = kotlin.math.abs(seconds)
-        val positive = String.format(
-            "%02d:%02d",
-            (absSeconds % 3600) / 60,
-            absSeconds % 60
-        )
+
+        val positive = if (absSeconds >= 3600) {
+            String.format(
+                "%02d:%02d:%02d",
+                absSeconds / 3600,
+                (absSeconds % 3600) / 60,
+                absSeconds % 60
+            )
+        } else {
+            String.format(
+                "%02d:%02d",
+                (absSeconds % 3600) / 60,
+                absSeconds % 60
+            )
+        }
+
         return if (seconds < 0) "-$positive" else positive
     }
 }

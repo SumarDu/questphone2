@@ -1,6 +1,7 @@
 package neth.iecal.questphone.ui.screens.quest.setup.deep_focus
 
 import android.annotation.SuppressLint
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +20,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +46,7 @@ import neth.iecal.questphone.data.quest.focus.FocusTimeConfig
 import neth.iecal.questphone.ui.screens.quest.setup.ReviewDialog
 import neth.iecal.questphone.ui.screens.quest.setup.components.SetBaseQuest
 import neth.iecal.questphone.ui.screens.quest.setup.components.SetFocusTimeUI
+import neth.iecal.questphone.ui.screens.quest.setup.components.SetBreakTimeUI
 import neth.iecal.questphone.utils.QuestHelper
 import neth.iecal.questphone.utils.json
 import androidx.compose.runtime.collectAsState
@@ -62,6 +66,10 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
     var selectedApps = remember { mutableStateListOf<String>() }
     val questInfoState = remember { QuestInfoState(initialIntegrationId = IntegrationId.DEEP_FOCUS) }
     val focusTimeConfig = remember { mutableStateOf(FocusTimeConfig()) }
+        val breakDuration = remember { mutableStateOf(0L) }
+    val minWorkSessions = remember { mutableStateOf(1) }
+    val maxWorkSessions = remember { mutableStateOf(5) }
+    val longBreakDuration = remember { mutableStateOf(0L) }
 
     val scrollState = rememberScrollState()
     val sp = QuestHelper(context)
@@ -78,6 +86,10 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
             val deepFocus = json.decodeFromString<DeepFocus>(quest.quest_json)
             focusTimeConfig.value = deepFocus.focusTimeConfig
             selectedApps.addAll(deepFocus.unrestrictedApps)
+                        breakDuration.value = deepFocus.breakDurationInMillis
+            minWorkSessions.value = deepFocus.minWorkSessions
+            maxWorkSessions.value = deepFocus.maxWorkSessions
+            longBreakDuration.value = deepFocus.longBreakDurationInMillis
         }
     }
     LaunchedEffect(apps) {
@@ -97,7 +109,11 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
         val deepFocus = DeepFocus(
             focusTimeConfig = focusTimeConfig.value,
             unrestrictedApps = selectedApps.toSet(),
-            nextFocusDurationInMillis = focusTimeConfig.value.initialTimeInMs
+            breakDurationInMillis = breakDuration.value,
+            minWorkSessions = minWorkSessions.value,
+            maxWorkSessions = maxWorkSessions.value,
+            longBreakDurationInMillis = longBreakDuration.value,
+            nextFocusDurationInMillis = focusTimeConfig.value.initialTimeInMs,
         )
         val baseQuest =
             questInfoState.toBaseQuest<DeepFocus>(deepFocus)
@@ -146,6 +162,29 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
                     )
                     SetBaseQuest(questInfoState)
 
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("AI Photo Proof", style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = questInfoState.aiPhotoProof,
+                            onCheckedChange = { questInfoState.aiPhotoProof = it }
+                        )
+                    }
+
+                    AnimatedVisibility(visible = questInfoState.aiPhotoProof) {
+                        OutlinedTextField(
+                            value = questInfoState.aiPhotoProofDescription,
+                            onValueChange = { questInfoState.aiPhotoProofDescription = it },
+                            label = { Text("AI Photo Proof Description") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
+                        )
+                    }
+
                     OutlinedButton(
                         onClick = { showDialog.value = true },
                     ) {
@@ -157,6 +196,29 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
                     }
 
                     SetFocusTimeUI(focusTimeConfig)
+
+                    SetBreakTimeUI(breakDuration)
+
+                    OutlinedTextField(
+                        value = minWorkSessions.value.toString(),
+                        onValueChange = { minWorkSessions.value = it.toIntOrNull() ?: 1 },
+                        label = { Text("Min Work Sessions") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = maxWorkSessions.value.toString(),
+                        onValueChange = { maxWorkSessions.value = it.toIntOrNull() ?: 5 },
+                        label = { Text("Max Work Sessions") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = longBreakDuration.value.toString(),
+                        onValueChange = { longBreakDuration.value = it.toLongOrNull() ?: 0L },
+                        label = { Text("Long Break Duration (ms)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
                     Button(
                         onClick = {

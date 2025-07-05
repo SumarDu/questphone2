@@ -56,6 +56,7 @@ import kotlinx.coroutines.launch
 import neth.iecal.questphone.data.preferences.GestureSettingsRepository
 import kotlin.math.abs
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -79,6 +80,8 @@ import neth.iecal.questphone.utils.QuestHelper
 import neth.iecal.questphone.utils.formatHour
 import neth.iecal.questphone.utils.formatInstantToDate
 import neth.iecal.questphone.utils.getCurrentDate
+import neth.iecal.questphone.data.timer.TimerMode
+import neth.iecal.questphone.data.timer.TimerService
 import neth.iecal.questphone.utils.getCurrentDay
 import neth.iecal.questphone.utils.isSetToDefaultLauncher
 import neth.iecal.questphone.utils.openDefaultLauncherSettings
@@ -92,6 +95,9 @@ fun HomeScreen(navController: NavController) {
     val swipeUpApp by gestureRepo.swipeUpApp.collectAsState(initial = null)
 
     val timerViewModel: TimerViewModel = viewModel()
+    val timerText by timerViewModel.timerText.collectAsState()
+    val timerMode by timerViewModel.timerMode.collectAsState()
+    val timerState by TimerService.timerState.collectAsState()
     var showStartConfirmation by remember { mutableStateOf(false) }
     var selectedQuestForConfirmation by remember { mutableStateOf<CommonQuestInfo?>(null) }
     var showQuestFinishedDialog by remember { mutableStateOf(false) }
@@ -290,6 +296,15 @@ fun HomeScreen(navController: NavController) {
                 }
             )
 
+            Icon(
+                painter = painterResource(id = R.drawable.outline_progress_activity_24),
+                contentDescription = "Stats",
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(30.dp)
+                    .clickable { navController.navigate(Screen.Stats.route) }
+            )
+
             // Settings icon now replaces Profile
             Icon(
                 imageVector = Icons.Default.Settings,
@@ -355,10 +370,13 @@ fun HomeScreen(navController: NavController) {
                     val timeRange = "${formatHour(baseQuest.time_range[0])} - ${formatHour(baseQuest.time_range[1])} : "
                     val prefix = if(baseQuest.time_range[0]==0&&baseQuest.time_range[1]==24) "" else timeRange
                     val isOver = questHelper.isOver(baseQuest)
+                    val isCompleted = completedQuests.contains(baseQuest.title)
+                                        val isActive = timerState.activeQuestId == baseQuest.id && (timerMode == TimerMode.QUEST_COUNTDOWN || timerMode == TimerMode.BREAK)
                     QuestItem(
                         text =  if(QuestHelper.Companion.isInTimeRange(baseQuest) && isOver) baseQuest.title else  prefix +  baseQuest.title,
-                        isCompleted = completedQuests.contains(baseQuest.title),
+                        isCompleted = isCompleted,
                         isFailed = isOver,
+                        isActive = isActive,
                         modifier = Modifier.clickable {
                             if (baseQuest.integration_id == IntegrationId.SWIFT_MARK) {
                                 selectedQuestForConfirmation = baseQuest
@@ -549,6 +567,7 @@ fun QuestItem(
     text: String,
     isCompleted: Boolean = false,
     isFailed: Boolean = false,
+    isActive: Boolean = false,
     modifier: Modifier
 ) {
     Text(
@@ -561,7 +580,12 @@ fun QuestItem(
         modifier = modifier
             .fillMaxWidth()
             .padding(8.dp),
-        color = if (isFailed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+        color = when {
+            isFailed -> MaterialTheme.colorScheme.error
+            isActive -> MaterialTheme.colorScheme.primary
+            else -> MaterialTheme.colorScheme.onSurface
+        },
+        fontWeight = if (isActive) FontWeight.Bold else null,
         textAlign = TextAlign.Center
     )
 }

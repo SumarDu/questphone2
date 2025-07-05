@@ -5,10 +5,12 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.IBinder
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.ticker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.utils.NotificationHelper
+import neth.iecal.questphone.data.timer.AlarmHelper
 import neth.iecal.questphone.utils.getCurrentDate
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -18,7 +20,7 @@ class TimerService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private lateinit var notificationHelper: NotificationHelper
     private lateinit var questDao: neth.iecal.questphone.data.quest.QuestDao
-    private var lastNotifiedOvertimeMinute = -1L
+
 
     override fun onCreate() {
         super.onCreate()
@@ -36,11 +38,12 @@ class TimerService : Service() {
         )
 
         serviceScope.launch {
-            while (isActive) {
+            // Use a ticker channel for a fixed-rate timer to avoid drift and ensure smooth updates.
+            val now = System.currentTimeMillis()
+            val initialDelay = 1000 - (now % 1000)
+            val tickerChannel = ticker(delayMillis = 1000, initialDelayMillis = initialDelay)
+            for (unit in tickerChannel) {
                 updateTimerState()
-                val now = System.currentTimeMillis()
-                val delayMillis = 1000 - (now % 1000)
-                delay(delayMillis)
             }
         }
 
@@ -51,55 +54,106 @@ class TimerService : Service() {
         val allQuests = questDao.getAllQuestsSuspend()
         val now = System.currentTimeMillis()
         val today = getCurrentDate()
-        val previousMode = _timerState.value.mode
+        val previousState = _timerState.value
 
         val activeQuest = allQuests.firstOrNull { it.quest_started_at > 0 && it.last_completed_on != today }
-
-        if (activeQuest != null && activeQuest.quest_duration_minutes > 0) {
-            val questEndTime = activeQuest.quest_started_at + TimeUnit.MINUTES.toMillis(activeQuest.quest_duration_minutes.toLong())
-
-            if (now < questEndTime) {
-                val remaining = Duration.ofMillis(questEndTime - now)
-                _timerState.value = TimerState(TimerMode.QUEST_COUNTDOWN, remaining, activeQuest.id)
-            } else {
-                if (previousMode == TimerMode.QUEST_COUNTDOWN) {
-                    notificationHelper.showQuestAlertNotification("Quest Complete!", "Great job!")
-                }
-                val overtimeDuration = Duration.ofMillis(now - questEndTime)
-                _timerState.value = TimerState(TimerMode.OVERTIME, overtimeDuration, activeQuest.id)
-
-                val overtimeMinutes = overtimeDuration.toMinutes()
-                if (overtimeMinutes > 0 && overtimeMinutes % 5 == 0L && overtimeMinutes != lastNotifiedOvertimeMinute) {
-                    notificationHelper.showQuestAlertNotification("Quest Overdue", "You've been in overtime for $overtimeMinutes minutes.")
-                    lastNotifiedOvertimeMinute = overtimeMinutes
-                }
-            }
-            updateNotification()
-            return
-        }
-
         val recentlyCompleted = allQuests
             .filter { it.last_completed_on == today && it.break_duration_minutes > 0 && it.last_completed_at > 0 }
             .maxByOrNull { it.last_completed_at }
 
-        if (recentlyCompleted != null) {
+        var currentStateHandled = false
+
+        // 1. Check for active quest
+        if (activeQuest != null && activeQuest.quest_duration_minutes > 0) {
+            currentStateHandled = true
+            val questEndTime = activeQuest.quest_started_at + TimeUnit.MINUTES.toMillis(activeQuest.quest_duration_minutes.toLong())
+
+            // Cancel alarms for previous quest if different
+            if (previousState.activeQuestId != null && previousState.activeQuestId != activeQuest.id) {
+                cancelAlarmsForQuest(previousState.activeQuestId!!)
+            }
+
+            if (now < questEndTime) {
+                // State: QUEST_COUNTDOWN
+                _timerState.value = TimerState(TimerMode.QUEST_COUNTDOWN, Duration.ofMillis(questEndTime - now), activeQuest.id)
+                if (previousState.mode != TimerMode.QUEST_COUNTDOWN) {
+                    // New state, schedule completion alarm
+                    AlarmHelper.setAlarm(
+                        this, questEndTime, activeQuest.id.hashCode(),
+                        AlarmHelper.ALARM_TYPE_QUEST_COMPLETE, activeQuest.id,
+                        "Quest Complete!", "Great job!"
+                    )
+                }
+            } else {
+                // State: OVERTIME (Quest)
+                val overtimeDuration = Duration.ofMillis(now - questEndTime)
+                _timerState.value = TimerState(TimerMode.OVERTIME, overtimeDuration, activeQuest.id)
+                if (previousState.mode == TimerMode.QUEST_COUNTDOWN) {
+                    // Just finished, schedule first overdue alarm
+                    AlarmHelper.setAlarm(
+                        this, questEndTime + TimeUnit.MINUTES.toMillis(5),
+                        activeQuest.id.hashCode() + OVERDUE_QUEST_ALARM_OFFSET,
+                        AlarmHelper.ALARM_TYPE_QUEST_OVERDUE, activeQuest.id,
+                        "Quest Overdue", "You've been in overtime for 5 minutes.",
+                        questEndTime
+                    )
+                }
+            }
+        }
+        // 2. Check for break
+        else if (recentlyCompleted != null) {
+            currentStateHandled = true
             val breakEndTime = recentlyCompleted.last_completed_at + TimeUnit.MINUTES.toMillis(recentlyCompleted.break_duration_minutes.toLong())
 
-            if (now < breakEndTime) {
-                val remaining = Duration.ofMillis(breakEndTime - now)
-                _timerState.value = TimerState(TimerMode.BREAK, remaining, recentlyCompleted.id)
-            } else {
-                if (previousMode == TimerMode.BREAK) {
-                    notificationHelper.showQuestAlertNotification("Break's Over!", "Time to start a new quest.")
-                }
-                _timerState.value = TimerState(TimerMode.INACTIVE)
+            // Cancel alarms for previous quest if different
+            if (previousState.activeQuestId != null && previousState.activeQuestId != recentlyCompleted.id) {
+                cancelAlarmsForQuest(previousState.activeQuestId!!)
             }
-            updateNotification()
-            return
+
+            if (now < breakEndTime) {
+                // State: BREAK
+                _timerState.value = TimerState(TimerMode.BREAK, Duration.ofMillis(breakEndTime - now), recentlyCompleted.id)
+                if (previousState.mode != TimerMode.BREAK) {
+                    // New state, schedule break over alarm
+                    AlarmHelper.setAlarm(
+                        this, breakEndTime, recentlyCompleted.id.hashCode(),
+                        AlarmHelper.ALARM_TYPE_BREAK_OVER, recentlyCompleted.id,
+                        "Break's Over!", "Time to get back to it."
+                    )
+                }
+            } else {
+                // State: OVERTIME (Break)
+                val overtimeDuration = Duration.ofMillis(now - breakEndTime)
+                _timerState.value = TimerState(TimerMode.OVERTIME, overtimeDuration, recentlyCompleted.id)
+                if (previousState.mode == TimerMode.BREAK) {
+                    // Just finished, schedule first overdue alarm
+                    AlarmHelper.setAlarm(
+                        this, breakEndTime + TimeUnit.MINUTES.toMillis(5),
+                        recentlyCompleted.id.hashCode() + OVERDUE_BREAK_ALARM_OFFSET,
+                        AlarmHelper.ALARM_TYPE_BREAK_OVERDUE, recentlyCompleted.id,
+                        "Break Overdue", "You've been in overtime for 5 minutes.",
+                        breakEndTime
+                    )
+                }
+            }
         }
 
-        _timerState.value = TimerState()
+        // 3. If no active state, go to INACTIVE
+        if (!currentStateHandled) {
+            if (previousState.activeQuestId != null) {
+                cancelAlarmsForQuest(previousState.activeQuestId!!)
+            }
+            _timerState.value = TimerState()
+        }
+
         updateNotification()
+    }
+
+    private fun cancelAlarmsForQuest(questId: String) {
+        val questIdHash = questId.hashCode()
+        AlarmHelper.cancelAlarm(this, questIdHash)
+        AlarmHelper.cancelAlarm(this, questIdHash + OVERDUE_QUEST_ALARM_OFFSET)
+        AlarmHelper.cancelAlarm(this, questIdHash + OVERDUE_BREAK_ALARM_OFFSET)
     }
 
     private fun updateNotification() {
@@ -112,11 +166,22 @@ class TimerService : Service() {
     private fun formatDuration(duration: Duration): String {
         val seconds = duration.seconds
         val absSeconds = kotlin.math.abs(seconds)
-        val positive = String.format(
-            "%02d:%02d",
-            (absSeconds % 3600) / 60,
-            absSeconds % 60
-        )
+
+        val positive = if (absSeconds >= 3600) {
+            String.format(
+                "%02d:%02d:%02d",
+                absSeconds / 3600,
+                (absSeconds % 3600) / 60,
+                absSeconds % 60
+            )
+        } else {
+            String.format(
+                "%02d:%02d",
+                (absSeconds % 3600) / 60,
+                absSeconds % 60
+            )
+        }
+
         return if (seconds < 0) "-$positive" else positive
     }
 
@@ -127,7 +192,9 @@ class TimerService : Service() {
         serviceScope.cancel()
     }
 
-    companion object {
+        companion object {
+        private const val OVERDUE_QUEST_ALARM_OFFSET = 10000 // Offset to avoid collision
+        private const val OVERDUE_BREAK_ALARM_OFFSET = 20000 // Offset to avoid collision
         private val _timerState = MutableStateFlow(TimerState())
         val timerState = _timerState.asStateFlow()
     }

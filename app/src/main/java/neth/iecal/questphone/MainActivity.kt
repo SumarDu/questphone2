@@ -51,6 +51,7 @@ import neth.iecal.questphone.utils.triggerQuestSync
 import neth.iecal.questphone.utils.requestNotificationPermission
 import neth.iecal.questphone.ui.screens.game.StoreScreen
 import neth.iecal.questphone.ui.screens.launcher.AppsListScreen
+import neth.iecal.questphone.ui.screens.stats.StatsScreen
 
 
 class MainActivity : ComponentActivity() {
@@ -202,6 +203,10 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Screen.AppList.route) {
                             AppsListScreen(navController)
+                        }
+
+                        composable(Screen.Stats.route) {
+                            StatsScreen(navController)
                         }
                     }
                 }
