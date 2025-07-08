@@ -58,7 +58,7 @@ class TimerService : Service() {
 
         val activeQuest = allQuests.firstOrNull { it.quest_started_at > 0 && it.last_completed_on != today }
         val recentlyCompleted = allQuests
-            .filter { it.last_completed_on == today && it.break_duration_minutes > 0 && it.last_completed_at > 0 }
+            .filter { it.last_completed_at > it.quest_started_at && it.break_duration_minutes > 0 }
             .maxByOrNull { it.last_completed_at }
 
         var currentStateHandled = false

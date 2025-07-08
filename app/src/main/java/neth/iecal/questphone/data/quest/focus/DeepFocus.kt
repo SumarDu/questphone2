@@ -14,13 +14,19 @@ import neth.iecal.questphone.ui.screens.quest.setup.ExcludeFromReviewDialog
 @Serializable
 data class DeepFocus(
     var focusTimeConfig: FocusTimeConfig = FocusTimeConfig(),
-    var unrestrictedApps: Set<String> = emptySet(),
+    val unrestrictedApps: List<String> = emptyList(),
+    val currentRegularTopic: String? = null,
+    val currentExtraTopic: String? = null,
     @ExcludeFromReviewDialog
     var nextFocusDurationInMillis : Long = 0L,
     var breakDurationInMillis: Long = 0L,
     var minWorkSessions: Int = 1,
     var maxWorkSessions: Int = 5,
-    var longBreakDurationInMillis: Long = 0L
+    var longBreakDurationInMillis: Long = 0L,
+    var reward_per_extra_session: Int = 0,
+    var long_break_after_sessions: Int = 0,
+    @ExcludeFromReviewDialog
+    var completedWorkSessions: Int = 0
 ){
     fun incrementTime() {
     if (nextFocusDurationInMillis < focusTimeConfig.finalTimeInMs) {

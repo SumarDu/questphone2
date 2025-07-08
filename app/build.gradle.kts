@@ -29,6 +29,10 @@ android {
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // Supabase keys
+        buildConfigField("String", "SUPABASE_URL", "\"${localProperties.getProperty("supabase.url")}\"")
+        buildConfigField("String", "SUPABASE_KEY", "\"${localProperties.getProperty("supabase.key")}\"")
+
     }
 
     flavorDimensions += "distribution"
@@ -106,6 +110,11 @@ dependencies {
 
     // DataStore Preferences
     implementation(libs.androidx.datastore.preferences)
+
+    // Supabase
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.3.0")
+    implementation("io.github.jan-tennert.supabase:realtime-kt:2.3.0")
+    implementation("io.github.jan-tennert.supabase:storage-kt:2.3.0")
 
     // Gemini API
     implementation("com.google.ai.client.generativeai:generativeai:0.8.0")

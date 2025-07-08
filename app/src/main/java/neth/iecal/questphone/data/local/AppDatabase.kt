@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import neth.iecal.questphone.data.local.AppAlias
+import neth.iecal.questphone.data.local.AppAliasDao
 
 @Database(entities = [AppAlias::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {

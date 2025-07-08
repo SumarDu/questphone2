@@ -70,6 +70,8 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
     val minWorkSessions = remember { mutableStateOf(1) }
     val maxWorkSessions = remember { mutableStateOf(5) }
     val longBreakDuration = remember { mutableStateOf(0L) }
+    val rewardPerExtraSession = remember { mutableStateOf(0) }
+    val longBreakAfterSessions = remember { mutableStateOf(0) }
 
     val scrollState = rememberScrollState()
     val sp = QuestHelper(context)
@@ -90,6 +92,8 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
             minWorkSessions.value = deepFocus.minWorkSessions
             maxWorkSessions.value = deepFocus.maxWorkSessions
             longBreakDuration.value = deepFocus.longBreakDurationInMillis
+            rewardPerExtraSession.value = deepFocus.reward_per_extra_session
+            longBreakAfterSessions.value = deepFocus.long_break_after_sessions
         }
     }
     LaunchedEffect(apps) {
@@ -108,12 +112,14 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
     if (isReviewDialogVisible.value) {
         val deepFocus = DeepFocus(
             focusTimeConfig = focusTimeConfig.value,
-            unrestrictedApps = selectedApps.toSet(),
+            unrestrictedApps = selectedApps.toList(),
             breakDurationInMillis = breakDuration.value,
             minWorkSessions = minWorkSessions.value,
             maxWorkSessions = maxWorkSessions.value,
             longBreakDurationInMillis = longBreakDuration.value,
-            nextFocusDurationInMillis = focusTimeConfig.value.initialTimeInMs,
+            reward_per_extra_session = rewardPerExtraSession.value,
+            long_break_after_sessions = longBreakAfterSessions.value,
+            nextFocusDurationInMillis = focusTimeConfig.value.initialTimeInMs
         )
         val baseQuest =
             questInfoState.toBaseQuest<DeepFocus>(deepFocus)
@@ -214,9 +220,23 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
                     )
 
                     OutlinedTextField(
-                        value = longBreakDuration.value.toString(),
-                        onValueChange = { longBreakDuration.value = it.toLongOrNull() ?: 0L },
-                        label = { Text("Long Break Duration (ms)") },
+                        value = (longBreakDuration.value / 60000).toString(),
+                        onValueChange = { longBreakDuration.value = (it.toLongOrNull() ?: 0L) * 60000 },
+                        label = { Text("Long Break Duration (minutes)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = rewardPerExtraSession.value.toString(),
+                        onValueChange = { rewardPerExtraSession.value = it.toIntOrNull() ?: 0 },
+                        label = { Text("Reward per Extra Session") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = longBreakAfterSessions.value.toString(),
+                        onValueChange = { longBreakAfterSessions.value = it.toIntOrNull() ?: 0 },
+                        label = { Text("Long Break After Sessions") },
                         modifier = Modifier.fillMaxWidth()
                     )
 

@@ -28,6 +28,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import neth.iecal.questphone.data.DayOfWeek
 import neth.iecal.questphone.data.IntegrationId
+import neth.iecal.questphone.data.quest.focus.DeepFocusSessionLog
+import neth.iecal.questphone.data.quest.focus.DeepFocusSessionLogDao
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.utils.json
 import java.util.UUID
@@ -220,11 +222,12 @@ interface QuestDao {
 
 
 
-@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class], version = 7, exportSchema = false)
+@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class], version = 13, exportSchema = false)
 @TypeConverters(BaseQuestConverter::class)
 abstract class QuestDatabase : RoomDatabase() {
     abstract fun appUnlockerItemDao(): AppUnlockerItemDao
     abstract fun questDao(): QuestDao
+    abstract fun deepFocusSessionLogDao(): DeepFocusSessionLogDao
 }
 
 

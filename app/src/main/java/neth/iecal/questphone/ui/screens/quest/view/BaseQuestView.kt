@@ -48,7 +48,18 @@ import neth.iecal.questphone.data.game.useInventoryItem
 import neth.iecal.questphone.utils.VibrationHelper
 
 @Composable
-fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: Boolean = false, onQuestStarted: () -> Unit, loadingAnimationDuration: Int = 3000,isFailed: MutableState<Boolean> = mutableStateOf(false), progress:MutableFloatState = mutableFloatStateOf(0f),onQuestCompleted: ()->Unit = {}, isQuestCompleted: MutableState<Boolean> = mutableStateOf(false), questViewBody : @Composable () -> Unit,) {
+fun BaseQuestView(
+    startButtonTitle: String = "Start Quest",
+    hideStartQuestBtn: Boolean = false,
+    onQuestStarted: () -> Unit,
+    loadingAnimationDuration: Int = 3000,
+    isFailed: MutableState<Boolean> = mutableStateOf(false),
+    progress: MutableFloatState = mutableFloatStateOf(0f),
+    onQuestCompleted: () -> Unit = {},
+    isQuestCompleted: MutableState<Boolean> = mutableStateOf(false),
+    questStartComponent: (@Composable () -> Unit)? = null,
+    questViewBody: @Composable () -> Unit,
+) {
     val context = LocalContext.current
 
     val scrollState = rememberScrollState()
@@ -57,13 +68,10 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
         animationSpec = tween(durationMillis = loadingAnimationDuration, easing = LinearEasing)
     )
 
-
-
-
     Box(Modifier.fillMaxSize()) {
         Canvas(Modifier.fillMaxSize()) {
             drawRect(
-                color = if(!isFailed.value) Color(0xFF006064) else Color(0xFFB00023),
+                color = if (!isFailed.value) Color(0xFF006064) else Color(0xFFB00023),
                 size = Size(size.width, animatedProgress * size.height),
             )
         }
@@ -71,12 +79,14 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
             floatingActionButton = {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-
-                        if(!hideStartQuestBtn) {
+                if (!hideStartQuestBtn) {
+                    if (questStartComponent != null) {
+                        questStartComponent()
+                    } else {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Spacer(modifier = Modifier.width(15.dp))
                             Button(
                                 onClick = {
@@ -88,8 +98,9 @@ fun BaseQuestView(startButtonTitle: String = "Start Quest", hideStartQuestBtn: B
                             }
                         }
                     }
+                }
             },
-            floatingActionButtonPosition = FabPosition.End
+            floatingActionButtonPosition = FabPosition.Center
         ) { innerPadding ->
 
             Column(
