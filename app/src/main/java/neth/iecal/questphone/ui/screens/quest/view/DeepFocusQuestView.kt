@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import neth.iecal.questphone.data.timer.TimerMode
 import neth.iecal.questphone.data.timer.TimerService
+import android.util.Log
 import neth.iecal.questphone.ui.screens.launcher.TimerViewModel
 import java.util.concurrent.TimeUnit
 import androidx.compose.foundation.background
@@ -60,6 +61,7 @@ import neth.iecal.questphone.data.game.xpToRewardForQuest
 import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.data.quest.focus.DeepFocusSessionLog
+import neth.iecal.questphone.data.remote.SupabaseSyncService
 import neth.iecal.questphone.data.quest.focus.DeepFocus
 import androidx.work.Constraints
 import androidx.work.NetworkType
@@ -91,7 +93,16 @@ fun DeepFocusQuestView(
     commonQuestInfo: CommonQuestInfo
 ) {
     val context = LocalContext.current
-    var deepFocus by remember(commonQuestInfo.quest_json) { mutableStateOf(json.decodeFromString<DeepFocus>(commonQuestInfo.quest_json)) }
+        var deepFocus by remember(commonQuestInfo) { mutableStateOf(json.decodeFromString<DeepFocus>(commonQuestInfo.quest_json)) }
+
+    LaunchedEffect(deepFocus) {
+        val updatedJson = json.encodeToString(deepFocus)
+        if (updatedJson != commonQuestInfo.quest_json) {
+            commonQuestInfo.quest_json = updatedJson
+            val dao = QuestDatabaseProvider.getInstance(context).questDao()
+            dao.upsertQuest(commonQuestInfo)
+        }
+    }
     val duration = deepFocus.nextFocusDurationInMillis
     val isInTimeRange = remember { mutableStateOf(QuestHelper.Companion.isInTimeRange(commonQuestInfo)) }
 
@@ -189,8 +200,7 @@ fun DeepFocusQuestView(
         commonQuestInfo.last_completed_on = getCurrentDate()
         commonQuestInfo.last_completed_at = System.currentTimeMillis()
         isQuestComplete.value = true
-        // Reset for the next cycle, including topics
-        deepFocus = deepFocus.copy(completedWorkSessions = 0, currentRegularTopic = null, currentExtraTopic = null)
+        // The quest cycle is complete. The state will be reset after the session review.
     }
 
     // Set break duration for the upcoming break
@@ -210,6 +220,7 @@ fun DeepFocusQuestView(
     commonQuestInfo.last_completed_at = System.currentTimeMillis() // Signal break start
 
     scope.launch {
+        Log.d("DeepFocusQuestView", "Saving Deep Focus session to local DB for quest: ${commonQuestInfo.id}")
         dao.upsertQuest(commonQuestInfo)
 
         // Log stats only when the minimum sessions are completed
@@ -338,8 +349,10 @@ fun DeepFocusQuestView(
         }
     }
 
-    if (showSessionReviewDialog.value) {
-        SessionReviewDialog(
+        if (showSessionReviewDialog.value) {
+        val sessionLogDao = QuestDatabaseProvider.getInstance(context).deepFocusSessionLogDao()
+        val supabaseSyncService = SupabaseSyncService()
+                SessionReviewDialog(
             onDismiss = {
                 showSessionReviewDialog.value = false
                 showQuestCompletionDialogIfNeeded()
@@ -363,17 +376,18 @@ fun DeepFocusQuestView(
                         productivity = productivity,
                         wordsStudied = wordsStudied
                     )
+
+                    Log.d("DeepFocusQuestView", "Saving Deep Focus session log to local DB: ${newLog.client_uuid}")
                     deepFocusSessionLogDao.insert(newLog)
 
-                    val constraints = Constraints.Builder()
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .build()
+                    Log.d("DeepFocusQuestView", "Syncing Deep Focus session log to Supabase: ${newLog.client_uuid}")
+                    supabaseSyncService.syncDeepFocusLog(newLog)
 
-                    val syncWorkRequest = OneTimeWorkRequestBuilder<neth.iecal.questphone.workers.SyncWorker>()
-                        .setConstraints(constraints)
-                        .build()
-
-                    WorkManager.getInstance(context).enqueue(syncWorkRequest)
+                    val justCompletedSessions = deepFocus.completedWorkSessions
+                    if (justCompletedSessions >= deepFocus.maxWorkSessions) {
+                        // This was the last session, reset the quest topics and session count for the next cycle
+                        deepFocus = deepFocus.copy(completedWorkSessions = 0, currentRegularTopic = null, currentExtraTopic = null)
+                    }
                 }
                 showSessionReviewDialog.value = false
                 showQuestCompletionDialogIfNeeded()

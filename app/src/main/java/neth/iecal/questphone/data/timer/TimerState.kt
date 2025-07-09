@@ -12,5 +12,6 @@ enum class TimerMode {
 data class TimerState(
     val mode: TimerMode = TimerMode.INACTIVE,
     val time: Duration = Duration.ZERO,
-    val activeQuestId: String? = null
+    val activeQuestId: String? = null,
+    val isBreakOvertime: Boolean = false
 )

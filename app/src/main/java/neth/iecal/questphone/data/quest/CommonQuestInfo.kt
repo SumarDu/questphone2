@@ -72,7 +72,9 @@ data class CommonQuestInfo(
     var quest_started_at: Long = 0,
     @Transient
     var synced: Boolean = false,
-    var last_updated: Long = System.currentTimeMillis()
+    var last_updated: Long = System.currentTimeMillis(),
+    var color_rgba: String = ""
+
 )
 
 
@@ -91,7 +93,8 @@ class QuestInfoState(
     initialQuestDurationMinutes: Int = 0,
     initialBreakDurationMinutes: Int = 0,
     initialLastCompletedAt: Long = 0,
-    initialQuestStartedAt: Long = 0
+    initialQuestStartedAt: Long = 0,
+    initialColorRgba: String = ""
 ) {
     var id = UUID.randomUUID().toString()
     var title by mutableStateOf(initialTitle)
@@ -108,6 +111,7 @@ class QuestInfoState(
     var breakDurationMinutes by mutableIntStateOf(initialBreakDurationMinutes)
     var lastCompletedAt by mutableLongStateOf(initialLastCompletedAt)
     var questStartedAt by mutableLongStateOf(initialQuestStartedAt)
+    var colorRgba by mutableStateOf(initialColorRgba)
 
     inline fun < reified T : Any> toBaseQuest(questInfo: T? = null) = CommonQuestInfo(
         id = id,
@@ -125,7 +129,8 @@ class QuestInfoState(
         quest_duration_minutes = questDurationMinutes,
         break_duration_minutes = breakDurationMinutes,
         last_completed_at = lastCompletedAt,
-        quest_started_at = questStartedAt
+        quest_started_at = questStartedAt,
+        color_rgba = colorRgba
     )
     fun fromBaseQuest(commonQuestInfo: CommonQuestInfo){
         id = commonQuestInfo.id
@@ -143,6 +148,7 @@ class QuestInfoState(
         breakDurationMinutes = commonQuestInfo.break_duration_minutes
         lastCompletedAt = commonQuestInfo.last_completed_at
         questStartedAt = commonQuestInfo.quest_started_at
+        colorRgba = commonQuestInfo.color_rgba
     }
 }
 
@@ -222,7 +228,7 @@ interface QuestDao {
 
 
 
-@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class], version = 13, exportSchema = false)
+@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class], version = 14, exportSchema = false)
 @TypeConverters(BaseQuestConverter::class)
 abstract class QuestDatabase : RoomDatabase() {
     abstract fun appUnlockerItemDao(): AppUnlockerItemDao

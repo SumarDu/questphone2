@@ -141,6 +141,7 @@ dependencies {
 
     implementation (libs.coil.compose)
 
+    implementation("com.github.skydoves:colorpicker-compose:1.0.0")
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

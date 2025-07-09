@@ -29,6 +29,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
@@ -120,13 +121,14 @@ fun ListAllQuests(navHostController: NavHostController) {
                         singleLine = true
                     )
                 }
-                                items(filteredQuestList) { questBase: CommonQuestInfo ->
+                                                items(filteredQuestList) { questBase: CommonQuestInfo ->
                     QuestItem(
                         quest = questBase,
                         onClick = {
                             navHostController.navigate(Screen.QuestStats.route + questBase.id)
                         },
-                        onDelete = { viewModel.onQuestDeleteRequest(questBase) }
+                        onDelete = { viewModel.onQuestDeleteRequest(questBase) },
+                        onClone = { viewModel.onQuestCloneRequest(questBase) }
                     )
                 }
             }
@@ -157,7 +159,8 @@ fun ListAllQuests(navHostController: NavHostController) {
 private fun QuestItem(
     quest: CommonQuestInfo,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onClone: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Card(
@@ -199,6 +202,9 @@ private fun QuestItem(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f)
                         )
+                        IconButton(onClick = onClone) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Clone quest")
+                        }
                         IconButton(onClick = onDelete) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete quest")
                         }

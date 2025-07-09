@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.UUID
 import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.data.quest.QuestDao
 import neth.iecal.questphone.data.settings.SettingsRepository
@@ -47,8 +48,19 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
         }
     }
 
-    fun onSearchQueryChange(query: String) {
+        fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
+    }
+
+        fun onQuestCloneRequest(quest: CommonQuestInfo) {
+        viewModelScope.launch {
+            val originalQuest = questDao.getQuestById(quest.id)
+            originalQuest?.let {
+                                val clonedQuest = it.copy(id = UUID.randomUUID().toString(), title = "${it.title} (Clone)")
+                questDao.upsertQuest(clonedQuest)
+                Toast.makeText(getApplication(), "Quest cloned", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     fun onQuestDeleteRequest(quest: CommonQuestInfo) {
