@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -20,13 +21,15 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
 
     private val settingsRepository = SettingsRepository(application)
 
-    private val _quests = MutableStateFlow<List<CommonQuestInfo>>(emptyList())
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
 
     val questToDelete = MutableStateFlow<CommonQuestInfo?>(null)
 
-    val filteredQuests = _quests.combine(_searchQuery) { quests, query ->
+    private val allQuests: Flow<List<CommonQuestInfo>> = questDao.getPermanentQuests()
+    private val clonedQuests: Flow<List<CommonQuestInfo>> = questDao.getClonedQuests()
+
+    val filteredQuests = allQuests.combine(searchQuery) { quests, query ->
         if (query.isBlank()) {
             quests
         } else {
@@ -36,14 +39,12 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
         }
     }
 
-    init {
-        loadQuests()
-    }
-
-    private fun loadQuests() {
-        viewModelScope.launch {
-            questDao.getAllQuests().collect {
-                _quests.value = it
+    val filteredClonedQuests = clonedQuests.combine(searchQuery) { quests, query ->
+        if (query.isBlank()) {
+            quests
+        } else {
+            quests.filter {
+                it.title.contains(query, ignoreCase = true) || it.instructions.contains(query, ignoreCase = true)
             }
         }
     }

@@ -201,6 +201,12 @@ interface QuestDao {
     @Query("SELECT * FROM CommonQuestInfo")
     fun getAllQuests(): Flow<List<CommonQuestInfo>>
 
+    @Query("SELECT * FROM CommonQuestInfo WHERE auto_destruct = '9999-12-31'")
+    fun getPermanentQuests(): Flow<List<CommonQuestInfo>>
+
+    @Query("SELECT * FROM CommonQuestInfo WHERE auto_destruct != '9999-12-31'")
+    fun getClonedQuests(): Flow<List<CommonQuestInfo>>
+
     @Query("SELECT * FROM CommonQuestInfo")
     suspend fun getAllQuestsSuspend(): List<CommonQuestInfo>
 

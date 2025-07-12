@@ -382,86 +382,30 @@ fun HomeScreen(navController: NavController) {
                         isCompleted = isCompleted,
                         isFailed = isOver,
                         isActive = isActive,
-                         modifier = Modifier.clickable {
+                        modifier = Modifier.clickable(enabled = timerMode != TimerMode.UNPLANNED_BREAK && timerMode != TimerMode.INFO && !(timerState.isDeepFocusLocking && baseQuest.id != timerState.activeQuestId)) {
                             // --- Quest Locking Logic ---
 
-                            // 1. Check for a strict "Deep Focus" lock on REGULAR sessions.
-                            val activeQuest = questList.firstOrNull { it.id == timerState.activeQuestId }
-                            var isDeepFocusLocking = false
-                            if (activeQuest != null &&
-                                activeQuest.id != baseQuest.id &&
-                                activeQuest.integration_id == IntegrationId.DEEP_FOCUS &&
-                                timerMode != TimerMode.INACTIVE) {
+                            // 1. Standard SwiftMark check (only if not locked by Deep Focus)
+                            if (baseQuest.integration_id == IntegrationId.SWIFT_MARK) {
+                                val sharedPreferences = context.getSharedPreferences("swift_mark_prefs", MODE_PRIVATE)
+                                val isConfirmed = sharedPreferences.getBoolean("is_confirmed_${baseQuest.id}", false)
 
-                                try {
-                                    val deepFocus = json.decodeFromString<DeepFocus>(activeQuest.quest_json)
-                                    // A session is "regular" if the number of completed sessions is less than the minimum required.
-                                    val isRegularSession = deepFocus.completedWorkSessions < deepFocus.minWorkSessions
-
-                                    // The quest is fully complete after the maximum number of sessions.
-                                    val isQuestFullyComplete = deepFocus.completedWorkSessions >= deepFocus.maxWorkSessions
-
-                                    // Lock only during the countdown of a regular session.
-                                    // This ensures no lock during breaks, additional sessions, or after the quest is fully complete.
-                                    if (isRegularSession && !isQuestFullyComplete && timerMode == TimerMode.QUEST_COUNTDOWN) {
-                                        isDeepFocusLocking = true
-                                    }
-                                } catch (e: Exception) {
-                                    // Handle potential JSON parsing errors gracefully
-                                    Log.e("HomeScreen", "Failed to parse DeepFocus JSON", e)
+                                if (!isConfirmed) {
+                                    selectedQuestForConfirmation = baseQuest
+                                    showStartConfirmation = true
+                                } else {
+                                    viewQuest(baseQuest, navController)
                                 }
-                            }
-
-                            // 2. Check for a standard "Swift Mark" lock.
-                            val isSwiftMarkLockingState = timerMode == TimerMode.QUEST_COUNTDOWN || (timerMode == TimerMode.OVERTIME && !timerState.isBreakOvertime)
-                            val isSwiftMarkLocking = questList.any { quest ->
-                                quest.id != baseQuest.id && // It's another quest
-                                quest.id == timerState.activeQuestId && // It's the active one
-                                quest.integration_id == IntegrationId.SWIFT_MARK && // It's a Swift Mark quest
-                                isSwiftMarkLockingState // It's in a locking state
-                            }
-
-                            // If either lock is active, do nothing.
-                            if (isDeepFocusLocking || isSwiftMarkLocking) {
-                                // UI is locked by another quest.
                             } else {
-                                // If the UI is not locked, determine the correct action for this quest.
-                                val isStarted = baseQuest.quest_started_at > 0
-
-                                val isPostQuestOvertime = timerState.activeQuestId == baseQuest.id &&
-                                        timerMode == TimerMode.OVERTIME &&
-                                        !timerState.isBreakOvertime
-
-                                val shouldShowFinishedDialog = baseQuest.integration_id == IntegrationId.SWIFT_MARK &&
-                                        (isPostQuestOvertime || (isStarted && timerState.activeQuestId != baseQuest.id))
-
-                                when {
-                                    isCompleted -> {
-                                        viewQuest(baseQuest, navController)
-                                    }
-                                    shouldShowFinishedDialog -> {
-                                        finishedQuestId = baseQuest.id
-                                        showQuestFinishedDialog = true
-                                    }
-                                    isActive -> {
-                                        viewQuest(baseQuest, navController)
-                                    }
-                                    baseQuest.integration_id != IntegrationId.SWIFT_MARK -> {
-                                        // For non-SwiftMark quests, clicking them directly opens the view without confirmation.
-                                        viewQuest(baseQuest, navController)
-                                    }
-                                    else -> {
-                                        selectedQuestForConfirmation = baseQuest
-                                        showStartConfirmation = true
-                                    }
-                                }
+                                // For non-SwiftMark quests, clicking them directly opens the view without confirmation.
+                                viewQuest(baseQuest, navController)
                             }
                         })
                 }
                 item {
                     QuestItem(
                         text = "Manage Quests",
-                        modifier = Modifier.clickable {
+                        modifier = Modifier.clickable(enabled = timerState.mode != TimerMode.INFO && !timerState.isDeepFocusLocking) {
                             navController.navigate(Screen.ListAllQuest.route)
                         }
                     )

@@ -16,7 +16,7 @@ import androidx.navigation.compose.rememberNavController
 import neth.iecal.questphone.ui.navigation.Screen
 import neth.iecal.questphone.ui.screens.account.SetupNewPassword
 import neth.iecal.questphone.ui.screens.onboard.OnBoardScreen
-import neth.iecal.questphone.ui.screens.pet.PetDialog
+
 import neth.iecal.questphone.ui.theme.LauncherTheme
 
 
@@ -31,13 +31,9 @@ class OnboardActivity : ComponentActivity() {
             LauncherTheme {
                 Surface {
                     val navController = rememberNavController()
-                    val isPetDialogVisible = remember { mutableStateOf(true) }
 
-                    PetDialog(
-                        petId = "turtie",
-                        isPetDialogVisible,
-                        navController
-                    )
+
+
 
                     NavHost(
                         navController = navController,

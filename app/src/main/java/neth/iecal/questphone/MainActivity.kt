@@ -36,7 +36,7 @@ import neth.iecal.questphone.ui.navigation.SetupQuestScreen
 import neth.iecal.questphone.ui.screens.launcher.HomeScreen
 import neth.iecal.questphone.ui.screens.onboard.SelectApps
 import neth.iecal.questphone.ui.screens.onboard.SelectAppsModes
-import neth.iecal.questphone.ui.screens.pet.PetDialog
+
 import neth.iecal.questphone.ui.screens.quest.ListAllQuests
 import neth.iecal.questphone.ui.screens.quest.RewardDialogMaker
 import neth.iecal.questphone.ui.screens.quest.ViewQuest
@@ -78,7 +78,7 @@ class MainActivity : ComponentActivity() {
             }
 
             val isUserOnboarded = remember {mutableStateOf(true)}
-            val isPetDialogVisible = remember { mutableStateOf(true) }
+
             LaunchedEffect(Unit) {
                 isUserOnboarded.value = data.getBoolean("onboard",false)
                 Log.d("onboard", isUserOnboarded.value.toString())
@@ -106,11 +106,6 @@ class MainActivity : ComponentActivity() {
                     val forceCurrentScreen = remember { derivedStateOf { Navigator.currentScreen } }
                     RewardDialogMaker()
 
-                    PetDialog(
-                        petId = "turtie",
-                        isPetDialogVisible,
-                        navController
-                    )
                     LaunchedEffect(Unit) {
                         unSyncedQuestItems.collect {
                             if (context.isOnline() && !User.userInfo.isAnonymous) {

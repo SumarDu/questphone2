@@ -61,6 +61,7 @@ fun ListAllQuests(navHostController: NavHostController) {
     )
 
     val filteredQuestList by viewModel.filteredQuests.collectAsState(initial = emptyList())
+    val filteredClonedQuestList by viewModel.filteredClonedQuests.collectAsState(initial = emptyList())
     val searchQuery by viewModel.searchQuery.collectAsState()
     val questToDelete by viewModel.questToDelete.collectAsState()
 
@@ -121,15 +122,32 @@ fun ListAllQuests(navHostController: NavHostController) {
                         singleLine = true
                     )
                 }
-                                                items(filteredQuestList) { questBase: CommonQuestInfo ->
+                items(filteredQuestList, key = { it.id }) { questBase ->
                     QuestItem(
                         quest = questBase,
                         onClick = {
-                            navHostController.navigate(Screen.QuestStats.route + questBase.id)
+                            navHostController.navigate(Screen.ViewQuest.route + questBase.id)
                         },
                         onDelete = { viewModel.onQuestDeleteRequest(questBase) },
                         onClone = { viewModel.onQuestCloneRequest(questBase) }
                     )
+                }
+
+                if (filteredClonedQuestList.isNotEmpty()) {
+                    item {
+                        Text("Cloned Quests",
+                            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold))
+                    }
+                    items(filteredClonedQuestList, key = { it.id }) { questBase ->
+                        QuestItem(
+                            quest = questBase,
+                            onClick = {
+                                navHostController.navigate(Screen.ViewQuest.route + questBase.id)
+                            },
+                            onDelete = { viewModel.onQuestDeleteRequest(questBase) },
+                            onClone = { viewModel.onQuestCloneRequest(questBase) }
+                        )
+                    }
                 }
             }
 

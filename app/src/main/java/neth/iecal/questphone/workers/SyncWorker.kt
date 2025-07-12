@@ -21,15 +21,36 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
 
         Log.d("SyncWorker", "Found ${unsyncedLogs.size} logs to sync.")
 
-        try {
-            for (log in unsyncedLogs) {
+        val successfullySyncedLogIds = mutableListOf<Long>()
+        var hasFailures = false
+
+        for (log in unsyncedLogs) {
+            try {
                 syncService.syncDeepFocusLog(log)
-                logDao.markAsSynced(listOf(log.id))
+                successfullySyncedLogIds.add(log.id)
+            } catch (e: Exception) {
+                Log.e("SyncWorker", "Failed to sync log with id ${log.id}, will retry later.", e)
+                hasFailures = true
             }
-            return Result.success()
-        } catch (e: Exception) {
-            Log.e("SyncWorker", "Error during sync, will retry.", e)
-            return Result.retry()
+        }
+
+        if (successfullySyncedLogIds.isNotEmpty()) {
+            try {
+                logDao.markAsSynced(successfullySyncedLogIds)
+                Log.d("SyncWorker", "Successfully marked ${successfullySyncedLogIds.size} logs as synced.")
+            } catch (e: Exception) {
+                Log.e("SyncWorker", "Failed to mark logs as synced.", e)
+                // If this fails, the logs will be re-synced next time, which is acceptable.
+                hasFailures = true
+            }
+        }
+
+        return if (hasFailures) {
+            Log.d("SyncWorker", "Sync finished with some failures, retrying later.")
+            Result.retry()
+        } else {
+            Log.d("SyncWorker", "Sync finished successfully.")
+            Result.success()
         }
     }
 }

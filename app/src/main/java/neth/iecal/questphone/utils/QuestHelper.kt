@@ -50,7 +50,7 @@ class QuestHelper(val context: Context) {
             val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
             val today = LocalDate.now()
             val autoDestruct = LocalDate.parse(baseData.auto_destruct, formatter)
-            return today >= autoDestruct
+            return today > autoDestruct
         }
     }
 }
