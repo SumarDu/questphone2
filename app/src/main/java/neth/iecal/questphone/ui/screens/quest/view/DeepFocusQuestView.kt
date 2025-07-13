@@ -109,7 +109,7 @@ fun DeepFocusQuestView(
     val timerViewModel: TimerViewModel = viewModel()
     val timerMode by timerViewModel.timerMode.collectAsState()
     val timerText by timerViewModel.timerText.collectAsState()
-    val timerState by TimerService.timerState.collectAsState()
+    val timerState by timerViewModel.timerState.collectAsState()
 
     val isQuestRunning by remember(timerMode, timerState) {
         mutableStateOf(timerMode == TimerMode.QUEST_COUNTDOWN && timerState.activeQuestId == commonQuestInfo.id)
@@ -351,7 +351,7 @@ fun DeepFocusQuestView(
 
         if (showSessionReviewDialog.value) {
         val sessionLogDao = QuestDatabaseProvider.getInstance(context).deepFocusSessionLogDao()
-        val supabaseSyncService = SupabaseSyncService()
+        val supabaseSyncService = SupabaseSyncService(context)
                 SessionReviewDialog(
             onDismiss = {
                 showSessionReviewDialog.value = false

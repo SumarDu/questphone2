@@ -11,7 +11,7 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
 
     override suspend fun doWork(): Result {
         val logDao = QuestDatabaseProvider.getInstance(applicationContext).deepFocusSessionLogDao()
-        val syncService = SupabaseSyncService()
+        val syncService = SupabaseSyncService(applicationContext)
 
         val unsyncedLogs = logDao.getUnsyncedLogs()
         if (unsyncedLogs.isEmpty()) {

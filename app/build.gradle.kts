@@ -111,17 +111,13 @@ dependencies {
     // DataStore Preferences
     implementation(libs.androidx.datastore.preferences)
 
+    // Gemini API
+    implementation("com.google.ai.client.generativeai:generativeai:0.8.0")
+
     // Supabase
     implementation("io.github.jan-tennert.supabase:postgrest-kt:2.3.0")
     implementation("io.github.jan-tennert.supabase:realtime-kt:2.3.0")
     implementation("io.github.jan-tennert.supabase:storage-kt:2.3.0")
-
-    // Gemini API
-    implementation("com.google.ai.client.generativeai:generativeai:0.8.0")
-
-
-
-
 
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)
@@ -139,12 +135,5 @@ dependencies {
     implementation (libs.androidx.camera.view)
     implementation (libs.guava)
 
-    implementation (libs.coil.compose)
-
     implementation("com.github.skydoves:colorpicker-compose:1.0.0")
-
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-
-    ksp(libs.androidx.room.compiler)
  }

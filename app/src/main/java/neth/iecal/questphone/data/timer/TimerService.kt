@@ -7,53 +7,48 @@ import android.os.IBinder
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ticker
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import neth.iecal.questphone.data.local.WardenDatabase
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import neth.iecal.questphone.data.local.AppDatabase
+import neth.iecal.questphone.data.local.QuestEvent
+import neth.iecal.questphone.data.local.QuestEventDao
 import neth.iecal.questphone.data.remote.SupabaseSyncService
-import neth.iecal.questphone.data.local.WardenEvent
-import neth.iecal.questphone.data.quest.QuestDatabaseProvider
-import neth.iecal.questphone.utils.NotificationHelper
 import neth.iecal.questphone.data.timer.AlarmHelper
+import neth.iecal.questphone.utils.NotificationHelper
 import neth.iecal.questphone.utils.getCurrentDate
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 class TimerService : Service() {
 
+    private val eventLoggingMutex = Mutex()
+
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private lateinit var notificationHelper: NotificationHelper
     private lateinit var questDao: neth.iecal.questphone.data.quest.QuestDao
-    private lateinit var wardenDao: neth.iecal.questphone.data.local.WardenDao
+    private lateinit var questEventDao: QuestEventDao
     private lateinit var supabaseSyncService: SupabaseSyncService
-    private var currentWardenEventId: Int? = null
-    private var endTimeUpdateJob: Job? = null
     private var stateBeforeUnplannedBreak: TimerState? = null
-    private var wardenEventIdBeforeUnplannedBreak: Int? = null
+    private var unplannedBreakStartTime: Long? = null
     private var temporaryAddedTimeMillis = 0L
     private var infoModeActive = false
     private var stateBeforeInfoMode: TimerState? = null
+    private var eventUpdateJob: Job? = null
 
     override fun onCreate() {
         super.onCreate()
         notificationHelper = NotificationHelper(this)
-        questDao = QuestDatabaseProvider.getInstance(this).questDao()
-        wardenDao = WardenDatabase.getDatabase(this).wardenDao()
-        supabaseSyncService = SupabaseSyncService()
+        questDao = neth.iecal.questphone.data.quest.QuestDatabaseProvider.getInstance(this).questDao()
+        questEventDao = AppDatabase.getDatabase(this).questEventDao()
+        supabaseSyncService = SupabaseSyncService(this)
         notificationHelper.createNotificationChannels()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START_UNPLANNED_BREAK -> {
-                startUnplannedBreak()
-                return START_STICKY
-            }
-            ACTION_STOP_UNPLANNED_BREAK -> {
-                stopUnplannedBreak()
-                return START_STICKY
-            }
             ACTION_COMPLETE_QUEST -> {
                 completeQuest()
                 return START_STICKY
@@ -77,7 +72,6 @@ class TimerService : Service() {
         )
 
         serviceScope.launch {
-            // Use a ticker channel for a fixed-rate timer to avoid drift and ensure smooth updates.
             val now = System.currentTimeMillis()
             val initialDelay = 1000 - (now % 1000)
             val tickerChannel = ticker(delayMillis = 1000, initialDelayMillis = initialDelay)
@@ -106,9 +100,6 @@ class TimerService : Service() {
             val referenceState = stateBeforeInfoMode ?: return
             val questId = referenceState.activeQuestId ?: return
 
-            val quest = allQuests.firstOrNull { it.id == questId }
-            val recentlyCompletedQuest = allQuests.firstOrNull { it.id == questId && it.last_completed_at > 0 }
-
             var stillValid = false
             var startTime: Long? = null
 
@@ -122,7 +113,7 @@ class TimerService : Service() {
                             startTime = quest.quest_started_at
                             stillValid = true
                         } else {
-                            startTime = null // Quest has ended, invalidate INFO mode
+                            startTime = null
                         }
                     } else {
                         startTime = null
@@ -142,16 +133,13 @@ class TimerService : Service() {
                         startTime = null
                     }
                 }
-                else -> {
-                    startTime = null
-                }
+                else -> startTime = null
             }
 
             if (stillValid && startTime != null) {
                 val elapsed = Duration.ofMillis(now - startTime)
                 _timerState.value = referenceState.copy(mode = TimerMode.INFO, time = elapsed)
             } else {
-                // The original context is no longer valid, so exit info mode.
                 infoModeActive = false
                 stateBeforeInfoMode = null
             }
@@ -163,15 +151,6 @@ class TimerService : Service() {
             temporaryAddedTimeMillis = 0L
         }
 
-        if (_timerState.value.mode == TimerMode.UNPLANNED_BREAK) {
-            val unplannedBreakEvent = wardenDao.getEventById(currentWardenEventId ?: -1)
-            if (unplannedBreakEvent != null) {
-                val duration = Duration.ofMillis(now - unplannedBreakEvent.startTime)
-                _timerState.value = _timerState.value.copy(time = duration)
-            }
-            return
-        }
-
         if (previousState.activeQuestId != null && previousState.activeQuestId != activeQuest?.id) {
             cancelAlarmsForQuest(previousState.activeQuestId)
         }
@@ -181,7 +160,6 @@ class TimerService : Service() {
             val questDurationMillis = TimeUnit.MINUTES.toMillis(activeQuest.quest_duration_minutes.toLong())
             val actualQuestEndsAt = activeQuest.quest_started_at + questDurationMillis + temporaryAddedTimeMillis
             val remaining = actualQuestEndsAt - now
-
             val needsAlarmUpdate = previousState.questEndsAt != actualQuestEndsAt
 
             if (now < actualQuestEndsAt) {
@@ -191,18 +169,9 @@ class TimerService : Service() {
                     activeQuestId = activeQuest.id,
                     questEndsAt = actualQuestEndsAt
                 )
-
                 if (needsAlarmUpdate) {
                     cancelAlarmsForQuest(activeQuest.id)
-                    AlarmHelper.setAlarm(
-                        context = this,
-                        timeInMillis = actualQuestEndsAt,
-                        requestCode = activeQuest.id.hashCode(),
-                        alarmType = AlarmHelper.ALARM_TYPE_QUEST_COMPLETE,
-                        questId = activeQuest.id,
-                        title = "Quest Complete!",
-                        message = "'${activeQuest.title}' is complete!"
-                    )
+                    AlarmHelper.setAlarm(this, actualQuestEndsAt, activeQuest.id.hashCode(), AlarmHelper.ALARM_TYPE_QUEST_COMPLETE, activeQuest.id, "Quest Complete!", "'${activeQuest.title}' is complete!")
                 }
             } else {
                 _timerState.value = TimerState(
@@ -212,24 +181,14 @@ class TimerService : Service() {
                     isBreakOvertime = false,
                     questEndsAt = actualQuestEndsAt
                 )
-
                 if (needsAlarmUpdate) {
                     cancelAlarmsForQuest(activeQuest.id)
-                    AlarmHelper.setAlarm(
-                        context = this,
-                        timeInMillis = now + OVERDUE_QUEST_ALARM_OFFSET, // 10 seconds from now
-                        requestCode = activeQuest.id.hashCode() + OVERDUE_QUEST_ALARM_OFFSET,
-                        alarmType = AlarmHelper.ALARM_TYPE_QUEST_OVERDUE,
-                        questId = activeQuest.id,
-                        title = "Quest Overdue!",
-                        message = "You are running overtime on '${activeQuest.title}'!"
-                    )
+                    AlarmHelper.setAlarm(this, now + OVERDUE_QUEST_ALARM_OFFSET, activeQuest.id.hashCode() + OVERDUE_QUEST_ALARM_OFFSET, AlarmHelper.ALARM_TYPE_QUEST_OVERDUE, activeQuest.id, "Quest Overdue!", "You are running overtime on '${activeQuest.title}'!")
                 }
             }
         } else if (recentlyCompleted != null) {
             currentStateHandled = true
             val breakEndsAt = recentlyCompleted.last_completed_at + TimeUnit.MINUTES.toMillis(recentlyCompleted.break_duration_minutes.toLong())
-
             var isLocking = false
             if (recentlyCompleted.integration_id == neth.iecal.questphone.data.IntegrationId.DEEP_FOCUS) {
                 try {
@@ -238,62 +197,41 @@ class TimerService : Service() {
                     if (deepFocus.completedWorkSessions < deepFocus.minWorkSessions && deepFocus.completedWorkSessions > 0) {
                         isLocking = true
                     }
-                } catch (e: Exception) {
-                    // Log error
-                }
+                } catch (e: Exception) { /* Log error */ }
             }
 
             if (now < breakEndsAt) {
                 val timeUntilBreakEnd = Duration.ofMillis(breakEndsAt - now)
-                _timerState.value = TimerState(
-                    mode = TimerMode.BREAK, 
-                    time = timeUntilBreakEnd, 
-                    activeQuestId = recentlyCompleted.id, 
-                    isDeepFocusLocking = isLocking
-                )
-
+                _timerState.value = TimerState(TimerMode.BREAK, timeUntilBreakEnd, recentlyCompleted.id, isDeepFocusLocking = isLocking)
                 if (previousState.mode != TimerMode.BREAK) {
                     cancelAlarmsForQuest(recentlyCompleted.id)
-                    AlarmHelper.setAlarm(
-                        context = this,
-                        timeInMillis = breakEndsAt,
-                        requestCode = recentlyCompleted.id.hashCode(),
-                        alarmType = AlarmHelper.ALARM_TYPE_BREAK_OVER,
-                        questId = recentlyCompleted.id,
-                        title = "Break Over!",
-                        message = "Time to get back to it."
-                    )
+                    AlarmHelper.setAlarm(this, breakEndsAt, recentlyCompleted.id.hashCode(), AlarmHelper.ALARM_TYPE_BREAK_OVER, recentlyCompleted.id, "Break Over!", "Time to get back to it.")
                 }
             } else {
                 val overtimeDuration = Duration.ofMillis(now - breakEndsAt)
-                _timerState.value = TimerState(
-                    mode = TimerMode.OVERTIME, 
-                    time = overtimeDuration, 
-                    activeQuestId = recentlyCompleted.id, 
-                    isBreakOvertime = true, 
-                    isDeepFocusLocking = isLocking
-                )
-
-                if (previousState.mode != TimerMode.OVERTIME || previousState.isBreakOvertime != true) {
+                _timerState.value = TimerState(TimerMode.OVERTIME, overtimeDuration, recentlyCompleted.id, isBreakOvertime = true, isDeepFocusLocking = isLocking)
+                if (previousState.mode != TimerMode.OVERTIME || !previousState.isBreakOvertime) {
                     cancelAlarmsForQuest(recentlyCompleted.id)
-                    AlarmHelper.setAlarm(
-                        context = this,
-                        timeInMillis = now + OVERDUE_BREAK_ALARM_OFFSET,
-                        requestCode = recentlyCompleted.id.hashCode() + OVERDUE_BREAK_ALARM_OFFSET,
-                        alarmType = AlarmHelper.ALARM_TYPE_BREAK_OVERDUE,
-                        questId = recentlyCompleted.id,
-                        title = "Break Overdue!",
-                        message = "You're taking too long of a break."
-                    )
+                    AlarmHelper.setAlarm(this, now + OVERDUE_BREAK_ALARM_OFFSET, recentlyCompleted.id.hashCode() + OVERDUE_BREAK_ALARM_OFFSET, AlarmHelper.ALARM_TYPE_BREAK_OVERDUE, recentlyCompleted.id, "Break Overdue!", "You're taking too long of a break.")
                 }
             }
         }
 
+        if (_timerState.value.mode == TimerMode.UNPLANNED_BREAK) {
+            unplannedBreakStartTime?.let { startTime ->
+                val duration = Duration.ofMillis(now - startTime)
+                _timerState.value = _timerState.value.copy(time = duration)
+            }
+            updateNotification()
+            return
+        }
+
         if (!currentStateHandled && _timerState.value.mode != TimerMode.INACTIVE) {
-            infoModeActive = false // Reset info mode when inactive
+            infoModeActive = false
             _timerState.value = TimerState(TimerMode.INACTIVE)
         }
 
+        handleEventLogging(previousState, _timerState.value)
         updateNotification()
     }
 
@@ -314,22 +252,11 @@ class TimerService : Service() {
     private fun formatDuration(duration: Duration): String {
         val seconds = duration.seconds
         val absSeconds = kotlin.math.abs(seconds)
-
         val positive = if (absSeconds >= 3600) {
-            String.format(
-                "%02d:%02d:%02d",
-                absSeconds / 3600,
-                (absSeconds % 3600) / 60,
-                absSeconds % 60
-            )
+            String.format("%02d:%02d:%02d", absSeconds / 3600, (absSeconds % 3600) / 60, absSeconds % 60)
         } else {
-            String.format(
-                "%02d:%02d",
-                (absSeconds % 3600) / 60,
-                absSeconds % 60
-            )
+            String.format("%02d:%02d", (absSeconds % 3600) / 60, absSeconds % 60)
         }
-
         return if (seconds < 0) "-$positive" else positive
     }
 
@@ -337,58 +264,25 @@ class TimerService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        serviceScope.cancel()
-    }
-
-    private fun startEndTimeUpdater() {
-        endTimeUpdateJob?.cancel()
-        endTimeUpdateJob = serviceScope.launch {
-            while (isActive) {
-                delay(30000) // Update every 30 seconds
-                currentWardenEventId?.let { eventId ->
-                    val currentTime = System.currentTimeMillis()
-                    wardenDao.updateEventEndTime(eventId, currentTime)
-                    wardenDao.getEventById(eventId)?.let {
-                        supabaseSyncService.syncWardenEvent(it)
-                    }
-                }
-            }
-        }
+        serviceScope.cancel() // Cancel the scope to clean up coroutines
     }
 
     private fun stopUnplannedBreak() {
         serviceScope.launch {
             val breakEndTime = System.currentTimeMillis()
             var breakDuration = 0L
+            unplannedBreakStartTime?.let { breakDuration = breakEndTime - it }
+            unplannedBreakStartTime = null
 
-            // Finalize the unplanned break event and get its duration
-            currentWardenEventId?.let {
-                wardenDao.updateEventEndTime(it, breakEndTime)
-                wardenDao.getEventById(it)?.let { event ->
-                    breakDuration = breakEndTime - event.startTime
-                    supabaseSyncService.syncWardenEvent(event)
-                }
-                currentWardenEventId = null
-            }
-
-            // Restore the previous state
             val previousState = stateBeforeUnplannedBreak
             _timerState.value = previousState ?: TimerState()
-            currentWardenEventId = wardenEventIdBeforeUnplannedBreak
             stateBeforeUnplannedBreak = null
-            wardenEventIdBeforeUnplannedBreak = null
 
-            // Adjust quest start time if we are returning to a quest
             if (previousState?.mode == TimerMode.QUEST_COUNTDOWN && previousState.activeQuestId != null && breakDuration > 0) {
                 questDao.getQuestById(previousState.activeQuestId)?.let {
                     val updatedQuest = it.copy(quest_started_at = it.quest_started_at + breakDuration)
                     questDao.upsertQuest(updatedQuest)
                 }
-            }
-
-            // If we are returning to an active event, re-register it and start the updater
-            if (currentWardenEventId != null) {
-                startEndTimeUpdater()
             }
         }
     }
@@ -396,16 +290,8 @@ class TimerService : Service() {
     private fun startUnplannedBreak() {
         serviceScope.launch {
             stateBeforeUnplannedBreak = _timerState.value
-            wardenEventIdBeforeUnplannedBreak = currentWardenEventId
-
-            val event = WardenEvent(
-                name = "unplanned_break",
-                startTime = System.currentTimeMillis(),
-                endTime = System.currentTimeMillis(),
-                color_rgba = "128,128,128,255" // Gray color
-            )
-            handleEventInsertion(event)
-            _timerState.value = TimerState(mode = TimerMode.UNPLANNED_BREAK, time = Duration.ZERO)
+            unplannedBreakStartTime = System.currentTimeMillis()
+            _timerState.value = TimerState(mode = TimerMode.UNPLANNED_BREAK)
         }
     }
 
@@ -414,25 +300,80 @@ class TimerService : Service() {
             val questId = _timerState.value.activeQuestId ?: return@launch
             val quest = questDao.getQuestById(questId) ?: return@launch
             val now = System.currentTimeMillis()
-
             cancelAlarmsForQuest(questId)
-
-            val completedQuest = quest.copy(
-                last_completed_on = getCurrentDate(),
-                last_completed_at = now
-            )
+            val completedQuest = quest.copy(last_completed_on = getCurrentDate(), last_completed_at = now)
             questDao.upsertQuest(completedQuest)
-            temporaryAddedTimeMillis = 0L // Reset added time
-
-            // Force an immediate state update
+            temporaryAddedTimeMillis = 0L
             updateTimerState()
         }
     }
 
     private fun addTime(timeInMillis: Long) {
-        // Add time only if the timer is in QUEST_COUNTDOWN mode.
         if (_timerState.value.mode == TimerMode.QUEST_COUNTDOWN && timeInMillis > 0) {
             temporaryAddedTimeMillis += timeInMillis
+        }
+    }
+
+    private fun getEventName(state: TimerState): String? {
+        val quest = state.activeQuestId?.let { runBlocking { questDao.getQuestById(it) } }
+        return when (state.mode) {
+            TimerMode.QUEST_COUNTDOWN -> quest?.title
+            TimerMode.OVERTIME -> if (state.isBreakOvertime) "overdue (break)" else "overdue (${quest?.title})"
+            TimerMode.BREAK -> "break"
+            else -> null
+        }
+    }
+
+    private suspend fun handleEventLogging(previousState: TimerState, currentState: TimerState) {
+        eventLoggingMutex.withLock {
+            val now = System.currentTimeMillis()
+            val latestEvent = questEventDao.getLatestEvent()
+            val newEventName = getEventName(currentState)
+
+            val isNewEventStarting = newEventName != null
+            val isActiveEventRunning = latestEvent != null && latestEvent.endTime == 0L
+
+            if (isNewEventStarting) {
+                // If no active event is running, or the new event is different, start a new event sequence.
+                if (!isActiveEventRunning || latestEvent?.eventName != newEventName) {
+                    // Close the previous event if it exists and is active.
+                    if (isActiveEventRunning) {
+                        val closedEvent = latestEvent!!.copy(endTime = now)
+                        questEventDao.updateEvent(closedEvent)
+                        serviceScope.launch { supabaseSyncService.syncSingleQuestEvent(closedEvent) }
+                    }
+
+                    // Create the new event.
+                    val quest = currentState.activeQuestId?.let { questDao.getQuestById(it) }
+                    val colorRgba = when {
+                        newEventName == "break" -> "0.13,0.59,0.2,1.0" // Green
+                        newEventName == "overdue (break)" -> "0.76,0.18,0.13,1.0" // Red
+                        newEventName.startsWith("overdue") -> "0.86,0.08,0.24,1.0" // Crimson
+                        else -> quest?.color_rgba ?: ""
+                    }
+
+                    val newEvent = QuestEvent(
+                        eventName = newEventName!!,
+                        startTime = now,
+                        endTime = 0L, // Mark as active
+                        colorRgba = colorRgba
+                    )
+                    questEventDao.insertEvent(newEvent)
+                    // After inserting, fetch the latest event to get the auto-generated ID
+                    val eventToSync = questEventDao.getLatestEvent()
+                    if (eventToSync != null) {
+                        serviceScope.launch { supabaseSyncService.syncSingleQuestEvent(eventToSync) }
+                    }
+                }
+                // Otherwise, the correct event is already running. Do nothing.
+            } else { // No new event should be running
+                // If an event is currently active, close it.
+                if (isActiveEventRunning) {
+                    val closedEvent = latestEvent!!.copy(endTime = now)
+                    questEventDao.updateEvent(closedEvent)
+                    serviceScope.launch { supabaseSyncService.syncSingleQuestEvent(closedEvent) }
+                }
+            }
         }
     }
 
@@ -450,35 +391,11 @@ class TimerService : Service() {
         }
     }
 
-    private fun handleEventInsertion(event: WardenEvent) {
-        serviceScope.launch {
-            // Stop the updater for the previous event
-            endTimeUpdateJob?.cancel()
 
-            // Get the start time for the new event, which will be the end time for the previous one.
-            val newEventStartTime = event.startTime
-
-            // Update the previous event with its final end time
-            currentWardenEventId?.let { previousEventId ->
-                wardenDao.updateEventEndTime(previousEventId, newEventStartTime)
-                // Sync the final state of the previous event
-                wardenDao.getEventById(previousEventId)?.let {
-                    supabaseSyncService.syncWardenEvent(it)
-                }
-            }
-
-            // Insert the new event and get its ID
-            val newEventId = wardenDao.insertEvent(event).toInt()
-            currentWardenEventId = newEventId
-            val eventToSync = event.copy(id = newEventId)
-            supabaseSyncService.syncWardenEvent(eventToSync)
-
-            // Start the real-time updater for the new event
-            startEndTimeUpdater()
-        }
-    }
 
     companion object {
+        private val _timerState = MutableStateFlow(TimerState())
+        val timerState: StateFlow<TimerState> = _timerState.asStateFlow()
         const val ACTION_START_UNPLANNED_BREAK = "neth.iecal.questphone.action.START_UNPLANNED_BREAK"
         const val ACTION_STOP_UNPLANNED_BREAK = "neth.iecal.questphone.action.STOP_UNPLANNED_BREAK"
         const val ACTION_COMPLETE_QUEST = "neth.iecal.questphone.action.COMPLETE_QUEST"
@@ -489,7 +406,5 @@ class TimerService : Service() {
 
         private const val OVERDUE_QUEST_ALARM_OFFSET = 10000 // Offset to avoid collision
         private const val OVERDUE_BREAK_ALARM_OFFSET = 20000 // Offset to avoid collision
-        private val _timerState = MutableStateFlow(TimerState())
-        val timerState = _timerState.asStateFlow()
     }
 }
