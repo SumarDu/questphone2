@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 data class QuestEventSupabase(
     val id: Int? = null,
     val event_name: String,
-    val start_time: String,
-    val end_time: String?,
+    val start_time: Long,
+    val end_time: Long?,
     val color_rgba: String
 )

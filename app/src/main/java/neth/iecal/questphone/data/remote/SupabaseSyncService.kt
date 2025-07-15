@@ -20,8 +20,8 @@ class SupabaseSyncService(private val context: Context) {
             val eventToSync = QuestEventSupabase(
                 id = event.id,
                 event_name = event.eventName,
-                start_time = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).format(Date(event.startTime)),
-                end_time = if (event.endTime > 0) SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).format(Date(event.endTime)) else null,
+                start_time = event.startTime,
+                end_time = if (event.endTime > 0) event.endTime else null,
                 color_rgba = event.colorRgba
             )
             SupabaseClient.client.postgrest.from("quest_events").upsert(eventToSync, onConflict = "id")
@@ -50,8 +50,8 @@ class SupabaseSyncService(private val context: Context) {
                 QuestEventSupabase(
                     id = event.id,
                     event_name = event.eventName,
-                    start_time = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).format(Date(event.startTime)),
-                    end_time = if (event.endTime > 0) SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).format(Date(event.endTime)) else null,
+                    start_time = event.startTime,
+                    end_time = if (event.endTime > 0) event.endTime else null,
                     color_rgba = event.colorRgba
                 )
             }
