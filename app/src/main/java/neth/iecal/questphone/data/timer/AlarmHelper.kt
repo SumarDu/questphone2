@@ -13,6 +13,10 @@ object AlarmHelper {
     const val ALARM_TYPE_BREAK_OVER = "BREAK_OVER"
     const val ALARM_TYPE_QUEST_OVERDUE = "QUEST_OVERDUE"
     const val ALARM_TYPE_BREAK_OVERDUE = "BREAK_OVERDUE"
+    const val ALARM_TYPE_QUEST_WARNING = "QUEST_WARNING"
+    const val ALARM_TYPE_BREAK_WARNING = "BREAK_WARNING"
+    const val ALARM_TYPE_OVERDUE_PERIODIC = "OVERDUE_PERIODIC"
+    const val ALARM_TYPE_UNPLANNED_BREAK_PERIODIC = "UNPLANNED_BREAK_PERIODIC"
 
     const val EXTRA_TITLE = "title"
     const val EXTRA_MESSAGE = "message"
@@ -45,7 +49,8 @@ object AlarmHelper {
             if (alarmManager.canScheduleExactAlarms()) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent)
             } else {
-                // Optionally, handle the case where the permission is not granted
+                // Fallback to inexact alarm if exact alarms permission not granted
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent)
             }
         } else {
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent)

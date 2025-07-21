@@ -42,9 +42,9 @@ fun LiveTimer(
     val timerText by timerViewModel.timerText.collectAsState()
     val timerMode by timerViewModel.timerMode.collectAsState()
     val timerState: TimerState by timerViewModel.timerState.collectAsState()
-    var showDialog by remember { mutableStateOf(false) }
-    var showAddTimeDialog by remember { mutableStateOf(false) }
-    var showQuestListDialog by remember { mutableStateOf(false) }
+    var showDialog by remember(timerMode) { mutableStateOf(false) }
+    var showAddTimeDialog by remember(timerMode) { mutableStateOf(false) }
+    var showQuestListDialog by remember(timerMode) { mutableStateOf(false) }
 
     val timerColor = when (timerMode) {
         TimerMode.QUEST_COUNTDOWN -> MaterialTheme.colorScheme.primary

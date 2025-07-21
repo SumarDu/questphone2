@@ -52,6 +52,8 @@ import kotlinx.coroutines.flow.first
 import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.ui.navigation.Screen
+import neth.iecal.questphone.utils.getCurrentDate
+import java.util.concurrent.TimeUnit
 
 @Composable
 fun ListAllQuests(navHostController: NavHostController) {
@@ -64,6 +66,30 @@ fun ListAllQuests(navHostController: NavHostController) {
     val filteredClonedQuestList by viewModel.filteredClonedQuests.collectAsState(initial = emptyList())
     val searchQuery by viewModel.searchQuery.collectAsState()
     val questToDelete by viewModel.questToDelete.collectAsState()
+    
+    // Helper function to check if there's an active or overdue quest that should block interactions
+    fun isQuestFinishedAndCanReopen(quest: CommonQuestInfo): Boolean {
+        val now = System.currentTimeMillis()
+        val questDurationMillis = TimeUnit.MINUTES.toMillis(quest.quest_duration_minutes.toLong())
+        val questEndTime = quest.quest_started_at + questDurationMillis
+
+        return quest.quest_started_at > 0 && now > questEndTime && quest.last_completed_on != getCurrentDate()
+    }
+
+    fun hasActiveOrOverdueQuestBlocking(currentQuest: CommonQuestInfo, allQuests: List<CommonQuestInfo>): Boolean {
+        val activeQuest = allQuests.find { it.quest_started_at > 0 && it.last_completed_on != getCurrentDate() }
+        if (activeQuest == null) return false
+        
+        // Don't block if clicking on the same active quest
+        if (activeQuest.id == currentQuest.id) return false
+        
+        val now = System.currentTimeMillis()
+        val questDurationMillis = TimeUnit.MINUTES.toMillis(activeQuest.quest_duration_minutes.toLong())
+        val questEndTime = activeQuest.quest_started_at + questDurationMillis
+        
+        // Block if quest is active or overdue
+        return now <= questEndTime || (now > questEndTime && activeQuest.last_completed_on != getCurrentDate())
+    }
 
 
     Scaffold(
@@ -126,7 +152,13 @@ fun ListAllQuests(navHostController: NavHostController) {
                     QuestItem(
                         quest = questBase,
                         onClick = {
-                            navHostController.navigate(Screen.ViewQuest.route + questBase.id)
+                            val allQuests = filteredQuestList + filteredClonedQuestList
+                            if (hasActiveOrOverdueQuestBlocking(questBase, allQuests)) {
+                                return@QuestItem
+                            }
+
+                            // Always navigate to quest statistics/info screen
+                            navHostController.navigate(Screen.QuestStats.route + questBase.id)
                         },
                         onDelete = { viewModel.onQuestDeleteRequest(questBase) },
                         onClone = { viewModel.onQuestCloneRequest(questBase) }
@@ -142,7 +174,13 @@ fun ListAllQuests(navHostController: NavHostController) {
                         QuestItem(
                             quest = questBase,
                             onClick = {
-                                navHostController.navigate(Screen.ViewQuest.route + questBase.id)
+                                val allQuests = filteredQuestList + filteredClonedQuestList
+                                if (hasActiveOrOverdueQuestBlocking(questBase, allQuests)) {
+                                    return@QuestItem
+                                }
+
+                                // Always navigate to quest statistics/info screen
+                                navHostController.navigate(Screen.QuestStats.route + questBase.id)
                             },
                             onDelete = { viewModel.onQuestDeleteRequest(questBase) },
                             onClone = { viewModel.onQuestCloneRequest(questBase) }

@@ -49,6 +49,7 @@ import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
@@ -108,12 +109,44 @@ fun HomeScreen(navController: NavController) {
     var showQuestFinishedDialog by remember { mutableStateOf(false) }
     var finishedQuestId by remember { mutableStateOf<String?>(null) }
     var showAddTimeDialog by remember { mutableStateOf(false) }
+    var finishedQuestForReopening by remember { mutableStateOf<CommonQuestInfo?>(null) }
 
     LaunchedEffect(Unit) {
         timerViewModel.questFinishedEvent.collect { questId ->
             finishedQuestId = questId
             showQuestFinishedDialog = true
+            // Store the finished quest for potential reopening
+            scope.launch {
+                val dao = QuestDatabaseProvider.getInstance(context).questDao()
+                finishedQuestForReopening = dao.getQuestById(questId)
+            }
         }
+    }
+
+    // Helper function to check if a quest is finished and can reopen dialog
+    fun isQuestFinishedAndCanReopen(quest: CommonQuestInfo): Boolean {
+        val now = System.currentTimeMillis()
+        val questDurationMillis = TimeUnit.MINUTES.toMillis(quest.quest_duration_minutes.toLong())
+        val questEndTime = quest.quest_started_at + questDurationMillis
+        
+        // Quest is finished if it was started and the time has passed
+        return quest.quest_started_at > 0 && now > questEndTime && quest.last_completed_on != getCurrentDate()
+    }
+
+    // Helper function to check if there's an active or overdue quest that should block interactions
+    fun hasActiveOrOverdueQuestBlocking(currentQuest: CommonQuestInfo, questList: List<CommonQuestInfo>): Boolean {
+        val activeQuest = questList.find { it.quest_started_at > 0 && it.last_completed_on != getCurrentDate() }
+        if (activeQuest == null) return false
+        
+        // Don't block if clicking on the same active quest
+        if (activeQuest.id == currentQuest.id) return false
+        
+        val now = System.currentTimeMillis()
+        val questDurationMillis = TimeUnit.MINUTES.toMillis(activeQuest.quest_duration_minutes.toLong())
+        val questEndTime = activeQuest.quest_started_at + questDurationMillis
+        
+        // Block if quest is active or overdue
+        return now <= questEndTime || (now > questEndTime && activeQuest.last_completed_on != getCurrentDate())
     }
     val swipeDownApp by gestureRepo.swipeDownApp.collectAsState(initial = null)
     val swipeLeftApp by gestureRepo.swipeLeftApp.collectAsState(initial = null)
@@ -377,14 +410,47 @@ fun HomeScreen(navController: NavController) {
                     val isOver = questHelper.isOver(baseQuest)
                     val isCompleted = completedQuests.contains(baseQuest.title)
                     val isActive = timerState.activeQuestId == baseQuest.id && (timerMode == TimerMode.QUEST_COUNTDOWN || timerMode == TimerMode.BREAK)
+                    
+                    // Check if quest is overdue (started but not completed today)
+                    val isOverdue = baseQuest.quest_started_at > 0 && 
+                        baseQuest.last_completed_on != getCurrentDate() && 
+                        System.currentTimeMillis() > (baseQuest.quest_started_at + TimeUnit.MINUTES.toMillis(baseQuest.quest_duration_minutes.toLong()))
                     QuestItem(
                         text =  if(QuestHelper.Companion.isInTimeRange(baseQuest) && isOver) baseQuest.title else  prefix +  baseQuest.title,
                         isCompleted = isCompleted,
                         isFailed = isOver,
                         isActive = isActive,
+                        isOverdue = isOverdue,
                         modifier = Modifier.clickable(enabled = timerMode != TimerMode.UNPLANNED_BREAK && timerMode != TimerMode.INFO && !(timerState.isDeepFocusLocking && baseQuest.id != timerState.activeQuestId)) {
-                            // --- Quest Locking Logic ---
+                            // --- Quest Interaction Restrictions ---
+                            
+                            // Check if this quest is finished and can reopen the "Quest Finished" dialog
+                            if (isQuestFinishedAndCanReopen(baseQuest)) {
+                                finishedQuestId = baseQuest.id
+                                finishedQuestForReopening = baseQuest
+                                showQuestFinishedDialog = true
+                                return@clickable
+                            }
+                            
+                            // Check if there's an active or overdue quest blocking interactions
+                            if (hasActiveOrOverdueQuestBlocking(baseQuest, questList)) {
+                                // Don't allow clicking on other quests when there's an active/overdue quest
+                                return@clickable
+                            }
 
+                            // --- Original Quest Locking Logic ---
+                            // For completed quests, always open info screen directly
+                            if (isCompleted) {
+                                viewQuest(baseQuest, navController)
+                                return@clickable
+                            }
+                            
+                            // For active quests, always open info/statistics screen directly
+                            if (isActive) {
+                                navController.navigate(Screen.QuestStats.route + baseQuest.id)
+                                return@clickable
+                            }
+                            
                             // 1. Standard SwiftMark check (only if not locked by Deep Focus)
                             if (baseQuest.integration_id == IntegrationId.SWIFT_MARK) {
                                 val sharedPreferences = context.getSharedPreferences("swift_mark_prefs", MODE_PRIVATE)
@@ -405,7 +471,7 @@ fun HomeScreen(navController: NavController) {
                 item {
                     QuestItem(
                         text = "Manage Quests",
-                        modifier = Modifier.clickable(enabled = timerState.mode != TimerMode.INFO && !timerState.isDeepFocusLocking) {
+                        modifier = Modifier.clickable(enabled = timerState.mode != TimerMode.INFO && !timerState.isDeepFocusLocking && !hasActiveOrOverdueQuestBlocking(CommonQuestInfo(), questList)) {
                             navController.navigate(Screen.ListAllQuest.route)
                         }
                     )
@@ -584,6 +650,7 @@ fun QuestItem(
     isCompleted: Boolean = false,
     isFailed: Boolean = false,
     isActive: Boolean = false,
+    isOverdue: Boolean = false,
     modifier: Modifier
 ) {
     Text(
@@ -598,6 +665,7 @@ fun QuestItem(
             .padding(8.dp),
         color = when {
             isFailed -> MaterialTheme.colorScheme.error
+            isOverdue -> Color(0xFFFF6B35) // Orange color for overdue quests
             isActive -> MaterialTheme.colorScheme.primary
             else -> MaterialTheme.colorScheme.onSurface
         },

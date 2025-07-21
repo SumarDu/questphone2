@@ -62,6 +62,14 @@ class TimerService : Service() {
                 toggleInfoMode()
                 return START_STICKY
             }
+            ACTION_START_UNPLANNED_BREAK -> {
+                startUnplannedBreak()
+                return START_STICKY
+            }
+            ACTION_STOP_UNPLANNED_BREAK -> {
+                stopUnplannedBreak()
+                return START_STICKY
+            }
         }
 
         val notification = notificationHelper.buildTimerNotification("Starting timer...")
@@ -88,6 +96,16 @@ class TimerService : Service() {
         val now = System.currentTimeMillis()
         val today = getCurrentDate()
         val previousState = _timerState.value
+
+        // Handle unplanned break first to prevent it from being overridden
+        if (_timerState.value.mode == TimerMode.UNPLANNED_BREAK) {
+            unplannedBreakStartTime?.let { startTime ->
+                val duration = Duration.ofMillis(now - startTime)
+                _timerState.value = _timerState.value.copy(time = duration)
+            }
+            updateNotification()
+            return
+        }
 
         val activeQuest = allQuests.firstOrNull { it.quest_started_at > 0 && it.last_completed_on != today }
         val recentlyCompleted = allQuests
@@ -152,7 +170,7 @@ class TimerService : Service() {
         }
 
         if (previousState.activeQuestId != null && previousState.activeQuestId != activeQuest?.id) {
-            cancelAlarmsForQuest(previousState.activeQuestId)
+            cancelAllAlarmsForQuest(previousState.activeQuestId)
         }
 
         if (activeQuest != null && activeQuest.quest_duration_minutes > 0) {
@@ -171,9 +189,17 @@ class TimerService : Service() {
                 )
                 if (needsAlarmUpdate) {
                     cancelAlarmsForQuest(activeQuest.id)
+                    // Set quest completion alarm
                     AlarmHelper.setAlarm(this, actualQuestEndsAt, activeQuest.id.hashCode(), AlarmHelper.ALARM_TYPE_QUEST_COMPLETE, activeQuest.id, "Quest Complete!", "'${activeQuest.title}' is complete!")
+                    
+                    // Set 1-minute warning alarm if quest has more than 1 minute remaining
+                    val oneMinuteWarningTime = actualQuestEndsAt - TimeUnit.MINUTES.toMillis(1)
+                    if (now < oneMinuteWarningTime) {
+                        AlarmHelper.setAlarm(this, oneMinuteWarningTime, activeQuest.id.hashCode() + 100, AlarmHelper.ALARM_TYPE_QUEST_WARNING, activeQuest.id, "Quest Ending Soon", "'${activeQuest.title}' will end in 1 minute!")
+                    }
                 }
             } else {
+                val wasNotOvertime = previousState.mode != TimerMode.OVERTIME || previousState.isBreakOvertime
                 _timerState.value = TimerState(
                     mode = TimerMode.OVERTIME,
                     time = Duration.ofMillis(-remaining),
@@ -181,9 +207,15 @@ class TimerService : Service() {
                     isBreakOvertime = false,
                     questEndsAt = actualQuestEndsAt
                 )
-                if (needsAlarmUpdate) {
+                // Set up overdue notifications when first entering quest overdue state
+                if (wasNotOvertime) {
                     cancelAlarmsForQuest(activeQuest.id)
                     AlarmHelper.setAlarm(this, now + OVERDUE_QUEST_ALARM_OFFSET, activeQuest.id.hashCode() + OVERDUE_QUEST_ALARM_OFFSET, AlarmHelper.ALARM_TYPE_QUEST_OVERDUE, activeQuest.id, "Quest Overdue!", "You are running overtime on '${activeQuest.title}'!")
+                    
+                    // Start periodic overdue notifications (every 3 minutes)
+                    val firstPeriodicNotification = now + TimeUnit.MINUTES.toMillis(3)
+                    android.util.Log.d("TimerService", "Setting up periodic overdue notification for quest ${activeQuest.id} at time $firstPeriodicNotification (in ${TimeUnit.MINUTES.toMillis(3)/1000} seconds)")
+                    AlarmHelper.setAlarm(this, firstPeriodicNotification, activeQuest.id.hashCode() + 1000, AlarmHelper.ALARM_TYPE_OVERDUE_PERIODIC, activeQuest.id, "Quest Still Overdue", "You are still overdue on '${activeQuest.title}'. Please complete it.")
                 }
             }
         } else if (recentlyCompleted != null) {
@@ -205,7 +237,14 @@ class TimerService : Service() {
                 _timerState.value = TimerState(TimerMode.BREAK, timeUntilBreakEnd, recentlyCompleted.id, isDeepFocusLocking = isLocking)
                 if (previousState.mode != TimerMode.BREAK) {
                     cancelAlarmsForQuest(recentlyCompleted.id)
+                    // Set break end alarm
                     AlarmHelper.setAlarm(this, breakEndsAt, recentlyCompleted.id.hashCode(), AlarmHelper.ALARM_TYPE_BREAK_OVER, recentlyCompleted.id, "Break Over!", "Time to get back to it.")
+                    
+                    // Set 1-minute warning alarm if break has more than 1 minute remaining
+                    val oneMinuteWarningTime = breakEndsAt - TimeUnit.MINUTES.toMillis(1)
+                    if (now < oneMinuteWarningTime) {
+                        AlarmHelper.setAlarm(this, oneMinuteWarningTime, recentlyCompleted.id.hashCode() + 200, AlarmHelper.ALARM_TYPE_BREAK_WARNING, recentlyCompleted.id, "Break Ending Soon", "Your break will end in 1 minute!")
+                    }
                 }
             } else {
                 val overtimeDuration = Duration.ofMillis(now - breakEndsAt)
@@ -213,18 +252,15 @@ class TimerService : Service() {
                 if (previousState.mode != TimerMode.OVERTIME || !previousState.isBreakOvertime) {
                     cancelAlarmsForQuest(recentlyCompleted.id)
                     AlarmHelper.setAlarm(this, now + OVERDUE_BREAK_ALARM_OFFSET, recentlyCompleted.id.hashCode() + OVERDUE_BREAK_ALARM_OFFSET, AlarmHelper.ALARM_TYPE_BREAK_OVERDUE, recentlyCompleted.id, "Break Overdue!", "You're taking too long of a break.")
+                    
+                    // Start periodic overdue notifications (every 3 minutes)
+                    val firstPeriodicNotification = now + TimeUnit.MINUTES.toMillis(3)
+                    AlarmHelper.setAlarm(this, firstPeriodicNotification, recentlyCompleted.id.hashCode() + 1000, AlarmHelper.ALARM_TYPE_OVERDUE_PERIODIC, recentlyCompleted.id, "Break Still Overdue", "You are still taking too long of a break. Please return to work.")
                 }
             }
         }
 
-        if (_timerState.value.mode == TimerMode.UNPLANNED_BREAK) {
-            unplannedBreakStartTime?.let { startTime ->
-                val duration = Duration.ofMillis(now - startTime)
-                _timerState.value = _timerState.value.copy(time = duration)
-            }
-            updateNotification()
-            return
-        }
+
 
         if (!currentStateHandled && _timerState.value.mode != TimerMode.INACTIVE) {
             infoModeActive = false
@@ -237,9 +273,30 @@ class TimerService : Service() {
 
     private fun cancelAlarmsForQuest(questId: String) {
         val questIdHash = questId.hashCode()
+        // Cancel basic alarms
         AlarmHelper.cancelAlarm(this, questIdHash)
         AlarmHelper.cancelAlarm(this, questIdHash + OVERDUE_QUEST_ALARM_OFFSET)
         AlarmHelper.cancelAlarm(this, questIdHash + OVERDUE_BREAK_ALARM_OFFSET)
+        
+        // Cancel warning alarms (1-minute before end)
+        AlarmHelper.cancelAlarm(this, questIdHash + 100) // Quest warning
+        AlarmHelper.cancelAlarm(this, questIdHash + 200) // Break warning
+    }
+    
+    private fun cancelAllAlarmsForQuest(questId: String) {
+        val questIdHash = questId.hashCode()
+        // Cancel basic alarms
+        AlarmHelper.cancelAlarm(this, questIdHash)
+        AlarmHelper.cancelAlarm(this, questIdHash + OVERDUE_QUEST_ALARM_OFFSET)
+        AlarmHelper.cancelAlarm(this, questIdHash + OVERDUE_BREAK_ALARM_OFFSET)
+        
+        // Cancel warning alarms (1-minute before end)
+        AlarmHelper.cancelAlarm(this, questIdHash + 100) // Quest warning
+        AlarmHelper.cancelAlarm(this, questIdHash + 200) // Break warning
+        
+        // Cancel periodic notification alarms
+        AlarmHelper.cancelAlarm(this, questIdHash + 1000) // Overdue periodic
+        AlarmHelper.cancelAlarm(this, questIdHash + 2000) // Unplanned break periodic
     }
 
     private fun updateNotification() {
@@ -276,12 +333,33 @@ class TimerService : Service() {
 
             val previousState = stateBeforeUnplannedBreak
             _timerState.value = previousState ?: TimerState()
+            
+            // Cancel periodic unplanned break notifications
+            val activeQuestId = previousState?.activeQuestId ?: "unplanned_break"
+            AlarmHelper.cancelAlarm(this@TimerService, activeQuestId.hashCode() + 2000)
+            
             stateBeforeUnplannedBreak = null
 
             if (previousState?.mode == TimerMode.QUEST_COUNTDOWN && previousState.activeQuestId != null && breakDuration > 0) {
-                questDao.getQuestById(previousState.activeQuestId)?.let {
-                    val updatedQuest = it.copy(quest_started_at = it.quest_started_at + breakDuration)
+                questDao.getQuestById(previousState.activeQuestId)?.let { quest ->
+                    val updatedQuest = quest.copy(quest_started_at = quest.quest_started_at + breakDuration)
                     questDao.upsertQuest(updatedQuest)
+                    
+                    // Reschedule quest notifications with adjusted timing after unplanned break
+                    val now = System.currentTimeMillis()
+                    val questDurationMillis = TimeUnit.MINUTES.toMillis(quest.quest_duration_minutes.toLong())
+                    val adjustedQuestEndsAt = updatedQuest.quest_started_at + questDurationMillis + temporaryAddedTimeMillis
+                    
+                    if (now < adjustedQuestEndsAt) {
+                        // Reschedule quest completion alarm
+                        AlarmHelper.setAlarm(this@TimerService, adjustedQuestEndsAt, quest.id.hashCode(), AlarmHelper.ALARM_TYPE_QUEST_COMPLETE, quest.id, "Quest Complete!", "'${quest.title}' is complete!")
+                        
+                        // Reschedule 1-minute warning if there's still more than 1 minute remaining
+                        val oneMinuteWarningTime = adjustedQuestEndsAt - TimeUnit.MINUTES.toMillis(1)
+                        if (now < oneMinuteWarningTime) {
+                            AlarmHelper.setAlarm(this@TimerService, oneMinuteWarningTime, quest.id.hashCode() + 100, AlarmHelper.ALARM_TYPE_QUEST_WARNING, quest.id, "Quest Ending Soon", "'${quest.title}' will end in 1 minute!")
+                        }
+                    }
                 }
             }
         }
@@ -291,7 +369,28 @@ class TimerService : Service() {
         serviceScope.launch {
             stateBeforeUnplannedBreak = _timerState.value
             unplannedBreakStartTime = System.currentTimeMillis()
+            
+            // Cancel quest-related notifications (completion and 1-min warning) during unplanned break
+            stateBeforeUnplannedBreak?.activeQuestId?.let { questId ->
+                val questIdHash = questId.hashCode()
+                AlarmHelper.cancelAlarm(this@TimerService, questIdHash) // Quest completion
+                AlarmHelper.cancelAlarm(this@TimerService, questIdHash + 100) // Quest 1-min warning
+            }
+            
             _timerState.value = TimerState(mode = TimerMode.UNPLANNED_BREAK)
+            
+            // Set up periodic notifications for unplanned break (every 5 minutes)
+            val activeQuestId = stateBeforeUnplannedBreak?.activeQuestId ?: "unplanned_break"
+            val firstPeriodicNotification = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(5)
+            AlarmHelper.setAlarm(
+                this@TimerService, 
+                firstPeriodicNotification, 
+                activeQuestId.hashCode() + 2000, 
+                AlarmHelper.ALARM_TYPE_UNPLANNED_BREAK_PERIODIC, 
+                activeQuestId, 
+                "Unplanned Break Reminder", 
+                "You've been on an unplanned break for 5 minutes. Consider returning to your task."
+            )
         }
     }
 
@@ -300,7 +399,7 @@ class TimerService : Service() {
             val questId = _timerState.value.activeQuestId ?: return@launch
             val quest = questDao.getQuestById(questId) ?: return@launch
             val now = System.currentTimeMillis()
-            cancelAlarmsForQuest(questId)
+            cancelAllAlarmsForQuest(questId)
             val completedQuest = quest.copy(last_completed_on = getCurrentDate(), last_completed_at = now)
             questDao.upsertQuest(completedQuest)
             temporaryAddedTimeMillis = 0L
