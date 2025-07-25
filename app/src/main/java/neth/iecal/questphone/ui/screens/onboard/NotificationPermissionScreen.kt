@@ -28,30 +28,14 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
-import neth.iecal.questphone.utils.checkNotificationPermission
+
 
 @Composable
 fun NotificationPermissionScreen( isFromOnboard: Boolean = true) {
     val context = LocalContext.current
-    val hasPermission = remember {
-        mutableStateOf(
-            false
-        )
-    }
+    // Notification permission check removed
 
-    val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(lifecycleOwner) {
-        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            hasPermission.value = checkNotificationPermission(context)
-        }
-    }
-
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { granted ->
-            hasPermission.value = granted
-        }
-    )
+    // Notification permission launcher removed
 
     Column(
         modifier = Modifier
@@ -70,30 +54,11 @@ fun NotificationPermissionScreen( isFromOnboard: Boolean = true) {
         )
 
         Text(
-            text = if (!hasPermission.value)
-                "To notify you about your progress or challenges, QuestPhone needs permission to send notifications."
-            else
-                "Notification permission granted!",
+            text = "Notification functionality has been removed from QuestPhone.",
             color = Color.White,
             fontSize = 16.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 24.dp)
         )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        if (!hasPermission.value && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !isFromOnboard) {
-            Button(
-                onClick = {
-                    launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = Color.Black
-                ),
-            ) {
-                Text(text = "Grant Notification Access")
-            }
-        }
     }
 }

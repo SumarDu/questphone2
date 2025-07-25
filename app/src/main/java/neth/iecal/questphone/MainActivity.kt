@@ -48,7 +48,7 @@ import neth.iecal.questphone.ui.screens.quest.stats.specific.BaseQuestStatsView
 import neth.iecal.questphone.ui.theme.LauncherTheme
 import neth.iecal.questphone.utils.isOnline
 import neth.iecal.questphone.utils.triggerQuestSync
-import neth.iecal.questphone.utils.requestNotificationPermission
+
 import neth.iecal.questphone.ui.screens.game.StoreScreen
 import neth.iecal.questphone.ui.screens.launcher.AppsListScreen
 import neth.iecal.questphone.ui.screens.stats.StatsScreen
@@ -59,23 +59,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val serviceIntent = Intent(this, TimerService::class.java)
-        ContextCompat.startForegroundService(this, serviceIntent)
+        startService(serviceIntent)
 
         enableEdgeToEdge()
         val data = getSharedPreferences("onboard", MODE_PRIVATE)
 
 
         setContent {
-            val notificationPermissionLauncher = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.RequestPermission(),
-                onResult = { isGranted ->
-                    Log.d("MainActivity", "Notification permission granted: $isGranted")
-                }
-            )
-
-            LaunchedEffect(Unit) {
-                requestNotificationPermission(this@MainActivity, notificationPermissionLauncher)
-            }
+            // Notification permission removed
 
             val isUserOnboarded = remember {mutableStateOf(true)}
 

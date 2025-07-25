@@ -56,7 +56,7 @@ import neth.iecal.questphone.utils.VibrationHelper
 import neth.iecal.questphone.MainActivity
 import neth.iecal.questphone.services.AppBlockerService
 import neth.iecal.questphone.ui.screens.account.SetupProfileScreen
-import neth.iecal.questphone.utils.checkNotificationPermission
+
 import neth.iecal.questphone.utils.checkUsagePermission
 
 open class OnboardingContent {
@@ -340,21 +340,7 @@ fun OnBoardScreen(navController: NavHostController) {
 
                 }
             ),
-            OnboardingContent.CustomPage(
-                onNextPressed = {
-                    if(checkNotificationPermission(context)){
-                        return@CustomPage true
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        notificationPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        return@CustomPage false
-                    }else{
-                        return@CustomPage true
-                    }
-                }
-            ){
-                NotificationPermissionScreen()
-            },
+            // Notification permission page removed
             OnboardingContent.CustomPage {
                 SelectApps()
             }

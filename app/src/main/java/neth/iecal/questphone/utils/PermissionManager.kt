@@ -33,27 +33,9 @@ fun checkUsagePermission(context: Context): Boolean {
     return mode == AppOpsManager.MODE_ALLOWED
 }
 
-fun checkNotificationPermission(context: Context): Boolean {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        return ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.POST_NOTIFICATIONS
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-    return true
-}
 
-fun requestNotificationPermission(activity: Activity, launcher: ActivityResultLauncher<String>) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        if (ContextCompat.checkSelfPermission(
-                activity,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
-}
+
+
 
 fun isIgnoringBatteryOptimizations(context: Context): Boolean {
     val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager

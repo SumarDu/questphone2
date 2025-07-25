@@ -17,5 +17,7 @@ data class TimerState(
     val activeQuestId: String? = null,
     val isBreakOvertime: Boolean = false,
     val questEndsAt: Long = 0,
-    val isDeepFocusLocking: Boolean = false
+    val isDeepFocusLocking: Boolean = false,
+    val notificationSent: Boolean = false,
+    val lastOverdueNotificationTime: Long = 0
 )
