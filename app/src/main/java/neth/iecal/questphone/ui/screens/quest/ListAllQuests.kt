@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -48,6 +50,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.flow.first
 import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
@@ -65,6 +70,7 @@ fun ListAllQuests(navHostController: NavHostController) {
     val filteredQuestList by viewModel.filteredQuests.collectAsState(initial = emptyList())
     val filteredClonedQuestList by viewModel.filteredClonedQuests.collectAsState(initial = emptyList())
     val searchQuery by viewModel.searchQuery.collectAsState()
+    val selectedTab by viewModel.selectedTab.collectAsState()
     val questToDelete by viewModel.questToDelete.collectAsState()
     
     // Helper function to check if there's an active or overdue quest that should block interactions
@@ -148,12 +154,34 @@ fun ListAllQuests(navHostController: NavHostController) {
                         singleLine = true
                     )
                 }
+                item {
+                    TabRow(
+                        selectedTabIndex = selectedTab.ordinal,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        QuestTab.values().forEach { tab ->
+                            Tab(
+                                selected = selectedTab == tab,
+                                onClick = { viewModel.onTabSelected(tab) },
+                                text = {
+                                    Text(
+                                        text = when (tab) {
+                                            QuestTab.ALL -> "All"
+                                            QuestTab.REPEATING -> "Repeating"
+                                            QuestTab.CALENDAR -> "Calendar"
+                                            QuestTab.CLONED -> "Cloned"
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
                 items(filteredQuestList, key = { it.id }) { questBase ->
                     QuestItem(
                         quest = questBase,
                         onClick = {
-                            val allQuests = filteredQuestList + filteredClonedQuestList
-                            if (hasActiveOrOverdueQuestBlocking(questBase, allQuests)) {
+                            if (hasActiveOrOverdueQuestBlocking(questBase, filteredQuestList)) {
                                 return@QuestItem
                             }
 
@@ -163,29 +191,6 @@ fun ListAllQuests(navHostController: NavHostController) {
                         onDelete = { viewModel.onQuestDeleteRequest(questBase) },
                         onClone = { viewModel.onQuestCloneRequest(questBase) }
                     )
-                }
-
-                if (filteredClonedQuestList.isNotEmpty()) {
-                    item {
-                        Text("Cloned Quests",
-                            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold))
-                    }
-                    items(filteredClonedQuestList, key = { it.id }) { questBase ->
-                        QuestItem(
-                            quest = questBase,
-                            onClick = {
-                                val allQuests = filteredQuestList + filteredClonedQuestList
-                                if (hasActiveOrOverdueQuestBlocking(questBase, allQuests)) {
-                                    return@QuestItem
-                                }
-
-                                // Always navigate to quest statistics/info screen
-                                navHostController.navigate(Screen.QuestStats.route + questBase.id)
-                            },
-                            onDelete = { viewModel.onQuestDeleteRequest(questBase) },
-                            onClone = { viewModel.onQuestCloneRequest(questBase) }
-                        )
-                    }
                 }
             }
 
@@ -276,8 +281,23 @@ private fun QuestItem(
                             overflow = TextOverflow.Ellipsis
                         )
                     } else {
+                        // Show calendar date for calendar quests, otherwise show selected days
+                        val displayText = if (quest.calendar_event_id != null) {
+                            // Format the auto_destruct date for calendar quests
+                            try {
+                                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                val displayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+                                val date = dateFormat.parse(quest.auto_destruct)
+                                "Scheduled: ${displayFormat.format(date!!)}"
+                            } catch (e: Exception) {
+                                "Calendar Quest"
+                            }
+                        } else {
+                            if(quest.selected_days.size == 7) "Everyday" else quest.selected_days.joinToString(", ") { it.name }
+                        }
+                        
                         Text(
-                            text = if(quest.selected_days.size == 7) "Everyday" else quest.selected_days.joinToString(", ") { it.name },
+                            text = displayText,
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.outline,
                             maxLines = 2,

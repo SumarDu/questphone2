@@ -30,6 +30,8 @@ import neth.iecal.questphone.data.DayOfWeek
 import neth.iecal.questphone.data.IntegrationId
 import neth.iecal.questphone.data.quest.focus.DeepFocusSessionLog
 import neth.iecal.questphone.data.quest.focus.DeepFocusSessionLogDao
+import neth.iecal.questphone.data.calendar.CalendarEvent
+import neth.iecal.questphone.data.calendar.CalendarEventDao
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.utils.json
 import java.util.UUID
@@ -73,7 +75,8 @@ data class CommonQuestInfo(
     @Transient
     var synced: Boolean = false,
     var last_updated: Long = System.currentTimeMillis(),
-    var color_rgba: String = ""
+    var color_rgba: String = "",
+    var calendar_event_id: String? = null
 
 )
 
@@ -234,12 +237,13 @@ interface QuestDao {
 
 
 
-@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class], version = 14, exportSchema = false)
+@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class, CalendarEvent::class], version = 15, exportSchema = false)
 @TypeConverters(BaseQuestConverter::class)
 abstract class QuestDatabase : RoomDatabase() {
     abstract fun appUnlockerItemDao(): AppUnlockerItemDao
     abstract fun questDao(): QuestDao
     abstract fun deepFocusSessionLogDao(): DeepFocusSessionLogDao
+    abstract fun calendarEventDao(): CalendarEventDao
 }
 
 

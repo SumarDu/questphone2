@@ -189,8 +189,14 @@ fun HomeScreen(navController: NavController) {
 
             Log.d("IsUserCreatedToday",isUserCreatedToday.toString())
             val list = questListUnfiltered.filter {
-                !it.is_destroyed && it.selected_days.contains(todayDay) &&
-                        (isUserCreatedToday || it.created_on != getCurrentDate())
+                !it.is_destroyed && 
+                (
+                    // Regular quests: check if today is in selected_days
+                    it.selected_days.contains(todayDay) ||
+                    // Calendar quests: check if auto_destruct matches today's date
+                    (it.calendar_event_id != null && it.auto_destruct == getCurrentDate())
+                ) &&
+                (isUserCreatedToday || it.created_on != getCurrentDate())
             }
             questList.clear()
             questList.addAll(list)

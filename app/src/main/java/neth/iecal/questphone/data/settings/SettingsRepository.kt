@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import neth.iecal.questphone.data.settings.CalendarSyncSettings
 
 data class SettingsData(
     val isQuestCreationEnabled: Boolean = true,
@@ -15,7 +16,8 @@ data class SettingsData(
     val isSettingsLocked: Boolean = false,
     val settingsLockPassword: String? = null,
     val settingsLockoutEndDate: Long? = null,
-    val geminiApiKey: String? = null
+    val geminiApiKey: String? = null,
+    val calendarSyncSettings: CalendarSyncSettings = CalendarSyncSettings.DEFAULT
 )
 
 class SettingsRepository(context: Context) {
@@ -96,6 +98,11 @@ class SettingsRepository(context: Context) {
 
     suspend fun updateGeminiApiKey(apiKey: String) {
         val newSettings = _settings.value.copy(geminiApiKey = apiKey)
+        saveSettings(newSettings)
+    }
+
+    suspend fun updateCalendarSyncSettings(calendarSyncSettings: CalendarSyncSettings) {
+        val newSettings = _settings.value.copy(calendarSyncSettings = calendarSyncSettings)
         saveSettings(newSettings)
     }
 }

@@ -200,8 +200,22 @@ fun SettingsScreen(navController: NavController) {
                 )
             }
 
-            Button(onClick = { navController.navigate(Screen.GestureSettings.route) }, enabled = !settings.isSettingsLocked) {
+            Button(
+                onClick = { navController.navigate(Screen.GestureSettings.route) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !settings.isSettingsLocked
+            ) {
                 Text("Configure Gestures")
+            }
+
+            Button(
+                onClick = { navController.navigate(Screen.CalendarSyncSettings.route) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                enabled = !settings.isSettingsLocked
+            ) {
+                Text("Calendar Sync Settings")
             }
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))

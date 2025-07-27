@@ -9,7 +9,7 @@ import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
-import neth.iecal.questphone.data.DayOfWeek
+import neth.iecal.questphone.data.DayOfWeek as AppDayOfWeek
 import java.text.SimpleDateFormat
 import java.time.Duration
 import java.time.LocalDateTime
@@ -118,46 +118,46 @@ fun formatRemainingTime(timeString: String): String {
         "Invalid time"
     }
 }
-fun getCurrentDay(): DayOfWeek {
+fun getCurrentDay(): AppDayOfWeek {
     val calendar = Calendar.getInstance()
-    return calendar.convertToDayOfWeek()
+    return calendar.convertToAppDayOfWeek()
 }
 
-fun Calendar.convertToDayOfWeek(): DayOfWeek {
+fun Calendar.convertToAppDayOfWeek(): AppDayOfWeek {
 
     return when ((this.get(Calendar.DAY_OF_WEEK))) {
-        Calendar.MONDAY -> DayOfWeek.MON
-        Calendar.TUESDAY -> DayOfWeek.TUE
-        Calendar.WEDNESDAY -> DayOfWeek.WED
-        Calendar.THURSDAY -> DayOfWeek.THU
-        Calendar.FRIDAY -> DayOfWeek.FRI
-        Calendar.SATURDAY -> DayOfWeek.SAT
-        Calendar.SUNDAY -> DayOfWeek.SUN
+        Calendar.MONDAY -> AppDayOfWeek.MON
+        Calendar.TUESDAY -> AppDayOfWeek.TUE
+        Calendar.WEDNESDAY -> AppDayOfWeek.WED
+        Calendar.THURSDAY -> AppDayOfWeek.THU
+        Calendar.FRIDAY -> AppDayOfWeek.FRI
+        Calendar.SATURDAY -> AppDayOfWeek.SAT
+        Calendar.SUNDAY -> AppDayOfWeek.SUN
         else -> throw IllegalStateException("Invalid day")
     }
 }
 
-fun java.time.DayOfWeek.convertToDayOfWeek(): DayOfWeek {
+fun java.time.DayOfWeek.convertToAppDayOfWeek(): AppDayOfWeek {
    return when (this) {
-        java.time.DayOfWeek.MONDAY -> DayOfWeek.MON
-        java.time.DayOfWeek.TUESDAY -> DayOfWeek.TUE
-        java.time.DayOfWeek.WEDNESDAY -> DayOfWeek.WED
-        java.time.DayOfWeek.THURSDAY -> DayOfWeek.THU
-        java.time.DayOfWeek.FRIDAY -> DayOfWeek.FRI
-        java.time.DayOfWeek.SATURDAY -> DayOfWeek.SAT
-        java.time.DayOfWeek.SUNDAY -> DayOfWeek.SUN
+        java.time.DayOfWeek.MONDAY -> AppDayOfWeek.MON
+        java.time.DayOfWeek.TUESDAY -> AppDayOfWeek.TUE
+        java.time.DayOfWeek.WEDNESDAY -> AppDayOfWeek.WED
+        java.time.DayOfWeek.THURSDAY -> AppDayOfWeek.THU
+        java.time.DayOfWeek.FRIDAY -> AppDayOfWeek.FRI
+        java.time.DayOfWeek.SATURDAY -> AppDayOfWeek.SAT
+        java.time.DayOfWeek.SUNDAY -> AppDayOfWeek.SUN
     }
 }
 
-fun DayOfWeek.toJavaDayOfWeek(): java.time.DayOfWeek {
+fun AppDayOfWeek.toJavaDayOfWeek(): java.time.DayOfWeek {
     return when (this) {
-        DayOfWeek.MON -> java.time.DayOfWeek.MONDAY
-        DayOfWeek.TUE -> java.time.DayOfWeek.TUESDAY
-        DayOfWeek.WED -> java.time.DayOfWeek.WEDNESDAY
-        DayOfWeek.THU -> java.time.DayOfWeek.THURSDAY
-        DayOfWeek.FRI -> java.time.DayOfWeek.FRIDAY
-        DayOfWeek.SAT -> java.time.DayOfWeek.SATURDAY
-        DayOfWeek.SUN -> java.time.DayOfWeek.SUNDAY
+        AppDayOfWeek.MON -> java.time.DayOfWeek.MONDAY
+        AppDayOfWeek.TUE -> java.time.DayOfWeek.TUESDAY
+        AppDayOfWeek.WED -> java.time.DayOfWeek.WEDNESDAY
+        AppDayOfWeek.THU -> java.time.DayOfWeek.THURSDAY
+        AppDayOfWeek.FRI -> java.time.DayOfWeek.FRIDAY
+        AppDayOfWeek.SAT -> java.time.DayOfWeek.SATURDAY
+        AppDayOfWeek.SUN -> java.time.DayOfWeek.SUNDAY
     }
 }
 

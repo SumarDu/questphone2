@@ -753,12 +753,20 @@ fun calculateCurrentStreak(
     completed: Collection<StatsInfo>,
     questDays: Set<DayOfWeek>
 ): Int {
+    // Safety check: if questDays is empty, return 0 to avoid infinite loop
+    if (questDays.isEmpty()) {
+        return 0
+    }
+    
     val completedDates: HashSet<kotlinx.datetime.LocalDate> = completed.map { it.date }.toHashSet()
 
     var streak = 0
     var currentDate = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+    var maxIterations = 1000 // Safety limit to prevent infinite loops
 
-    while (true) {
+    while (maxIterations > 0) {
+        maxIterations--
+        
         if (currentDate.dayOfWeek !in questDays) {
             currentDate = currentDate.minus(1, DateTimeUnit.DAY)
             continue

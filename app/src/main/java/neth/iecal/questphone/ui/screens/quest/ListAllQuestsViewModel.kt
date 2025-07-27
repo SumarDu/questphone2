@@ -16,6 +16,11 @@ import java.util.UUID
 import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.data.quest.QuestDao
 import neth.iecal.questphone.data.settings.SettingsRepository
+import neth.iecal.questphone.data.DayOfWeek
+
+enum class QuestTab {
+    ALL, REPEATING, CALENDAR, CLONED
+}
 
 class ListAllQuestsViewModel(application: Application, private val questDao: QuestDao) : AndroidViewModel(application) {
 
@@ -23,27 +28,56 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
+    
+    private val _selectedTab = MutableStateFlow(QuestTab.ALL)
+    val selectedTab = _selectedTab.asStateFlow()
 
     val questToDelete = MutableStateFlow<CommonQuestInfo?>(null)
 
-    private val allQuests: Flow<List<CommonQuestInfo>> = questDao.getPermanentQuests()
-    private val clonedQuests: Flow<List<CommonQuestInfo>> = questDao.getClonedQuests()
+    private val permanentQuests: Flow<List<CommonQuestInfo>> = questDao.getPermanentQuests()
+    private val temporaryQuests: Flow<List<CommonQuestInfo>> = questDao.getClonedQuests() // Note: This includes calendar quests
 
-    val filteredQuests = allQuests.combine(searchQuery) { quests, query ->
+    // Helper functions to categorize quests
+    private fun isRepeatingQuest(quest: CommonQuestInfo): Boolean {
+        return quest.selected_days.isNotEmpty() && quest.calendar_event_id == null
+    }
+    
+    private fun isCalendarQuest(quest: CommonQuestInfo): Boolean {
+        return quest.calendar_event_id != null
+    }
+    
+    private fun isClonedQuest(quest: CommonQuestInfo): Boolean {
+        // A quest is cloned if it's marked as a clone and is not a calendar quest.
+        return (quest.title.contains("(Clone)") || quest.id.contains("clone")) && !isCalendarQuest(quest)
+    }
+    
+    // Combined filtering based on tab and search query
+    val filteredQuests = combine(permanentQuests, temporaryQuests, searchQuery, selectedTab) { permanent, temporary, query, tab ->
+        val allQuestsList = permanent + temporary
+
+        val questsToShow = when (tab) {
+            QuestTab.ALL -> allQuestsList
+            QuestTab.REPEATING -> allQuestsList.filter { isRepeatingQuest(it) }
+            QuestTab.CALENDAR -> allQuestsList.filter { isCalendarQuest(it) }
+            QuestTab.CLONED -> allQuestsList.filter { isClonedQuest(it) }
+        }
+        
         if (query.isBlank()) {
-            quests
+            questsToShow
         } else {
-            quests.filter {
+            questsToShow.filter {
                 it.title.contains(query, ignoreCase = true) || it.instructions.contains(query, ignoreCase = true)
             }
         }
     }
-
-    val filteredClonedQuests = clonedQuests.combine(searchQuery) { quests, query ->
+    
+    // Separate flows for backward compatibility
+    val filteredClonedQuests = temporaryQuests.combine(searchQuery) { quests, query ->
+        val cloned = quests.filter { isClonedQuest(it) }
         if (query.isBlank()) {
-            quests
+            cloned
         } else {
-            quests.filter {
+            cloned.filter {
                 it.title.contains(query, ignoreCase = true) || it.instructions.contains(query, ignoreCase = true)
             }
         }
@@ -51,6 +85,10 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
 
         fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
+    }
+    
+    fun onTabSelected(tab: QuestTab) {
+        _selectedTab.value = tab
     }
 
         fun onQuestCloneRequest(quest: CommonQuestInfo) {
