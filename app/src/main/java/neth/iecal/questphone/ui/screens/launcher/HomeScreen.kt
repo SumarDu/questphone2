@@ -89,6 +89,8 @@ import neth.iecal.questphone.utils.getCurrentDay
 import neth.iecal.questphone.utils.isSetToDefaultLauncher
 import neth.iecal.questphone.utils.openDefaultLauncherSettings
 import kotlinx.serialization.json.Json
+import neth.iecal.questphone.utils.SchedulingUtils
+import java.time.LocalDate
 
 private val json = Json { ignoreUnknownKeys = true }
 
@@ -184,20 +186,15 @@ fun HomeScreen(navController: NavController) {
         if (initial.value) {
             initial.value = false // Ignore the first emission (initial = emptyList())
         } else {
-            val todayDay = getCurrentDay()
+            val today = LocalDate.now()
             val isUserCreatedToday = getCurrentDate() == formatInstantToDate(User.userInfo.created_on)
 
-            Log.d("IsUserCreatedToday",isUserCreatedToday.toString())
+            Log.d("IsUserCreatedToday", isUserCreatedToday.toString())
             val list = questListUnfiltered.filter {
-                !it.is_destroyed && 
-                (
-                    // Regular quests: check if today is in selected_days
-                    it.selected_days.contains(todayDay) ||
-                    // Calendar quests: check if auto_destruct matches today's date
-                    (it.calendar_event_id != null && it.auto_destruct == getCurrentDate())
-                ) &&
-                (isUserCreatedToday || it.created_on != getCurrentDate())
-            }
+                !it.is_destroyed &&
+                        SchedulingUtils.isQuestAvailableOnDate(it.scheduling_info, today) &&
+                        (isUserCreatedToday || it.created_on != getCurrentDate())
+            }.toMutableList()
             questList.clear()
             questList.addAll(list)
 

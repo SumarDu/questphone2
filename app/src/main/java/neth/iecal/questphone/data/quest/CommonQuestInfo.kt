@@ -23,15 +23,17 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import neth.iecal.questphone.data.DayOfWeek
 import neth.iecal.questphone.data.IntegrationId
+import neth.iecal.questphone.data.SchedulingInfo
 import neth.iecal.questphone.data.quest.focus.DeepFocusSessionLog
 import neth.iecal.questphone.data.quest.focus.DeepFocusSessionLogDao
-import neth.iecal.questphone.data.calendar.CalendarEvent
-import neth.iecal.questphone.data.calendar.CalendarEventDao
+
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.utils.json
 import java.util.UUID
@@ -59,6 +61,7 @@ data class CommonQuestInfo(
     val reward_max: Int = 5,
     var integration_id : IntegrationId = IntegrationId.DEEP_FOCUS,
     var selected_days: Set<DayOfWeek> = emptySet(),
+    var scheduling_info: SchedulingInfo = SchedulingInfo(),
     var auto_destruct: String = "9999-12-31",
     var time_range: List<Int> = listOf(0,24),
     var created_on : String = getCurrentDate(),
@@ -76,7 +79,8 @@ data class CommonQuestInfo(
     var synced: Boolean = false,
     var last_updated: Long = System.currentTimeMillis(),
     var color_rgba: String = "",
-    var calendar_event_id: String? = null
+    var calendar_event_id: Long? = null,
+
 
 )
 
@@ -97,7 +101,8 @@ class QuestInfoState(
     initialBreakDurationMinutes: Int = 0,
     initialLastCompletedAt: Long = 0,
     initialQuestStartedAt: Long = 0,
-    initialColorRgba: String = ""
+    initialColorRgba: String = "",
+    initialSchedulingInfo: SchedulingInfo = SchedulingInfo()
 ) {
     var id = UUID.randomUUID().toString()
     var title by mutableStateOf(initialTitle)
@@ -105,6 +110,7 @@ class QuestInfoState(
     var rewardMax by mutableIntStateOf(initialRewardMax)
     var integrationId by mutableStateOf(initialIntegrationId)
     var selectedDays by mutableStateOf(initialSelectedDays)
+    var schedulingInfo by mutableStateOf(initialSchedulingInfo)
     var instructions by mutableStateOf(initialInstructions)
     var initialAutoDestruct by mutableStateOf(initialAutoDestruct)
     var initialTimeRange by mutableStateOf(initialTimeRange)
@@ -123,6 +129,7 @@ class QuestInfoState(
         reward_max = rewardMax,
         integration_id = integrationId,
         selected_days = selectedDays,
+        scheduling_info = schedulingInfo,
         auto_destruct = initialAutoDestruct,
         time_range = initialTimeRange,
         instructions = instructions,
@@ -142,6 +149,7 @@ class QuestInfoState(
         rewardMax = commonQuestInfo.reward_max
         integrationId = commonQuestInfo.integration_id
         selectedDays = commonQuestInfo.selected_days
+        schedulingInfo = commonQuestInfo.scheduling_info
         initialAutoDestruct = commonQuestInfo.auto_destruct
         instructions = commonQuestInfo.instructions
         initialTimeRange = commonQuestInfo.time_range
@@ -181,6 +189,19 @@ object BaseQuestConverter {
         } catch (e: IllegalArgumentException) {
             Log.w("QuestConverter", "Unknown integration_id '$name', defaulting to DEEP_FOCUS")
             IntegrationId.DEEP_FOCUS
+        }
+    }
+
+    @TypeConverter
+    fun fromSchedulingInfo(schedulingInfo: SchedulingInfo): String = json.encodeToString(schedulingInfo)
+
+    @TypeConverter
+    fun toSchedulingInfo(jsonStr: String): SchedulingInfo {
+        return try {
+            json.decodeFromString<SchedulingInfo>(jsonStr)
+        } catch (e: Exception) {
+            Log.w("QuestConverter", "Failed to parse scheduling info, using default")
+            SchedulingInfo()
         }
     }
 }
@@ -237,15 +258,28 @@ interface QuestDao {
 
 
 
-@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class, CalendarEvent::class], version = 15, exportSchema = false)
+@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class], version = 19, exportSchema = false)
 @TypeConverters(BaseQuestConverter::class)
 abstract class QuestDatabase : RoomDatabase() {
     abstract fun appUnlockerItemDao(): AppUnlockerItemDao
     abstract fun questDao(): QuestDao
     abstract fun deepFocusSessionLogDao(): DeepFocusSessionLogDao
-    abstract fun calendarEventDao(): CalendarEventDao
+
 }
 
+
+val MIGRATION_18_19 = object : Migration(18, 19) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN calendar_event_id INTEGER")
+    }
+}
+
+val MIGRATION_17_18 = object : Migration(17, 18) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add the scheduling_info column to CommonQuestInfo table
+        database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN scheduling_info TEXT")
+    }
+}
 
 object QuestDatabaseProvider {
     @Volatile
@@ -257,10 +291,9 @@ object QuestDatabaseProvider {
                 context.applicationContext,
                 QuestDatabase::class.java,
                 "quest_database"
-            ).fallbackToDestructiveMigration().build()
+            ).addMigrations(MIGRATION_18_19).fallbackToDestructiveMigration().build()
             INSTANCE = instance
             instance
         }
     }
 }
-

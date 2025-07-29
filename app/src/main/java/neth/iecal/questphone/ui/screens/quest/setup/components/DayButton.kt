@@ -14,57 +14,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import neth.iecal.questphone.data.DayOfWeek
-import neth.iecal.questphone.data.quest.QuestInfoState
 
 @Composable
-fun SelectDaysOfWeek(
-    baseQuest: QuestInfoState,
-    modifier: Modifier = Modifier
-) {
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-
-        Text(
-            text = "Choose Days",
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        Text(
-            text = "Select the days on which you want to perform this quest.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Absolute.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            DayOfWeek.entries.forEach { day ->
-                DayButton(
-                    day = day,
-                    isSelected = day in baseQuest.selectedDays,
-                    onSelected = { selected ->
-                        baseQuest.selectedDays = if (selected) {
-                            baseQuest.selectedDays + day
-                        } else {
-                            baseQuest.selectedDays - day
-                        }
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DayButton(
+fun DayButton(
     day: DayOfWeek,
     isSelected: Boolean,
     onSelected: (Boolean) -> Unit

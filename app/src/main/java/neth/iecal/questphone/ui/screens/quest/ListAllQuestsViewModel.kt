@@ -17,9 +17,17 @@ import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.data.quest.QuestDao
 import neth.iecal.questphone.data.settings.SettingsRepository
 import neth.iecal.questphone.data.DayOfWeek
+import neth.iecal.questphone.data.IntegrationId
+import neth.iecal.questphone.data.SchedulingInfo
+import neth.iecal.questphone.data.SchedulingType
+import neth.iecal.questphone.data.quest.CalendarQuest
+import neth.iecal.questphone.services.CalendarSyncService
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 enum class QuestTab {
-    ALL, REPEATING, CALENDAR, CLONED
+    ALL, REPEATING, CLONED
 }
 
 class ListAllQuestsViewModel(application: Application, private val questDao: QuestDao) : AndroidViewModel(application) {
@@ -35,20 +43,18 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
     val questToDelete = MutableStateFlow<CommonQuestInfo?>(null)
 
     private val permanentQuests: Flow<List<CommonQuestInfo>> = questDao.getPermanentQuests()
-    private val temporaryQuests: Flow<List<CommonQuestInfo>> = questDao.getClonedQuests() // Note: This includes calendar quests
+    private val temporaryQuests: Flow<List<CommonQuestInfo>> = questDao.getClonedQuests()
 
     // Helper functions to categorize quests
     private fun isRepeatingQuest(quest: CommonQuestInfo): Boolean {
-        return quest.selected_days.isNotEmpty() && quest.calendar_event_id == null
+        return quest.selected_days.isNotEmpty()
     }
     
-    private fun isCalendarQuest(quest: CommonQuestInfo): Boolean {
-        return quest.calendar_event_id != null
-    }
+
     
     private fun isClonedQuest(quest: CommonQuestInfo): Boolean {
-        // A quest is cloned if it's marked as a clone and is not a calendar quest.
-        return (quest.title.contains("(Clone)") || quest.id.contains("clone")) && !isCalendarQuest(quest)
+        // A quest is cloned if it's marked as a clone.
+        return (quest.title.contains("(Clone)") || quest.id.contains("clone"))
     }
     
     // Combined filtering based on tab and search query
@@ -58,7 +64,7 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
         val questsToShow = when (tab) {
             QuestTab.ALL -> allQuestsList
             QuestTab.REPEATING -> allQuestsList.filter { isRepeatingQuest(it) }
-            QuestTab.CALENDAR -> allQuestsList.filter { isCalendarQuest(it) }
+
             QuestTab.CLONED -> allQuestsList.filter { isClonedQuest(it) }
         }
         
@@ -122,6 +128,73 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
 
     fun onQuestDeleteCancel() {
         questToDelete.value = null
+    }
+
+    fun syncCalendar() {
+        viewModelScope.launch {
+            val calendarSyncService = CalendarSyncService(getApplication())
+            val calendarQuests = calendarSyncService.getCalendarEvents()
+            val dbQuests = questDao.getAllQuestsSuspend()
+                .filter { it.calendar_event_id != null }
+                .associateBy { it.calendar_event_id!! }
+
+            val questsToUpsert = mutableListOf<CommonQuestInfo>()
+            val questsToDelete = dbQuests.toMutableMap()
+
+            for (calendarQuest in calendarQuests) {
+                val existingQuest = dbQuests[calendarQuest.eventId]
+                questsToDelete.remove(calendarQuest.eventId)
+
+                val questFromCalendar = mapCalendarQuestToCommonQuestInfo(calendarQuest, existingQuest)
+
+                if (existingQuest == null || hasQuestChanged(existingQuest, questFromCalendar)) {
+                    questsToUpsert.add(questFromCalendar)
+                }
+            }
+
+            if (questsToUpsert.isNotEmpty()) {
+                questDao.upsertAll(questsToUpsert)
+            }
+
+            if (questsToDelete.isNotEmpty()) {
+                questsToDelete.values.forEach { questDao.deleteQuest(it) }
+            }
+
+            Toast.makeText(getApplication(), "Calendar synced successfully", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun mapCalendarQuestToCommonQuestInfo(calendarQuest: CalendarQuest, existingQuest: CommonQuestInfo?): CommonQuestInfo {
+        return CommonQuestInfo(
+            id = existingQuest?.id ?: UUID.randomUUID().toString(),
+            title = calendarQuest.title,
+            instructions = calendarQuest.description,
+            reward_min = calendarQuest.rewardMin,
+            reward_max = calendarQuest.rewardMax,
+            quest_duration_minutes = calendarQuest.duration,
+            break_duration_minutes = calendarQuest.breakMinutes,
+            ai_photo_proof = calendarQuest.aiPhotoProofPrompt != null,
+            ai_photo_proof_description = calendarQuest.aiPhotoProofPrompt ?: "",
+            integration_id = IntegrationId.SWIFT_MARK,
+            calendar_event_id = calendarQuest.eventId,
+            scheduling_info = SchedulingInfo(
+                type = SchedulingType.SPECIFIC_DATE,
+                specificDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(calendarQuest.startTime))
+            ),
+            auto_destruct = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(calendarQuest.endTime)),
+            last_updated = System.currentTimeMillis()
+        )
+    }
+
+    private fun hasQuestChanged(oldQuest: CommonQuestInfo, newQuest: CommonQuestInfo): Boolean {
+        return oldQuest.title != newQuest.title ||
+                oldQuest.instructions != newQuest.instructions ||
+                oldQuest.reward_min != newQuest.reward_min ||
+                oldQuest.reward_max != newQuest.reward_max ||
+                oldQuest.quest_duration_minutes != newQuest.quest_duration_minutes ||
+                oldQuest.break_duration_minutes != newQuest.break_duration_minutes ||
+                oldQuest.ai_photo_proof != newQuest.ai_photo_proof ||
+                oldQuest.ai_photo_proof_description != newQuest.ai_photo_proof_description
     }
 }
 

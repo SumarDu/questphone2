@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Tab
@@ -58,125 +59,91 @@ import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.ui.navigation.Screen
 import neth.iecal.questphone.utils.getCurrentDate
+import neth.iecal.questphone.utils.SchedulingUtils
+import neth.iecal.questphone.utils.CalendarPermissionHelper
 import java.util.concurrent.TimeUnit
+import androidx.compose.material.icons.filled.Sync
+import android.app.Activity
 
 @Composable
 fun ListAllQuests(navHostController: NavHostController) {
     val context = LocalContext.current
     val viewModel: ListAllQuestsViewModel = viewModel(
-                factory = ListAllQuestsViewModelFactory(context.applicationContext as Application, QuestDatabaseProvider.getInstance(context).questDao())
+        factory = ListAllQuestsViewModelFactory(context.applicationContext as Application, QuestDatabaseProvider.getInstance(context).questDao())
     )
 
     val filteredQuestList by viewModel.filteredQuests.collectAsState(initial = emptyList())
-    val filteredClonedQuestList by viewModel.filteredClonedQuests.collectAsState(initial = emptyList())
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
     val questToDelete by viewModel.questToDelete.collectAsState()
-    
-    // Helper function to check if there's an active or overdue quest that should block interactions
-    fun isQuestFinishedAndCanReopen(quest: CommonQuestInfo): Boolean {
-        val now = System.currentTimeMillis()
-        val questDurationMillis = TimeUnit.MINUTES.toMillis(quest.quest_duration_minutes.toLong())
-        val questEndTime = quest.quest_started_at + questDurationMillis
-
-        return quest.quest_started_at > 0 && now > questEndTime && quest.last_completed_on != getCurrentDate()
-    }
 
     fun hasActiveOrOverdueQuestBlocking(currentQuest: CommonQuestInfo, allQuests: List<CommonQuestInfo>): Boolean {
         val activeQuest = allQuests.find { it.quest_started_at > 0 && it.last_completed_on != getCurrentDate() }
         if (activeQuest == null) return false
-        
-        // Don't block if clicking on the same active quest
         if (activeQuest.id == currentQuest.id) return false
-        
         val now = System.currentTimeMillis()
         val questDurationMillis = TimeUnit.MINUTES.toMillis(activeQuest.quest_duration_minutes.toLong())
         val questEndTime = activeQuest.quest_started_at + questDurationMillis
-        
-        // Block if quest is active or overdue
         return now <= questEndTime || (now > questEndTime && activeQuest.last_completed_on != getCurrentDate())
     }
 
-
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        floatingActionButton = {
-            Button(
-                onClick = { navHostController.navigate(Screen.AddNewQuest.route) },
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.padding(bottom = 32.dp)
-            ) {
-                Text(text = "Add Quest")
-            }
-        },
-        floatingActionButtonPosition = FabPosition.End
-    ) { innerPadding ->
-
-        Column(
-            modifier = Modifier.fillMaxWidth()
-                .padding(innerPadding)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.Start
-            ) {
-
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item {
-                    Text("All Quests",
-                        style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold))
-                }
-                item {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { viewModel.onSearchQueryChange(it) },
-                        label = { Text("Search Quests") },
-                        placeholder = { Text("Type Quest Title...") },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Search"
-                            )
-                        },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Clear,
-                                        contentDescription = "Clear search"
-                                    )
-                                }
+        topBar = {
+            Column {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { viewModel.onSearchQueryChange(it) },
+                    label = { Text("Search Quests") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear search")
                             }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        singleLine = true
-                    )
-                }
-                item {
-                    TabRow(
-                        selectedTabIndex = selectedTab.ordinal,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        QuestTab.values().forEach { tab ->
-                            Tab(
-                                selected = selectedTab == tab,
-                                onClick = { viewModel.onTabSelected(tab) },
-                                text = {
-                                    Text(
-                                        text = when (tab) {
-                                            QuestTab.ALL -> "All"
-                                            QuestTab.REPEATING -> "Repeating"
-                                            QuestTab.CALENDAR -> "Calendar"
-                                            QuestTab.CLONED -> "Cloned"
-                                        }
-                                    )
-                                }
-                            )
                         }
                     }
+                )
+                TabRow(selectedTabIndex = selectedTab.ordinal) {
+                    QuestTab.values().forEach { tab ->
+                        Tab(
+                            selected = selectedTab == tab,
+                            onClick = { viewModel.onTabSelected(tab) },
+                            text = { Text(tab.name.lowercase().replaceFirstChar { it.uppercase() }) }
+                        )
+                    }
                 }
+            }
+        },
+        floatingActionButton = {
+            Button(onClick = {
+                if (CalendarPermissionHelper.hasCalendarPermission(context)) {
+                    viewModel.syncCalendar()
+                } else {
+                    CalendarPermissionHelper.requestCalendarPermission(context as Activity)
+                }
+            }) {
+                Icon(Icons.Default.Sync, contentDescription = "Sync Calendar")
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Sync Calendar")
+            }
+        },
+        floatingActionButtonPosition = FabPosition.Center
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 items(filteredQuestList, key = { it.id }) { questBase ->
                     QuestItem(
                         quest = questBase,
@@ -184,36 +151,37 @@ fun ListAllQuests(navHostController: NavHostController) {
                             if (hasActiveOrOverdueQuestBlocking(questBase, filteredQuestList)) {
                                 return@QuestItem
                             }
-
-                            // Always navigate to quest statistics/info screen
                             navHostController.navigate(Screen.QuestStats.route + questBase.id)
                         },
                         onDelete = { viewModel.onQuestDeleteRequest(questBase) },
-                        onClone = { viewModel.onQuestCloneRequest(questBase) }
+                        onClone = { viewModel.onQuestCloneRequest(questBase) },
+                        onEdit = {
+                            val route = questBase.integration_id.name + "/" + questBase.id
+                            navHostController.navigate(route)
+                        }
                     )
                 }
             }
+        }
 
-            questToDelete?.let { quest ->
-                AlertDialog(
-                    onDismissRequest = { viewModel.onQuestDeleteCancel() },
-                    title = { Text("Delete Quest") },
-                    text = { Text("Are you sure you want to delete the quest \"${quest.title}\"? This action cannot be undone.") },
-                    confirmButton = {
-                        TextButton(onClick = { viewModel.onQuestDeleteConfirm() }) {
-                            Text("Delete")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { viewModel.onQuestDeleteCancel() }) {
-                            Text("Cancel")
-                        }
+        if (questToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { viewModel.onQuestDeleteCancel() },
+                title = { Text("Delete Quest") },
+                text = { Text("Are you sure you want to delete the quest \"${questToDelete!!.title}\"? This action cannot be undone.") },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.onQuestDeleteConfirm() }) {
+                        Text("Delete")
                     }
-                )
-            }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.onQuestDeleteCancel() }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
-
 }
 
 @Composable
@@ -221,7 +189,8 @@ private fun QuestItem(
     quest: CommonQuestInfo,
     onClick: () -> Unit,
     onDelete: () -> Unit,
-    onClone: () -> Unit
+    onClone: () -> Unit,
+    onEdit: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Card(
@@ -266,6 +235,9 @@ private fun QuestItem(
                         IconButton(onClick = onClone) {
                             Icon(Icons.Default.ContentCopy, contentDescription = "Clone quest")
                         }
+                        IconButton(onClick = onEdit) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit quest")
+                        }
                         IconButton(onClick = onDelete) {
                             Icon(Icons.Default.Delete, contentDescription = "Delete quest")
                         }
@@ -281,20 +253,8 @@ private fun QuestItem(
                             overflow = TextOverflow.Ellipsis
                         )
                     } else {
-                        // Show calendar date for calendar quests, otherwise show selected days
-                        val displayText = if (quest.calendar_event_id != null) {
-                            // Format the auto_destruct date for calendar quests
-                            try {
-                                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                                val displayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-                                val date = dateFormat.parse(quest.auto_destruct)
-                                "Scheduled: ${displayFormat.format(date!!)}"
-                            } catch (e: Exception) {
-                                "Calendar Quest"
-                            }
-                        } else {
-                            if(quest.selected_days.size == 7) "Everyday" else quest.selected_days.joinToString(", ") { it.name }
-                        }
+                        // Show scheduling information for quests
+                        val displayText = SchedulingUtils.getSchedulingDescription(quest.scheduling_info)
                         
                         Text(
                             text = displayText,

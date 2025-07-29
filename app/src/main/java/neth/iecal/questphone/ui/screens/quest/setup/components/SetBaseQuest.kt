@@ -63,7 +63,7 @@ fun SetBaseQuest(questInfoState: QuestInfoState, isTimeRangeSupported: Boolean =
     if(questInfoState.selectedDays.contains(getCurrentDay()) && User.userInfo.getCreatedOnString() != getCurrentDate()){
         Text("To prevent abuse, you can't perform this quest today. You'll be able to do it starting from the next time it occurs.")
     }
-    SelectDaysOfWeek(questInfoState)
+    EnhancedScheduling(questInfoState)
 
 
     OutlinedTextField(

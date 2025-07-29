@@ -19,8 +19,10 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import neth.iecal.questphone.data.IntegrationId
+import neth.iecal.questphone.data.SchedulingType
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.data.quest.QuestInfoState
+import neth.iecal.questphone.utils.SchedulingUtils
 import neth.iecal.questphone.data.settings.SettingsRepository
 import neth.iecal.questphone.ui.screens.quest.setup.ReviewDialog
 import neth.iecal.questphone.ui.screens.quest.setup.components.SetBaseQuest
@@ -52,8 +54,13 @@ fun SetSwiftMark(editQuestId:String? = null,navController: NavHostController) {
     LaunchedEffect(Unit){
         if(editQuestId!=null){
             val dao = QuestDatabaseProvider.getInstance(context).questDao()
-            val quest = dao.getQuest(editQuestId)
-            questInfoState.fromBaseQuest(quest!!)
+            val quest = dao.getQuestById(editQuestId)
+            if (quest != null) {
+                questInfoState.fromBaseQuest(quest)
+            } else {
+                // Handle case where quest is not found
+                navController.popBackStack()
+            }
         }
     }
 
@@ -68,7 +75,11 @@ fun SetSwiftMark(editQuestId:String? = null,navController: NavHostController) {
             onConfirm = {
                 scope.launch {
                     val dao = QuestDatabaseProvider.getInstance(context).questDao()
-                    dao.upsertQuest(baseQuest)
+                    // Set proper expiration date based on scheduling type
+                    val questWithExpiration = baseQuest.copy(
+                        auto_destruct = SchedulingUtils.getExpirationDate(baseQuest.scheduling_info, baseQuest.auto_destruct)
+                    )
+                    dao.upsertQuest(questWithExpiration)
                 }
                 isReviewDialogVisible.value = false
                 navController.popBackStack()
@@ -148,8 +159,19 @@ fun SetSwiftMark(editQuestId:String? = null,navController: NavHostController) {
                         )
                     }
 
+                    val isSchedulingValid by remember(questInfoState.schedulingInfo) {
+                        derivedStateOf {
+                            when (questInfoState.schedulingInfo.type) {
+                                SchedulingType.WEEKLY -> questInfoState.schedulingInfo.selectedDays.isNotEmpty()
+                                SchedulingType.SPECIFIC_DATE -> !questInfoState.schedulingInfo.specificDate.isNullOrBlank()
+                                SchedulingType.MONTHLY_DATE -> questInfoState.schedulingInfo.monthlyDate != null
+                                SchedulingType.MONTHLY_LAST_DAY -> questInfoState.schedulingInfo.monthlyLastDayOfWeek != null
+                            }
+                        }
+                    }
+
                     Button(
-                        enabled = questInfoState.selectedDays.isNotEmpty() && (settings.isQuestCreationEnabled || editQuestId != null),
+                        enabled = isSchedulingValid && (settings.isQuestCreationEnabled || editQuestId != null),
                         onClick = {
                             isReviewDialogVisible.value = true
                         },

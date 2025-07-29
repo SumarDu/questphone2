@@ -26,8 +26,9 @@ import neth.iecal.questphone.data.local.AppDatabase
 import neth.iecal.questphone.data.local.QuestEvent
 import neth.iecal.questphone.data.local.QuestEventDao
 import neth.iecal.questphone.data.remote.SupabaseSyncService
-
 import neth.iecal.questphone.utils.getCurrentDate
+import neth.iecal.questphone.utils.VibrationHelper
+import neth.iecal.questphone.utils.SchedulingUtils
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
@@ -340,7 +341,27 @@ class TimerService : Service() {
             val questId = _timerState.value.activeQuestId ?: return@launch
             val quest = questDao.getQuestById(questId) ?: return@launch
             val now = System.currentTimeMillis()
-            val completedQuest = quest.copy(last_completed_on = getCurrentDate(), last_completed_at = now)
+            
+            // Update scheduling info for next occurrence
+            val updatedSchedulingInfo = SchedulingUtils.updateSchedulingForNextOccurrence(quest.scheduling_info)
+            
+            val completedQuest = if (updatedSchedulingInfo == null) {
+                // For specific date quests, mark as destroyed and set proper expiration
+                quest.copy(
+                    last_completed_on = getCurrentDate(),
+                    last_completed_at = now,
+                    is_destroyed = true,
+                    auto_destruct = SchedulingUtils.getExpirationDate(quest.scheduling_info)
+                )
+            } else {
+                // For repeating quests, update scheduling info
+                quest.copy(
+                    last_completed_on = getCurrentDate(),
+                    last_completed_at = now,
+                    scheduling_info = updatedSchedulingInfo
+                )
+            }
+            
             questDao.upsertQuest(completedQuest)
             temporaryAddedTimeMillis = 0L
             _timerState.value = _timerState.value.copy(notificationSent = false) // Reset notification flag
