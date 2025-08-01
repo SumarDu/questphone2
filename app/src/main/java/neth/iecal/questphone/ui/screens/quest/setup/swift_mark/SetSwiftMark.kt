@@ -165,7 +165,7 @@ fun SetSwiftMark(editQuestId:String? = null,navController: NavHostController) {
                                 SchedulingType.WEEKLY -> questInfoState.schedulingInfo.selectedDays.isNotEmpty()
                                 SchedulingType.SPECIFIC_DATE -> !questInfoState.schedulingInfo.specificDate.isNullOrBlank()
                                 SchedulingType.MONTHLY_DATE -> questInfoState.schedulingInfo.monthlyDate != null
-                                SchedulingType.MONTHLY_LAST_DAY -> questInfoState.schedulingInfo.monthlyLastDayOfWeek != null
+                                SchedulingType.MONTHLY_BY_DAY -> questInfoState.schedulingInfo.monthlyDayOfWeek != null && questInfoState.schedulingInfo.monthlyWeekInMonth != null
                             }
                         }
                     }

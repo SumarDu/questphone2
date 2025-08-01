@@ -132,7 +132,7 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
 
     fun syncCalendar() {
         viewModelScope.launch {
-            val calendarSyncService = CalendarSyncService(getApplication())
+            val calendarSyncService = CalendarSyncService(getApplication(), settingsRepository)
             val calendarQuests = calendarSyncService.getCalendarEvents()
             val dbQuests = questDao.getAllQuestsSuspend()
                 .filter { it.calendar_event_id != null }
@@ -165,6 +165,8 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
     }
 
     private fun mapCalendarQuestToCommonQuestInfo(calendarQuest: CalendarQuest, existingQuest: CommonQuestInfo?): CommonQuestInfo {
+        val (schedulingInfo, selectedDays, autoDestruct) = parseCalendarEventScheduling(calendarQuest)
+        
         return CommonQuestInfo(
             id = existingQuest?.id ?: UUID.randomUUID().toString(),
             title = calendarQuest.title,
@@ -177,13 +179,130 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
             ai_photo_proof_description = calendarQuest.aiPhotoProofPrompt ?: "",
             integration_id = IntegrationId.SWIFT_MARK,
             calendar_event_id = calendarQuest.eventId,
-            scheduling_info = SchedulingInfo(
-                type = SchedulingType.SPECIFIC_DATE,
-                specificDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(calendarQuest.startTime))
-            ),
-            auto_destruct = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(calendarQuest.endTime)),
+            scheduling_info = schedulingInfo,
+            selected_days = selectedDays,
+            auto_destruct = autoDestruct,
             last_updated = System.currentTimeMillis()
         )
+    }
+    
+    private fun parseCalendarEventScheduling(calendarQuest: CalendarQuest): Triple<SchedulingInfo, Set<DayOfWeek>, String> {
+        val rrule = calendarQuest.rrule
+        
+        // Check for weekly recurring event
+        if (!rrule.isNullOrEmpty() && rrule.contains("FREQ=WEEKLY")) {
+            val dayOfWeek = getDayOfWeekFromTimestamp(calendarQuest.startTime)
+            val selectedDays = setOf(dayOfWeek)
+
+            val schedulingInfo = SchedulingInfo(
+                type = SchedulingType.WEEKLY,
+                selectedDays = selectedDays
+            )
+
+            val autoDestruct = calendarQuest.until?.let {
+                SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(it))
+            } ?: "9999-12-31"
+
+            return Triple(schedulingInfo, selectedDays, autoDestruct)
+
+        // Check for monthly recurring event
+        } else if (!rrule.isNullOrEmpty() && rrule.contains("FREQ=MONTHLY")) {
+            val intervalRegex = "INTERVAL=([0-9]+)".toRegex()
+            val intervalMatch = intervalRegex.find(rrule)
+            val interval = intervalMatch?.groupValues?.get(1)?.toIntOrNull() ?: 1
+
+            if (interval > 1) {
+                // Treat as a one-time quest if interval is > 1 month
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                val specificDate = dateFormat.format(Date(calendarQuest.startTime))
+                val schedulingInfo = SchedulingInfo(
+                    type = SchedulingType.SPECIFIC_DATE,
+                    specificDate = specificDate
+                )
+                return Triple(schedulingInfo, emptySet(), specificDate)
+            }
+
+            val byDayRegex = "BYDAY=([0-9A-Z-]+)".toRegex()
+            val byDayMatch = byDayRegex.find(rrule)
+
+            if (byDayMatch != null) {
+                val byDayValue = byDayMatch.groupValues[1]
+                val weekInMonth = byDayValue.filter { it.isDigit() || it == '-' }.toIntOrNull() ?: 0
+                val dayOfWeekStr = byDayValue.filter { it.isLetter() }
+                val dayOfWeek = mapRruleDayToAppDay(dayOfWeekStr)
+
+
+                val schedulingInfo = SchedulingInfo(
+                    type = SchedulingType.MONTHLY_BY_DAY,
+                    monthlyDayOfWeek = dayOfWeek,
+                    monthlyWeekInMonth = weekInMonth
+                )
+
+                val autoDestruct = calendarQuest.until?.let {
+                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(it))
+                } ?: "9999-12-31"
+
+                return Triple(schedulingInfo, emptySet(), autoDestruct)
+            } else {
+                val dayOfMonth = getDayOfMonthFromTimestamp(calendarQuest.startTime)
+
+                val schedulingInfo = SchedulingInfo(
+                    type = SchedulingType.MONTHLY_DATE,
+                    monthlyDate = dayOfMonth
+                )
+
+                val autoDestruct = calendarQuest.until?.let {
+                    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(it))
+                } ?: "9999-12-31"
+
+                return Triple(schedulingInfo, emptySet(), autoDestruct)
+            }
+        // Handle single occurrence event
+        } else {
+            val schedulingInfo = SchedulingInfo(
+                type = SchedulingType.SPECIFIC_DATE,
+                specificDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(calendarQuest.startTime))
+            )
+
+            val autoDestruct = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(calendarQuest.endTime))
+
+            return Triple(schedulingInfo, emptySet(), autoDestruct)
+        }
+    }
+    
+    private fun mapRruleDayToAppDay(rruleDay: String): DayOfWeek {
+        return when (rruleDay.uppercase()) {
+            "SU" -> DayOfWeek.SUN
+            "MO" -> DayOfWeek.MON
+            "TU" -> DayOfWeek.TUE
+            "WE" -> DayOfWeek.WED
+            "TH" -> DayOfWeek.THU
+            "FR" -> DayOfWeek.FRI
+            "SA" -> DayOfWeek.SAT
+            else -> throw IllegalArgumentException("Unknown RRULE day: $rruleDay")
+        }
+    }
+
+    private fun getDayOfWeekFromTimestamp(timestamp: Long): DayOfWeek {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.timeInMillis = timestamp
+        
+        return when (calendar.get(java.util.Calendar.DAY_OF_WEEK)) {
+            java.util.Calendar.SUNDAY -> DayOfWeek.SUN
+            java.util.Calendar.MONDAY -> DayOfWeek.MON
+            java.util.Calendar.TUESDAY -> DayOfWeek.TUE
+            java.util.Calendar.WEDNESDAY -> DayOfWeek.WED
+            java.util.Calendar.THURSDAY -> DayOfWeek.THU
+            java.util.Calendar.FRIDAY -> DayOfWeek.FRI
+            java.util.Calendar.SATURDAY -> DayOfWeek.SAT
+            else -> DayOfWeek.MON // fallback
+        }
+    }
+
+    private fun getDayOfMonthFromTimestamp(timestamp: Long): Int {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.timeInMillis = timestamp
+        return calendar.get(java.util.Calendar.DAY_OF_MONTH)
     }
 
     private fun hasQuestChanged(oldQuest: CommonQuestInfo, newQuest: CommonQuestInfo): Boolean {

@@ -17,6 +17,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val settings = repository.settings
 
+    fun getSettingsRepository(): SettingsRepository {
+        return repository
+    }
+
     private val _geminiResponse = MutableStateFlow<String?>(null)
     val geminiResponse = _geminiResponse.asStateFlow()
 
@@ -53,6 +57,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun onSettingsLockChanged(isLocked: Boolean, password: String?, lockoutEndDate: Long?) {
         viewModelScope.launch {
         repository.updateSettingsLock(isLocked, password, lockoutEndDate)
+        }
+    }
+
+    fun updateAutoSyncHour(hour: Int?) {
+        viewModelScope.launch {
+            repository.updateAutoSyncHour(hour)
+        }
+    }
+
+    fun updateSelectedCalendars(calendarIds: Set<String>) {
+        viewModelScope.launch {
+            repository.updateSelectedCalendars(calendarIds)
         }
     }
 

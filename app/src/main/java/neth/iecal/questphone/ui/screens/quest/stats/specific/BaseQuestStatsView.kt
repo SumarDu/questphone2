@@ -117,7 +117,7 @@ fun BaseQuestStatsView(id: String, navController: NavHostController) {
         var stats = dao.getStatsByQuestId(baseData.id).first()
 
         successfulDates.addAll(stats.map { it.date })
-        val allowedDays = baseData.selected_days.map { it.toJavaDayOfWeek() }.toSet()
+        val allowedDays: Set<DayOfWeek> = baseData.selected_days.map { it.toJavaDayOfWeek() }.toSet()
         totalPerformableQuests = daysSince(baseData.created_on, allowedDays)
         totalSuccessfulQuests = stats.size
         totalFailedQuests = totalPerformableQuests - totalSuccessfulQuests

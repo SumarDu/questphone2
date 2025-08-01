@@ -86,12 +86,12 @@ fun EnhancedScheduling(
             )
 
             SchedulingTypeOption(
-                title = "Monthly Last Day",
-                description = "Repeat on the last occurrence of a day (e.g., last Saturday)",
-                isSelected = questInfoState.schedulingInfo.type == SchedulingType.MONTHLY_LAST_DAY,
+                title = "Monthly by Day",
+                description = "Repeat on a specific day of the week (e.g., first Wednesday)",
+                isSelected = questInfoState.schedulingInfo.type == SchedulingType.MONTHLY_BY_DAY,
                 onClick = {
                     questInfoState.schedulingInfo = questInfoState.schedulingInfo.copy(
-                        type = SchedulingType.MONTHLY_LAST_DAY
+                        type = SchedulingType.MONTHLY_BY_DAY
                     )
                 }
             )
@@ -111,8 +111,8 @@ fun EnhancedScheduling(
             SchedulingType.MONTHLY_DATE -> {
                 MonthlyDateConfig(questInfoState)
             }
-            SchedulingType.MONTHLY_LAST_DAY -> {
-                MonthlyLastDayConfig(questInfoState)
+            SchedulingType.MONTHLY_BY_DAY -> {
+                MonthlyByDayConfig(questInfoState)
             }
         }
     }
@@ -285,21 +285,47 @@ private fun MonthlyDateConfig(questInfoState: QuestInfoState) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MonthlyLastDayConfig(questInfoState: QuestInfoState) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = "Last Day of Month",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Medium
-        )
-        
-        Text(
-            text = "Select the day of the week for the last occurrence in each month",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        
+private fun MonthlyByDayConfig(questInfoState: QuestInfoState) {
+    val weekOptions = mapOf(1 to "First", 2 to "Second", 3 to "Third", 4 to "Fourth", -1 to "Last")
+    var weekDropdownExpanded by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Week of the month selection
+        ExposedDropdownMenuBox(
+            expanded = weekDropdownExpanded,
+            onExpandedChange = { weekDropdownExpanded = !weekDropdownExpanded }
+        ) {
+            OutlinedTextField(
+                value = weekOptions[questInfoState.schedulingInfo.monthlyWeekInMonth] ?: "Select Week",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Week of Month") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = weekDropdownExpanded) },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+            ExposedDropdownMenu(
+                expanded = weekDropdownExpanded,
+                onDismissRequest = { weekDropdownExpanded = false }
+            ) {
+                weekOptions.forEach { (weekNum, weekName) ->
+                    DropdownMenuItem(
+                        text = { Text(weekName) },
+                        onClick = {
+                            questInfoState.schedulingInfo = questInfoState.schedulingInfo.copy(
+                                monthlyWeekInMonth = weekNum
+                            )
+                            weekDropdownExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        // Day of the week selection
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -308,10 +334,10 @@ private fun MonthlyLastDayConfig(questInfoState: QuestInfoState) {
             DayOfWeek.entries.forEach { day ->
                 DayButton(
                     day = day,
-                    isSelected = questInfoState.schedulingInfo.monthlyLastDayOfWeek == day,
+                    isSelected = questInfoState.schedulingInfo.monthlyDayOfWeek == day,
                     onSelected = { selected ->
                         questInfoState.schedulingInfo = questInfoState.schedulingInfo.copy(
-                            monthlyLastDayOfWeek = if (selected) day else null
+                            monthlyDayOfWeek = if (selected) day else null
                         )
                     }
                 )

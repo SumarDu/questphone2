@@ -108,8 +108,8 @@ fun MdPad(commonQuestInfo: CommonQuestInfo){
                 instructions = currentText,
                 questId = commonQuestInfo.id,
                 modifier = Modifier
-                    .padding(top = 32.dp, bottom = 4.dp)
-                    .clickable { isEditing = true }
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 4.dp)
             )
         }
     }

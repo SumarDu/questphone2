@@ -7,9 +7,11 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeParseException
 import java.time.temporal.TemporalAdjusters
+import java.time.DayOfWeek as JavaDayOfWeek
+
 
 object SchedulingUtils {
-    
+
     /**
      * Checks if a quest should be available on the given date based on its scheduling info
      */
@@ -19,7 +21,7 @@ object SchedulingUtils {
                 val dayOfWeek = date.dayOfWeek.convertToAppDayOfWeek()
                 dayOfWeek in schedulingInfo.selectedDays
             }
-            
+
             SchedulingType.SPECIFIC_DATE -> {
                 schedulingInfo.specificDate?.let { dateString ->
                     try {
@@ -30,22 +32,24 @@ object SchedulingUtils {
                     }
                 } ?: false
             }
-            
+
             SchedulingType.MONTHLY_DATE -> {
                 schedulingInfo.monthlyDate?.let { targetDay ->
                     date.dayOfMonth == targetDay
                 } ?: false
             }
-            
-            SchedulingType.MONTHLY_LAST_DAY -> {
-                schedulingInfo.monthlyLastDayOfWeek?.let { targetDayOfWeek ->
-                    val lastOccurrence = getLastOccurrenceOfDayInMonth(date.year, date.month, targetDayOfWeek)
-                    date == lastOccurrence
+
+            SchedulingType.MONTHLY_BY_DAY -> {
+                schedulingInfo.monthlyDayOfWeek?.let { dayOfWeek ->
+                    schedulingInfo.monthlyWeekInMonth?.let { weekInMonth ->
+                        val occurrence = getNthOccurrenceOfDayInMonth(date.year, date.month, weekInMonth, dayOfWeek)
+                        date == occurrence
+                    }
                 } ?: false
             }
         }
     }
-    
+
     /**
      * Gets the next date when a quest will be available
      */
@@ -54,7 +58,7 @@ object SchedulingUtils {
             SchedulingType.WEEKLY -> {
                 getNextWeeklyOccurrence(schedulingInfo.selectedDays, fromDate)
             }
-            
+
             SchedulingType.SPECIFIC_DATE -> {
                 schedulingInfo.specificDate?.let { dateString ->
                     try {
@@ -65,21 +69,23 @@ object SchedulingUtils {
                     }
                 }
             }
-            
+
             SchedulingType.MONTHLY_DATE -> {
                 schedulingInfo.monthlyDate?.let { targetDay ->
                     getNextMonthlyDateOccurrence(targetDay, fromDate)
                 }
             }
-            
-            SchedulingType.MONTHLY_LAST_DAY -> {
-                schedulingInfo.monthlyLastDayOfWeek?.let { targetDayOfWeek ->
-                    getNextLastDayOccurrence(targetDayOfWeek, fromDate)
+
+            SchedulingType.MONTHLY_BY_DAY -> {
+                schedulingInfo.monthlyDayOfWeek?.let { dayOfWeek ->
+                    schedulingInfo.monthlyWeekInMonth?.let { weekInMonth ->
+                        getNextMonthlyByDayOccurrence(weekInMonth, dayOfWeek, fromDate)
+                    }
                 }
             }
         }
     }
-    
+
     /**
      * Gets a human-readable description of the scheduling pattern
      */
@@ -93,7 +99,7 @@ object SchedulingUtils {
                     "Every ${dayNames.joinToString(", ")}"
                 }
             }
-            
+
             SchedulingType.SPECIFIC_DATE -> {
                 schedulingInfo.specificDate?.let { dateString ->
                     try {
@@ -104,7 +110,7 @@ object SchedulingUtils {
                     }
                 } ?: "No date selected"
             }
-            
+
             SchedulingType.MONTHLY_DATE -> {
                 schedulingInfo.monthlyDate?.let { day ->
                     val suffix = when {
@@ -117,19 +123,30 @@ object SchedulingUtils {
                     "On the $day$suffix of each month"
                 } ?: "No date selected"
             }
-            
-            SchedulingType.MONTHLY_LAST_DAY -> {
-                schedulingInfo.monthlyLastDayOfWeek?.let { dayOfWeek ->
-                    val dayName = dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
-                    "Last $dayName of each month"
-                } ?: "No day selected"
+
+            SchedulingType.MONTHLY_BY_DAY -> {
+                val weekInMonthStr = when (schedulingInfo.monthlyWeekInMonth) {
+                    1 -> "first"
+                    2 -> "second"
+                    3 -> "third"
+                    4 -> "fourth"
+                    -1 -> "last"
+                    else -> ""
+                }
+                val dayOfWeekStr = schedulingInfo.monthlyDayOfWeek?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: ""
+
+                if (weekInMonthStr.isNotEmpty() && dayOfWeekStr.isNotEmpty()) {
+                    "On the $weekInMonthStr $dayOfWeekStr of each month"
+                } else {
+                    "No day selected"
+                }
             }
         }
     }
-    
+
     private fun getNextWeeklyOccurrence(selectedDays: Set<DayOfWeek>, fromDate: LocalDate): LocalDate? {
         if (selectedDays.isEmpty()) return null
-        
+
         var currentDate = fromDate.plusDays(1)
         repeat(7) {
             val dayOfWeek = currentDate.dayOfWeek.convertToAppDayOfWeek()
@@ -140,21 +157,21 @@ object SchedulingUtils {
         }
         return null
     }
-    
+
     private fun getNextMonthlyDateOccurrence(targetDay: Int, fromDate: LocalDate): LocalDate? {
         var currentMonth = YearMonth.from(fromDate)
-        
+
         // Check current month first
         val currentMonthDate = try {
             currentMonth.atDay(targetDay)
         } catch (e: Exception) {
             null
         }
-        
+
         if (currentMonthDate != null && currentMonthDate.isAfter(fromDate)) {
             return currentMonthDate
         }
-        
+
         // Check next months
         repeat(12) {
             currentMonth = currentMonth.plusMonths(1)
@@ -164,34 +181,51 @@ object SchedulingUtils {
                 // Day doesn't exist in this month (e.g., Feb 30), continue to next month
             }
         }
-        
+
         return null
     }
-    
-    private fun getNextLastDayOccurrence(targetDayOfWeek: DayOfWeek, fromDate: LocalDate): LocalDate? {
+
+    private fun getNextMonthlyByDayOccurrence(weekInMonth: Int, targetDayOfWeek: DayOfWeek, fromDate: LocalDate): LocalDate? {
         var currentMonth = YearMonth.from(fromDate)
-        
-        // Check current month first
-        val currentMonthDate = getLastOccurrenceOfDayInMonth(currentMonth.year, currentMonth.month, targetDayOfWeek)
-        if (currentMonthDate.isAfter(fromDate)) {
-            return currentMonthDate
+
+        // Check current month
+        val currentMonthOccurrence = getNthOccurrenceOfDayInMonth(currentMonth.year, currentMonth.month, weekInMonth, targetDayOfWeek)
+        if (currentMonthOccurrence != null && currentMonthOccurrence.isAfter(fromDate)) {
+            return currentMonthOccurrence
         }
-        
-        // Check next months
-        repeat(12) {
+
+        // Check subsequent months
+        for (i in 1..12) {
             currentMonth = currentMonth.plusMonths(1)
-            return getLastOccurrenceOfDayInMonth(currentMonth.year, currentMonth.month, targetDayOfWeek)
+            val nextOccurrence = getNthOccurrenceOfDayInMonth(currentMonth.year, currentMonth.month, weekInMonth, targetDayOfWeek)
+            if (nextOccurrence != null) {
+                return nextOccurrence
+            }
         }
-        
         return null
     }
     
-    private fun getLastOccurrenceOfDayInMonth(year: Int, month: java.time.Month, targetDayOfWeek: DayOfWeek): LocalDate {
-        val lastDayOfMonth = YearMonth.of(year, month).atEndOfMonth()
+    private fun getNthOccurrenceOfDayInMonth(year: Int, month: java.time.Month, weekInMonth: Int, targetDayOfWeek: DayOfWeek): LocalDate? {
         val javaDayOfWeek = targetDayOfWeek.toJavaDayOfWeek()
-        return lastDayOfMonth.with(TemporalAdjusters.lastInMonth(javaDayOfWeek))
+        val yearMonth = YearMonth.of(year, month)
+
+        return if (weekInMonth > 0) {
+            val firstDayOfMonth = yearMonth.atDay(1)
+            var date = if (firstDayOfMonth.dayOfWeek == javaDayOfWeek) {
+                firstDayOfMonth
+            } else {
+                firstDayOfMonth.with(TemporalAdjusters.next(javaDayOfWeek))
+            }
+            date = date.plusWeeks((weekInMonth - 1).toLong())
+            if (date.month == month) date else null
+        } else if (weekInMonth == -1) {
+            val lastDayOfMonth = yearMonth.atEndOfMonth()
+            lastDayOfMonth.with(TemporalAdjusters.lastInMonth(javaDayOfWeek))
+        } else {
+            null
+        }
     }
-    
+
     /**
      * Updates scheduling info for the next occurrence after quest completion.
      * For specific date quests, returns null (should be destroyed).
@@ -199,28 +233,20 @@ object SchedulingUtils {
      */
     fun updateSchedulingForNextOccurrence(schedulingInfo: SchedulingInfo): SchedulingInfo? {
         return when (schedulingInfo.type) {
-            SchedulingType.WEEKLY -> {
-                // Weekly quests don't need updating - they repeat on the same days
+            SchedulingType.WEEKLY,
+            SchedulingType.MONTHLY_DATE,
+            SchedulingType.MONTHLY_BY_DAY -> {
+                // Repeating quests don't need updating
                 schedulingInfo
             }
-            
+
             SchedulingType.SPECIFIC_DATE -> {
                 // Specific date quests should be destroyed after completion
                 null
             }
-            
-            SchedulingType.MONTHLY_DATE -> {
-                // Monthly date quests don't need updating - they repeat on the same date each month
-                schedulingInfo
-            }
-            
-            SchedulingType.MONTHLY_LAST_DAY -> {
-                // Monthly last day quests don't need updating - they repeat on the same last day each month
-                schedulingInfo
-            }
         }
     }
-    
+
     /**
      * Gets the expiration date for a quest based on its scheduling type.
      * Specific date quests expire the day after their scheduled date.
@@ -239,9 +265,36 @@ object SchedulingUtils {
                     }
                 } ?: defaultExpiration
             }
-            else -> defaultExpiration
+            SchedulingType.WEEKLY,
+            SchedulingType.MONTHLY_DATE,
+            SchedulingType.MONTHLY_BY_DAY -> defaultExpiration
         }
     }
 }
+
+fun JavaDayOfWeek.convertToAppDayOfWeek(): DayOfWeek {
+    return when (this) {
+        JavaDayOfWeek.MONDAY -> DayOfWeek.MON
+        JavaDayOfWeek.TUESDAY -> DayOfWeek.TUE
+        JavaDayOfWeek.WEDNESDAY -> DayOfWeek.WED
+        JavaDayOfWeek.THURSDAY -> DayOfWeek.THU
+        JavaDayOfWeek.FRIDAY -> DayOfWeek.FRI
+        JavaDayOfWeek.SATURDAY -> DayOfWeek.SAT
+        JavaDayOfWeek.SUNDAY -> DayOfWeek.SUN
+    }
+}
+
+fun DayOfWeek.toJavaDayOfWeek(): JavaDayOfWeek {
+    return when (this) {
+        DayOfWeek.MON -> JavaDayOfWeek.MONDAY
+        DayOfWeek.TUE -> JavaDayOfWeek.TUESDAY
+        DayOfWeek.WED -> JavaDayOfWeek.WEDNESDAY
+        DayOfWeek.THU -> JavaDayOfWeek.THURSDAY
+        DayOfWeek.FRI -> JavaDayOfWeek.FRIDAY
+        DayOfWeek.SAT -> JavaDayOfWeek.SATURDAY
+        DayOfWeek.SUN -> JavaDayOfWeek.SUNDAY
+    }
+}
+
 
 

@@ -10,5 +10,8 @@ data class CalendarQuest(
     val aiPhotoProofPrompt: String?,
     val startTime: Long,
     val endTime: Long,
-    val eventId: Long
+    val eventId: Long,
+    val rrule: String? = null,
+    val until: Long? = null,
+    val calendarId: Long
 )

@@ -16,7 +16,9 @@ data class SettingsData(
     val isSettingsLocked: Boolean = false,
     val settingsLockPassword: String? = null,
     val settingsLockoutEndDate: Long? = null,
-    val geminiApiKey: String? = null
+    val geminiApiKey: String? = null,
+    val autoSyncHour: Int? = null, // Hour of day for auto-sync (0-23), null means disabled
+    val selectedCalendars: Set<String> = emptySet() // Set of calendar IDs to sync from
 )
 
 class SettingsRepository(context: Context) {
@@ -97,6 +99,16 @@ class SettingsRepository(context: Context) {
 
     suspend fun updateGeminiApiKey(apiKey: String) {
         val newSettings = _settings.value.copy(geminiApiKey = apiKey)
+        saveSettings(newSettings)
+    }
+
+    suspend fun updateAutoSyncHour(hour: Int?) {
+        val newSettings = _settings.value.copy(autoSyncHour = hour)
+        saveSettings(newSettings)
+    }
+
+    suspend fun updateSelectedCalendars(calendarIds: Set<String>) {
+        val newSettings = _settings.value.copy(selectedCalendars = calendarIds)
         saveSettings(newSettings)
     }
 

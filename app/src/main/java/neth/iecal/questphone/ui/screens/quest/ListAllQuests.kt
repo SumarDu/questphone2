@@ -17,10 +17,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -65,6 +68,7 @@ import java.util.concurrent.TimeUnit
 import androidx.compose.material.icons.filled.Sync
 import android.app.Activity
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListAllQuests(navHostController: NavHostController) {
     val context = LocalContext.current
@@ -90,14 +94,46 @@ fun ListAllQuests(navHostController: NavHostController) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            Column {
+            TopAppBar(
+                title = { Text("All Quests") },
+                actions = {
+                    IconButton(onClick = {
+                        if (CalendarPermissionHelper.hasCalendarPermission(context)) {
+                            viewModel.syncCalendar()
+                        } else {
+                            CalendarPermissionHelper.requestCalendarPermission(context as Activity)
+                        }
+                    }) {
+                        Icon(Icons.Default.Sync, contentDescription = "Sync Calendar")
+                    }
+                }
+            )
+        },
+        floatingActionButton = {
+            androidx.compose.material3.FloatingActionButton(
+                onClick = { navHostController.navigate(Screen.AddNewQuest.route) },
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Quest")
+            }
+        },
+        floatingActionButtonPosition = FabPosition.End
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { viewModel.onSearchQueryChange(it) },
                     label = { Text("Search Quests") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
+                    modifier = Modifier.weight(1f),
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
@@ -107,43 +143,25 @@ fun ListAllQuests(navHostController: NavHostController) {
                         }
                     }
                 )
-                TabRow(selectedTabIndex = selectedTab.ordinal) {
-                    QuestTab.values().forEach { tab ->
-                        Tab(
-                            selected = selectedTab == tab,
-                            onClick = { viewModel.onTabSelected(tab) },
-                            text = { Text(tab.name.lowercase().replaceFirstChar { it.uppercase() }) }
-                        )
-                    }
+            }
+
+            TabRow(selectedTabIndex = selectedTab.ordinal) {
+                QuestTab.values().forEach { tab ->
+                    Tab(
+                        selected = selectedTab == tab,
+                        onClick = { viewModel.onTabSelected(tab) },
+                        text = { Text(tab.name.lowercase().replaceFirstChar { it.uppercase() }) }
+                    )
                 }
             }
-        },
-        floatingActionButton = {
-            Button(onClick = {
-                if (CalendarPermissionHelper.hasCalendarPermission(context)) {
-                    viewModel.syncCalendar()
-                } else {
-                    CalendarPermissionHelper.requestCalendarPermission(context as Activity)
-                }
-            }) {
-                Icon(Icons.Default.Sync, contentDescription = "Sync Calendar")
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Sync Calendar")
-            }
-        },
-        floatingActionButtonPosition = FabPosition.Center
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-        ) {
+
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                item { Spacer(modifier = Modifier.size(12.dp)) } // Add space at the top
                 items(filteredQuestList, key = { it.id }) { questBase ->
                     QuestItem(
                         quest = questBase,
@@ -161,6 +179,7 @@ fun ListAllQuests(navHostController: NavHostController) {
                         }
                     )
                 }
+                item { Spacer(modifier = Modifier.size(12.dp)) } // Add space at the bottom
             }
         }
 

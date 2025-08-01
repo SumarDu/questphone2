@@ -137,31 +137,6 @@ fun Calendar.convertToAppDayOfWeek(): AppDayOfWeek {
     }
 }
 
-fun java.time.DayOfWeek.convertToAppDayOfWeek(): AppDayOfWeek {
-   return when (this) {
-        java.time.DayOfWeek.MONDAY -> AppDayOfWeek.MON
-        java.time.DayOfWeek.TUESDAY -> AppDayOfWeek.TUE
-        java.time.DayOfWeek.WEDNESDAY -> AppDayOfWeek.WED
-        java.time.DayOfWeek.THURSDAY -> AppDayOfWeek.THU
-        java.time.DayOfWeek.FRIDAY -> AppDayOfWeek.FRI
-        java.time.DayOfWeek.SATURDAY -> AppDayOfWeek.SAT
-        java.time.DayOfWeek.SUNDAY -> AppDayOfWeek.SUN
-    }
-}
-
-fun AppDayOfWeek.toJavaDayOfWeek(): java.time.DayOfWeek {
-    return when (this) {
-        AppDayOfWeek.MON -> java.time.DayOfWeek.MONDAY
-        AppDayOfWeek.TUE -> java.time.DayOfWeek.TUESDAY
-        AppDayOfWeek.WED -> java.time.DayOfWeek.WEDNESDAY
-        AppDayOfWeek.THU -> java.time.DayOfWeek.THURSDAY
-        AppDayOfWeek.FRI -> java.time.DayOfWeek.FRIDAY
-        AppDayOfWeek.SAT -> java.time.DayOfWeek.SATURDAY
-        AppDayOfWeek.SUN -> java.time.DayOfWeek.SUNDAY
-    }
-}
-
-
 fun formatHour(hour: Int): String {
     return when (hour) {
         0, 24 -> "12 AM" // Midnight fix

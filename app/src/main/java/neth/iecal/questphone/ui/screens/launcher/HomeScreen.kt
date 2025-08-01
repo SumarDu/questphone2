@@ -1,6 +1,7 @@
 package neth.iecal.questphone.ui.screens.launcher
 
 import android.content.Context.MODE_PRIVATE
+import android.content.Intent
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
@@ -19,10 +20,19 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -193,7 +203,7 @@ fun HomeScreen(navController: NavController) {
             val list = questListUnfiltered.filter {
                 !it.is_destroyed &&
                         SchedulingUtils.isQuestAvailableOnDate(it.scheduling_info, today) &&
-                        (isUserCreatedToday || it.created_on != getCurrentDate())
+                        (it.calendar_event_id != null || isUserCreatedToday || it.created_on != getCurrentDate())
             }.toMutableList()
             questList.clear()
             questList.addAll(list)
@@ -224,11 +234,17 @@ fun HomeScreen(navController: NavController) {
         }
     }
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
-            .pointerInput(Unit) {
+    ) {
+        // Main content area
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown()
                     var dragX = 0f
@@ -448,9 +464,9 @@ fun HomeScreen(navController: NavController) {
                                 return@clickable
                             }
                             
-                            // For active quests, always open info/statistics screen directly
+                            // For active quests, always open quest view screen directly (same as "Complete Quest")
                             if (isActive) {
-                                navController.navigate(Screen.QuestStats.route + baseQuest.id)
+                                navController.navigate(Screen.ViewQuest.route + baseQuest.id)
                                 return@clickable
                             }
                             
@@ -470,14 +486,6 @@ fun HomeScreen(navController: NavController) {
                                 viewQuest(baseQuest, navController)
                             }
                         })
-                }
-                item {
-                    QuestItem(
-                        text = "Manage Quests",
-                        modifier = Modifier.clickable(enabled = timerState.mode != TimerMode.INFO && !timerState.isDeepFocusLocking && !hasActiveOrOverdueQuestBlocking(CommonQuestInfo(), questList)) {
-                            navController.navigate(Screen.ListAllQuest.route)
-                        }
-                    )
                 }
                 if(!isSetToDefaultLauncher(context)){
                     item {
@@ -641,6 +649,81 @@ fun HomeScreen(navController: NavController) {
                 }
             }
         )
+    }
+        
+        // Persistent Sidebar
+        Column(
+            modifier = Modifier
+                .width(48.dp) // Narrower sidebar
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            SidebarButton(text = "TMRW") {
+                // TODO: Navigate to tomorrow's quests
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            SidebarButton(text = "YDAY") {
+                // TODO: Navigate to yesterday's quests
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            SidebarButton(icon = Icons.Default.DateRange) {
+                val intent = Intent(Intent.ACTION_MAIN)
+                intent.addCategory(Intent.CATEGORY_APP_CALENDAR)
+                try {
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    // Handle case where no calendar app is found
+                    Log.e("HomeScreen", "No calendar app found", e)
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            SidebarButton(icon = Icons.Default.List) {
+                if (timerState.mode != TimerMode.INFO && !timerState.isDeepFocusLocking && !hasActiveOrOverdueQuestBlocking(CommonQuestInfo(), questList)) {
+                    navController.navigate(Screen.ListAllQuest.route)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SidebarButton(
+    text: String? = null,
+    icon: ImageVector? = null,
+    onClick: () -> Unit
+) {
+    val buttonModifier = if (icon != null) {
+        Modifier.size(40.dp) // Smaller square button for icons
+    } else {
+        Modifier.width(40.dp) // Narrower rectangular button for text
+    }
+
+    Box(
+        modifier = buttonModifier
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+            .padding(8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (text != null) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                text.forEach { char ->
+                    Text(
+                        text = char.toString(),
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1
+                    )
+                }
+            }
+        } else if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null, // Decorative icon
+                modifier = Modifier.size(24.dp)
+            )
+        }
     }
 }
 
