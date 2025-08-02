@@ -18,11 +18,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -33,6 +31,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import neth.iecal.questphone.data.quest.CalendarInfo
 import neth.iecal.questphone.services.CalendarSyncService
+import neth.iecal.questphone.utils.CalendarSyncScheduler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -223,7 +222,42 @@ fun SettingsScreen(navController: NavController) {
                 Text("Configure Gestures")
             }
 
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
 
+            // Quest Filter Settings for HomeScreen + Dialog
+            Text(
+                text = "Quest Selection Dialog Filters",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            
+            Text(
+                text = "Choose which quest types appear in the \"Select a Quest\" dialog (+ button on timer)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            SettingSwitch(
+                title = "Show Repeating Quests",
+                isChecked = settings.showRepeatingQuestsInDialog,
+                enabled = !settings.isSettingsLocked,
+                onCheckedChange = { viewModel.updateShowRepeatingQuestsInDialog(it) }
+            )
+
+            SettingSwitch(
+                title = "Show Cloned Quests",
+                isChecked = settings.showClonedQuestsInDialog,
+                enabled = !settings.isSettingsLocked,
+                onCheckedChange = { viewModel.updateShowClonedQuestsInDialog(it) }
+            )
+
+            SettingSwitch(
+                title = "Show One-Time Quests",
+                isChecked = settings.showOneTimeQuestsInDialog,
+                enabled = !settings.isSettingsLocked,
+                onCheckedChange = { viewModel.updateShowOneTimeQuestsInDialog(it) }
+            )
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -316,41 +350,69 @@ fun SettingsScreen(navController: NavController) {
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Auto-sync hour setting
-            var autoSyncExpanded by remember { mutableStateOf(false) }
-            val hours = listOf("Disabled") + (0..23).map { it.toString() }
+            var showTimePicker by remember { mutableStateOf(false) }
+            val timePickerState = rememberTimePickerState(
+                initialHour = settings.autoSyncTimeMinutes?.div(60) ?: 0,
+                initialMinute = settings.autoSyncTimeMinutes?.rem(60) ?: 0,
+                is24Hour = true
+            )
+
+            if (showTimePicker) {
+                AlertDialog(
+                    onDismissRequest = { showTimePicker = false },
+                    title = { Text("Select Sync Time") },
+                    text = { TimePicker(state = timePickerState) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                val totalMinutes = timePickerState.hour * 60 + timePickerState.minute
+                                viewModel.updateAutoSyncTime(totalMinutes)
+                                showTimePicker = false
+                            }
+                        ) {
+                            Text("Confirm")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showTimePicker = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { autoSyncExpanded = true }
+                    .clickable { showTimePicker = true }
                     .padding(vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("Auto-sync Time")
-                Box {
-                    Text(
-                        settings.autoSyncHour?.let { String.format("%02d:00", it) } ?: "Disabled",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    DropdownMenu(
-                        expanded = autoSyncExpanded,
-                        onDismissRequest = { autoSyncExpanded = false }
-                    ) {
-                        hours.forEach { hour ->
-                            DropdownMenuItem(
-                                text = { Text(if (hour == "Disabled") "Disabled" else String.format("%02d:00", hour.toInt())) },
-                                onClick = {
-                                    val selectedHour = if (hour == "Disabled") null else hour.toInt()
-                                    viewModel.updateAutoSyncHour(selectedHour)
-                                    autoSyncExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
+                Text(
+                    settings.autoSyncTimeMinutes?.let { String.format("%02d:%02d", it / 60, it % 60) } ?: "Disabled",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Button(
+                onClick = { viewModel.updateAutoSyncTime(null) },
+                enabled = settings.autoSyncTimeMinutes != null
+            ) {
+                Text("Disable Auto-sync")
+            }
+
+            // Test sync button
+            Button(
+                onClick = {
+                    CalendarSyncScheduler.triggerImmediateSync(context)
+                    Toast.makeText(context, "Calendar sync started", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.padding(top = 8.dp)
+            ) {
+                Text("Test Sync Now")
             }
 
             // Calendar selection

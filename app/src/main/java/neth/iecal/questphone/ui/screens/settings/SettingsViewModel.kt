@@ -60,9 +60,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun updateAutoSyncHour(hour: Int?) {
+    fun updateAutoSyncTime(minutes: Int?) {
         viewModelScope.launch {
-            repository.updateAutoSyncHour(hour)
+            repository.updateAutoSyncTime(minutes)
         }
     }
 
@@ -87,6 +87,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun clearGeminiResponse() {
         _geminiResponse.value = null
+    }
+
+    fun updateShowRepeatingQuestsInDialog(show: Boolean) {
+        viewModelScope.launch {
+            repository.updateShowRepeatingQuestsInDialog(show)
+        }
+    }
+
+    fun updateShowClonedQuestsInDialog(show: Boolean) {
+        viewModelScope.launch {
+            repository.updateShowClonedQuestsInDialog(show)
+        }
+    }
+
+    fun updateShowOneTimeQuestsInDialog(show: Boolean) {
+        viewModelScope.launch {
+            repository.updateShowOneTimeQuestsInDialog(show)
+        }
     }
 }
 

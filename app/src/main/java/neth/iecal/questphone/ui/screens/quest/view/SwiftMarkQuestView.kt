@@ -37,6 +37,7 @@ import neth.iecal.questphone.data.quest.stats.StatsDatabaseProvider
 import neth.iecal.questphone.data.quest.stats.StatsInfo
 import neth.iecal.questphone.data.settings.SettingsRepository
 import neth.iecal.questphone.ui.screens.quest.checkForRewards
+import neth.iecal.questphone.ui.screens.quest.calculateQuestReward
 import neth.iecal.questphone.ui.screens.quest.view.components.MdPad
 import neth.iecal.questphone.ui.theme.JetBrainsMonoFont
 import neth.iecal.questphone.utils.QuestHelper
@@ -77,6 +78,9 @@ fun SwiftMarkQuestView(
         commonQuestInfo.quest_started_at = 0
         commonQuestInfo.synced = false
         commonQuestInfo.last_updated = System.currentTimeMillis()
+
+        val rewardAmount = calculateQuestReward(commonQuestInfo)
+
         scope.launch {
             dao.upsertQuest(commonQuestInfo)
             val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
@@ -85,10 +89,11 @@ fun SwiftMarkQuestView(
                     id = UUID.randomUUID().toString(),
                     quest_id = commonQuestInfo.id,
                     user_id = User.userInfo.id,
+                    reward_amount = rewardAmount
                 )
             )
         }
-        checkForRewards(commonQuestInfo)
+        checkForRewards(commonQuestInfo, rewardAmount)
         isQuestComplete.value = true
     }
 

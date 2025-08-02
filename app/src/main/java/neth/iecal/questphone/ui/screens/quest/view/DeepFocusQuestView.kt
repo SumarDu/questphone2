@@ -74,6 +74,7 @@ import neth.iecal.questphone.services.INTENT_ACTION_START_DEEP_FOCUS
 import neth.iecal.questphone.services.INTENT_ACTION_STOP_DEEP_FOCUS
 import neth.iecal.questphone.services.ServiceInfo
 import neth.iecal.questphone.ui.screens.quest.checkForRewards
+import neth.iecal.questphone.ui.screens.quest.calculateQuestReward
 import neth.iecal.questphone.ui.screens.quest.view.components.MdPad
 import neth.iecal.questphone.ui.theme.JetBrainsMonoFont
 import neth.iecal.questphone.utils.QuestHelper
@@ -185,7 +186,21 @@ fun DeepFocusQuestView(
 
     // Check if the minimum number of sessions has just been completed to grant rewards.
     if (sessionsAfterComplete == deepFocus.minWorkSessions) {
-        checkForRewards(commonQuestInfo)
+        val rewardAmount = calculateQuestReward(commonQuestInfo)
+        checkForRewards(commonQuestInfo, rewardAmount)
+
+        // Also log this to stats
+        scope.launch {
+            val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
+            statsDao.upsertStats(
+                StatsInfo(
+                    id = UUID.randomUUID().toString(),
+                    quest_id = commonQuestInfo.id,
+                    user_id = User.userInfo.id,
+                    reward_amount = rewardAmount
+                )
+            )
+        }
     } else if (sessionsAfterComplete > deepFocus.minWorkSessions) {
         // Reward for extra session
         User.addCoins(deepFocus.reward_per_extra_session)
@@ -222,18 +237,6 @@ fun DeepFocusQuestView(
     scope.launch {
         Log.d("DeepFocusQuestView", "Saving Deep Focus session to local DB for quest: ${commonQuestInfo.id}")
         dao.upsertQuest(commonQuestInfo)
-
-        // Log stats only when the minimum sessions are completed
-        if (sessionsAfterComplete == deepFocus.minWorkSessions) {
-            val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
-            statsDao.upsertStats(
-                StatsInfo(
-                    id = UUID.randomUUID().toString(),
-                    quest_id = commonQuestInfo.id,
-                    user_id = User.userInfo.id
-                )
-            )
-        }
     }
 
     // Stop the foreground service and timer after each session.

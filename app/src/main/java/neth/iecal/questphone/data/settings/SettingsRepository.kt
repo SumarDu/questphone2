@@ -6,7 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-
+import neth.iecal.questphone.utils.CalendarSyncScheduler
 
 data class SettingsData(
     val isQuestCreationEnabled: Boolean = true,
@@ -17,11 +17,15 @@ data class SettingsData(
     val settingsLockPassword: String? = null,
     val settingsLockoutEndDate: Long? = null,
     val geminiApiKey: String? = null,
-    val autoSyncHour: Int? = null, // Hour of day for auto-sync (0-23), null means disabled
-    val selectedCalendars: Set<String> = emptySet() // Set of calendar IDs to sync from
+    val autoSyncTimeMinutes: Int? = null, // Time of day for auto-sync in minutes from midnight, null means disabled
+    val selectedCalendars: Set<String> = emptySet(), // Set of calendar IDs to sync from
+    // Quest filter settings for HomeScreen + dialog
+    val showRepeatingQuestsInDialog: Boolean = true,
+    val showClonedQuestsInDialog: Boolean = true,
+    val showOneTimeQuestsInDialog: Boolean = true
 )
 
-class SettingsRepository(context: Context) {
+class SettingsRepository(private val context: Context) {
     private val sharedPreferences = context.getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
     private val gson = Gson()
 
@@ -102,9 +106,12 @@ class SettingsRepository(context: Context) {
         saveSettings(newSettings)
     }
 
-    suspend fun updateAutoSyncHour(hour: Int?) {
-        val newSettings = _settings.value.copy(autoSyncHour = hour)
+    suspend fun updateAutoSyncTime(minutes: Int?) {
+        val newSettings = _settings.value.copy(autoSyncTimeMinutes = minutes)
         saveSettings(newSettings)
+
+        // Schedule or cancel automatic sync based on the new time setting
+        CalendarSyncScheduler.scheduleSync(context, minutes)
     }
 
     suspend fun updateSelectedCalendars(calendarIds: Set<String>) {
@@ -112,5 +119,19 @@ class SettingsRepository(context: Context) {
         saveSettings(newSettings)
     }
 
+    suspend fun updateShowRepeatingQuestsInDialog(show: Boolean) {
+        val newSettings = _settings.value.copy(showRepeatingQuestsInDialog = show)
+        saveSettings(newSettings)
+    }
+
+    suspend fun updateShowClonedQuestsInDialog(show: Boolean) {
+        val newSettings = _settings.value.copy(showClonedQuestsInDialog = show)
+        saveSettings(newSettings)
+    }
+
+    suspend fun updateShowOneTimeQuestsInDialog(show: Boolean) {
+        val newSettings = _settings.value.copy(showOneTimeQuestsInDialog = show)
+        saveSettings(newSettings)
+    }
 
 }

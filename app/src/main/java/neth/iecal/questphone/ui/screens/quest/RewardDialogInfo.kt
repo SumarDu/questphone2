@@ -67,15 +67,28 @@ object RewardDialogInfo{
     var currentCommonQuestInfo by mutableStateOf<CommonQuestInfo?>(null)
     var streakData : StreakCheckReturn? = null
     var currentDialog by mutableStateOf<DialogState>(DialogState.COINS)
+    var rewardAmount by mutableStateOf(0)
+}
+
+/**
+ * Calculate the reward amount for a quest completion without showing the dialog
+ */
+fun calculateQuestReward(commonQuestInfo: CommonQuestInfo): Int {
+    return if (commonQuestInfo.reward_min == commonQuestInfo.reward_max) {
+        commonQuestInfo.reward_min
+    } else {
+        (commonQuestInfo.reward_min..commonQuestInfo.reward_max).random()
+    }
 }
 
 /**
  * Calculates what to reward user as well as trigger the reward dialog to be shown to the user
  */
-fun checkForRewards(commonQuestInfo: CommonQuestInfo){
+fun checkForRewards(commonQuestInfo: CommonQuestInfo, rewardAmount: Int){
     RewardDialogInfo.isRewardDialogVisible = true
     RewardDialogInfo.currentCommonQuestInfo =  commonQuestInfo
     RewardDialogInfo.currentDialog = DialogState.COINS
+    RewardDialogInfo.rewardAmount = rewardAmount
 }
 
 /**
@@ -102,13 +115,7 @@ fun RewardDialogMaker(  ) {
         val isTriggeredViaQuestCompletion = RewardDialogInfo.currentCommonQuestInfo != null
 
                 val questInfo = RewardDialogInfo.currentCommonQuestInfo
-        val coinsEarned = if (questInfo != null) {
-            if (questInfo.reward_min == questInfo.reward_max) {
-                questInfo.reward_min
-            } else {
-                (questInfo.reward_min..questInfo.reward_max).random()
-            }
-        } else { 0 }
+        val coinsEarned = RewardDialogInfo.rewardAmount
         LaunchedEffect(Unit) {
             val xp = if(isTriggeredViaQuestCompletion) xpToRewardForQuest(User.userInfo.level) else xpFromStreak(
                 User.userInfo.streak.currentStreak

@@ -13,6 +13,8 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.room.Update
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
@@ -37,6 +39,7 @@ data class StatsInfo(
     val user_id: String,
     @Serializable(with = LocalDateSerializer::class)
     val date: LocalDate = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date,
+    val reward_amount: Int = 0, // Actual coins earned for this completion
     @Transient
     val isSynced: Boolean = false
 )
@@ -97,7 +100,7 @@ interface StatsInfoDao {
 
 @Database(
     entities = [StatsInfo::class],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(StatsConverter::class)
@@ -109,6 +112,12 @@ abstract class StatsDatabase : RoomDatabase() {
 object StatsDatabaseProvider {
     @Volatile
     private var INSTANCE: StatsDatabase? = null
+
+    private val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("ALTER TABLE StatsInfo ADD COLUMN reward_amount INTEGER NOT NULL DEFAULT 0")
+        }
+    }
 
     fun getInstance(context: Context): StatsDatabase {
         return INSTANCE ?: synchronized(this) {

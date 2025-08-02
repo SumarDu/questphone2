@@ -30,6 +30,7 @@ import neth.iecal.questphone.data.quest.health.HealthTaskType
 import neth.iecal.questphone.data.quest.stats.StatsDatabaseProvider
 import neth.iecal.questphone.data.quest.stats.StatsInfo
 import neth.iecal.questphone.ui.screens.quest.checkForRewards
+import neth.iecal.questphone.ui.screens.quest.calculateQuestReward
 import neth.iecal.questphone.ui.screens.quest.view.components.MdPad
 import neth.iecal.questphone.ui.screens.tutorial.HealthConnectScreen
 import neth.iecal.questphone.ui.theme.JetBrainsMonoFont
@@ -83,6 +84,9 @@ fun HealthQuestView(commonQuestInfo: CommonQuestInfo) {
         commonQuestInfo.last_completed_on = getCurrentDate()
         commonQuestInfo.synced = false
         commonQuestInfo.last_updated = System.currentTimeMillis()
+
+        val rewardAmount = calculateQuestReward(commonQuestInfo)
+
         scope.launch {
             dao.upsertQuest(commonQuestInfo)
             val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
@@ -91,11 +95,11 @@ fun HealthQuestView(commonQuestInfo: CommonQuestInfo) {
                     id = UUID.randomUUID().toString(),
                     quest_id = commonQuestInfo.id,
                     user_id = User.userInfo.id,
-
+                    reward_amount = rewardAmount
                 )
             )
         }
-        checkForRewards(commonQuestInfo)
+        checkForRewards(commonQuestInfo, rewardAmount)
         isQuestComplete.value = true
     }
 

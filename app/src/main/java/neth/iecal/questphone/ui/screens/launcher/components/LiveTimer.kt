@@ -33,18 +33,38 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import neth.iecal.questphone.data.timer.TimerMode
 import neth.iecal.questphone.data.timer.TimerState
 import neth.iecal.questphone.ui.screens.launcher.TimerViewModel
+import neth.iecal.questphone.data.settings.SettingsRepository
+import neth.iecal.questphone.data.quest.CommonQuestInfo
+import neth.iecal.questphone.utils.getCurrentDate
 
 @Composable
 fun LiveTimer(
     modifier: Modifier = Modifier,
     timerViewModel: TimerViewModel = viewModel()
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settingsRepository = remember { SettingsRepository(context) }
+    val settings by settingsRepository.settings.collectAsState()
+    
     val timerText by timerViewModel.timerText.collectAsState()
     val timerMode by timerViewModel.timerMode.collectAsState()
     val timerState: TimerState by timerViewModel.timerState.collectAsState()
     var showDialog by remember(timerMode) { mutableStateOf(false) }
     var showAddTimeDialog by remember(timerMode) { mutableStateOf(false) }
     var showQuestListDialog by remember(timerMode) { mutableStateOf(false) }
+    
+    // Helper functions to categorize quests
+    fun isRepeatingQuest(quest: CommonQuestInfo): Boolean {
+        return quest.selected_days.isNotEmpty()
+    }
+    
+    fun isClonedQuest(quest: CommonQuestInfo): Boolean {
+        return quest.title.contains("[C]") || quest.auto_destruct == getCurrentDate()
+    }
+    
+    fun isOneTimeQuest(quest: CommonQuestInfo): Boolean {
+        return !isRepeatingQuest(quest) && !isClonedQuest(quest)
+    }
 
     val timerColor = when (timerMode) {
         TimerMode.QUEST_COUNTDOWN -> MaterialTheme.colorScheme.primary
@@ -149,23 +169,41 @@ fun LiveTimer(
 
     if (showQuestListDialog) {
         val allQuests by timerViewModel.allQuests.collectAsState(initial = emptyList())
+        
+        // Filter quests based on settings
+        val filteredQuests = allQuests.filter { quest ->
+            when {
+                isRepeatingQuest(quest) -> settings.showRepeatingQuestsInDialog
+                isClonedQuest(quest) -> settings.showClonedQuestsInDialog
+                isOneTimeQuest(quest) -> settings.showOneTimeQuestsInDialog
+                else -> true // Show by default if categorization fails
+            }
+        }
 
         AlertDialog(
             onDismissRequest = { showQuestListDialog = false },
             title = { Text("Select a Quest") },
             text = {
-                LazyColumn {
-                    items(allQuests) { quest ->
-                        Text(
-                            text = quest.title,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(enabled = timerMode != TimerMode.INFO) { 
-                                    timerViewModel.cloneAndStartQuest(quest)
-                                    showQuestListDialog = false
-                                }
-                                .padding(vertical = 8.dp)
-                        )
+                if (filteredQuests.isEmpty()) {
+                    Text(
+                        text = "No quests available. Check your filter settings.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                } else {
+                    LazyColumn {
+                        items(filteredQuests) { quest ->
+                            Text(
+                                text = quest.title,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = timerMode != TimerMode.INFO) { 
+                                        timerViewModel.cloneAndStartQuest(quest)
+                                        showQuestListDialog = false
+                                    }
+                                    .padding(vertical = 8.dp)
+                            )
+                        }
                     }
                 }
             },

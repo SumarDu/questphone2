@@ -10,7 +10,7 @@ import neth.iecal.questphone.services.reloadServiceInfo
 import neth.iecal.questphone.utils.isOnline
 import neth.iecal.questphone.utils.triggerQuestSync
 import neth.iecal.questphone.utils.triggerStatsSync
-
+import neth.iecal.questphone.utils.CalendarSyncInitializer
 
 class MyApp : Application() {
 
@@ -40,5 +40,8 @@ class MyApp : Application() {
         if (isOnline()) {
             triggerQuestSync(applicationContext)
         }
+        
+        // Initialize calendar sync scheduling
+        CalendarSyncInitializer.initialize(applicationContext)
     }
 }

@@ -125,8 +125,7 @@ fun BaseQuestStatsView(id: String, navController: NavHostController) {
         longestStreak = calculateLongestStreak(stats,allowedDays)
         failureRate = if (totalPerformableQuests > 0) (totalFailedQuests.toFloat() / totalPerformableQuests) * 100 else 0f
         successRate = if (totalPerformableQuests > 0) (totalSuccessfulQuests.toFloat() / totalPerformableQuests) * 100 else 0f
-        val averageReward = (baseData.reward_min + baseData.reward_max) / 2
-        totalCoins = totalSuccessfulQuests * averageReward
+        totalCoins = stats.sumOf { it.reward_amount }
         weeklyAverageCompletions = weeklyAverage(stats)
     }
 
@@ -809,9 +808,7 @@ fun calculateLongestStreak(
                 currentStreak = 0
             }
         }
-        while (currentDate <= endDate) {
-            currentDate = currentDate.plus(1, DateTimeUnit.DAY)
-        }
+        currentDate = currentDate.plus(1, DateTimeUnit.DAY)
     }
 
     return longestStreak
