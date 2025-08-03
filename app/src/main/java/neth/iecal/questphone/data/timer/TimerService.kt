@@ -43,6 +43,7 @@ class TimerService : Service() {
     private lateinit var supabaseSyncService: SupabaseSyncService
     private var stateBeforeUnplannedBreak: TimerState? = null
     private var unplannedBreakStartTime: Long? = null
+    private var unplannedBreakEventId: Int? = null
     private var temporaryAddedTimeMillis = 0L
     private var infoModeActive = false
     private var stateBeforeInfoMode: TimerState? = null
@@ -282,7 +283,11 @@ class TimerService : Service() {
             _timerState.value = TimerState(TimerMode.INACTIVE, notificationSent = false)
         }
 
-        handleEventLogging(previousState, _timerState.value)
+        // Skip event logging during unplanned breaks to prevent automatic event creation
+        // Unplanned break events are handled manually in startUnplannedBreak/stopUnplannedBreak
+        if (_timerState.value.mode != TimerMode.UNPLANNED_BREAK && previousState.mode != TimerMode.UNPLANNED_BREAK) {
+            handleEventLogging(previousState, _timerState.value)
+        }
 
     }
 
@@ -309,18 +314,48 @@ class TimerService : Service() {
             val breakEndTime = System.currentTimeMillis()
             var breakDuration = 0L
             unplannedBreakStartTime?.let { breakDuration = breakEndTime - it }
+            
+            // Update the unplanned break event with end time
+            unplannedBreakEventId?.let { eventId ->
+                val existingEvent = questEventDao.getEventById(eventId)
+                existingEvent?.let { event ->
+                    val updatedEvent = event.copy(endTime = breakEndTime)
+                    questEventDao.updateEvent(updatedEvent)
+                    
+                    // Sync updated event to Supabase
+                    supabaseSyncService.syncSingleQuestEvent(updatedEvent)
+                }
+            }
+            
+            // Reset unplanned break tracking variables
             unplannedBreakStartTime = null
+            unplannedBreakEventId = null
 
             val previousState = stateBeforeUnplannedBreak
             _timerState.value = previousState ?: TimerState()
             
             stateBeforeUnplannedBreak = null
 
-            if (previousState?.mode == TimerMode.QUEST_COUNTDOWN && previousState.activeQuestId != null && breakDuration > 0) {
+            // Create a resumed quest event if there was an active quest before the break
+            if (previousState?.mode == TimerMode.QUEST_COUNTDOWN && previousState.activeQuestId != null) {
                 questDao.getQuestById(previousState.activeQuestId)?.let { quest ->
-                    val updatedQuest = quest.copy(quest_started_at = quest.quest_started_at + breakDuration)
-                    questDao.upsertQuest(updatedQuest)
-                    // Quest rescheduling notifications removed
+                    // Update quest timing to account for the break duration
+                    if (breakDuration > 0) {
+                        val updatedQuest = quest.copy(quest_started_at = quest.quest_started_at + breakDuration)
+                        questDao.upsertQuest(updatedQuest)
+                    }
+                    
+                    // Create a new event for the resumed quest
+                    val resumedQuestEvent = neth.iecal.questphone.data.local.QuestEvent(
+                        eventName = quest.title,
+                        startTime = breakEndTime,
+                        endTime = 0L, // Active event
+                        colorRgba = quest.color_rgba
+                    )
+                    
+                    val resumedEventId = questEventDao.insertEvent(resumedQuestEvent)
+                    val resumedEventWithId = resumedQuestEvent.copy(id = resumedEventId.toInt())
+                    supabaseSyncService.syncSingleQuestEvent(resumedEventWithId)
                 }
             }
         }
@@ -329,8 +364,31 @@ class TimerService : Service() {
     private fun startUnplannedBreak() {
         serviceScope.launch {
             stateBeforeUnplannedBreak = _timerState.value
-            unplannedBreakStartTime = System.currentTimeMillis()
-            
+            val breakStartTime = System.currentTimeMillis()
+            unplannedBreakStartTime = breakStartTime
+
+            // Immediately close the currently active quest event
+            val latestEvent = questEventDao.getLatestEvent()
+            if (latestEvent != null && latestEvent.endTime == 0L) {
+                val closedEvent = latestEvent.copy(endTime = breakStartTime)
+                questEventDao.updateEvent(closedEvent)
+                supabaseSyncService.syncSingleQuestEvent(closedEvent)
+            }
+
+            // Create and log the new "unplanned break" event
+            val unplannedBreakEvent = neth.iecal.questphone.data.local.QuestEvent(
+                eventName = "unplanned break",
+                startTime = breakStartTime,
+                endTime = 0L, // This will be set when the break ends
+                colorRgba = "#808080" // Gray color for unplanned breaks
+            )
+
+            val eventId = questEventDao.insertEvent(unplannedBreakEvent)
+            unplannedBreakEventId = eventId.toInt()
+
+            val eventWithId = unplannedBreakEvent.copy(id = eventId.toInt())
+            supabaseSyncService.syncSingleQuestEvent(eventWithId)
+
             _timerState.value = TimerState(mode = TimerMode.UNPLANNED_BREAK)
             // Unplanned break notifications removed
         }
@@ -387,6 +445,12 @@ class TimerService : Service() {
 
     private suspend fun handleEventLogging(previousState: TimerState, currentState: TimerState) {
         eventLoggingMutex.withLock {
+            // Skip normal event logging during unplanned breaks
+            // Unplanned break events are handled manually in startUnplannedBreak/stopUnplannedBreak
+            if (currentState.mode == TimerMode.UNPLANNED_BREAK || previousState.mode == TimerMode.UNPLANNED_BREAK) {
+                return@withLock
+            }
+            
             val now = System.currentTimeMillis()
             val latestEvent = questEventDao.getLatestEvent()
             val newEventName = getEventName(currentState)

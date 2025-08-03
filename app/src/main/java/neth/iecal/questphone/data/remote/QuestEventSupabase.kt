@@ -8,5 +8,6 @@ data class QuestEventSupabase(
     val event_name: String,
     val start_time: Long,
     val end_time: Long?,
-    val color_rgba: String
+    val color_rgba: String,
+    val comments: String? = null
 )

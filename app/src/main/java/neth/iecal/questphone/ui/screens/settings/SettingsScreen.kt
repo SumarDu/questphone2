@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.widget.Toast
 import androidx.navigation.NavController
+import neth.iecal.questphone.ui.screens.settings.CheckpointDialog
 import java.util.Calendar
 import java.util.Date
 import neth.iecal.questphone.ui.navigation.Screen
@@ -135,7 +136,34 @@ fun SettingsScreen(navController: NavController) {
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
+            // Checkpoint Section
+            Text(
+                "Checkpoints",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
 
+            var showCheckpointDialog by remember { mutableStateOf(false) }
+
+            Button(
+                onClick = { showCheckpointDialog = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Create Checkpoint")
+            }
+
+            if (showCheckpointDialog) {
+                CheckpointDialog(
+                    onDismiss = { showCheckpointDialog = false },
+                    onConfirm = { checkpointName, comments ->
+                        viewModel.createCheckpoint(checkpointName, comments)
+                        showCheckpointDialog = false
+                        Toast.makeText(context, "Checkpoint created: $checkpointName", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 16.dp))
 
             Text(
                 "Gemini AI Assistant",

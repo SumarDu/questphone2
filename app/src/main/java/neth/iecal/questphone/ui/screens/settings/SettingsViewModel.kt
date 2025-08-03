@@ -10,10 +10,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import neth.iecal.questphone.data.ai.GeminiPro
 import neth.iecal.questphone.data.settings.SettingsRepository
+import neth.iecal.questphone.data.remote.SupabaseSyncService
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = SettingsRepository(application)
+    private val supabaseSyncService = SupabaseSyncService(application)
 
     val settings = repository.settings
 
@@ -48,11 +50,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun onEditingPermissionChanged(isEnabled: Boolean) {
-        viewModelScope.launch {
-            repository.updateEditingPermission(isEnabled)
-        }
-    }
+
 
     fun onSettingsLockChanged(isLocked: Boolean, password: String?, lockoutEndDate: Long?) {
         viewModelScope.launch {
@@ -104,6 +102,34 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateShowOneTimeQuestsInDialog(show: Boolean) {
         viewModelScope.launch {
             repository.updateShowOneTimeQuestsInDialog(show)
+        }
+    }
+
+    fun createCheckpoint(checkpointName: String, comments: String? = null) {
+        viewModelScope.launch {
+            supabaseSyncService.createCheckpoint(checkpointName, comments)
+        }
+    }
+
+    fun onEditingPermissionChanged(isEnabled: Boolean) {
+        viewModelScope.launch {
+            // Get current state to check if we're turning off editing permission
+            val currentSettings = repository.settings.value
+            val wasEditingEnabled = currentSettings.isQuestCreationEnabled &&
+                currentSettings.isQuestDeletionEnabled &&
+                currentSettings.isItemCreationEnabled &&
+                currentSettings.isItemDeletionEnabled
+
+            // Update all editing permissions
+            repository.updateQuestCreation(isEnabled)
+            repository.updateQuestDeletion(isEnabled)
+            repository.updateItemCreation(isEnabled)
+            repository.updateItemDeletion(isEnabled)
+
+            // Create checkpoint when turning off editing permission
+            if (wasEditingEnabled && !isEnabled) {
+                supabaseSyncService.createCheckpoint("editing permission disabled")
+            }
         }
     }
 }

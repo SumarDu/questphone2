@@ -9,5 +9,6 @@ data class QuestEvent(
     val eventName: String,
     val startTime: Long,
     val endTime: Long,
-    val colorRgba: String
+    val colorRgba: String,
+    val comments: String? = null
 )

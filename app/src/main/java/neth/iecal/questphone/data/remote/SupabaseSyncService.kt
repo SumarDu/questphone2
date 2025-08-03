@@ -22,7 +22,8 @@ class SupabaseSyncService(private val context: Context) {
                 event_name = event.eventName,
                 start_time = event.startTime,
                 end_time = if (event.endTime > 0) event.endTime else null,
-                color_rgba = event.colorRgba
+                color_rgba = event.colorRgba,
+                comments = event.comments
             )
             SupabaseClient.client.postgrest.from("quest_events").upsert(eventToSync, onConflict = "id")
             Log.d("SupabaseSyncService", "Successfully synced single quest event: ${event.id}")
@@ -43,6 +44,43 @@ class SupabaseSyncService(private val context: Context) {
         }
     }
 
+    suspend fun createCheckpoint(checkpointName: String, comments: String? = null) {
+        try {
+            val now = System.currentTimeMillis()
+            val checkpointEndTime = now + 1000 // 1 second duration
+            
+            // Check if there's an active event that needs to be suspended
+            val latestEvent = questEventDao.getLatestEvent()
+            
+            if (latestEvent != null && latestEvent.endTime == 0L) {
+                // Close the active event at checkpoint start time
+                val closedEvent = latestEvent.copy(endTime = now)
+                questEventDao.updateEvent(closedEvent)
+                syncSingleQuestEvent(closedEvent)
+            }
+            
+            // Create the checkpoint event
+            val checkpointEvent = neth.iecal.questphone.data.local.QuestEvent(
+                eventName = "cp: $checkpointName",
+                startTime = now,
+                endTime = checkpointEndTime,
+                colorRgba = "#FFA500", // Orange color for checkpoints
+                comments = comments
+            )
+            
+            val eventId = questEventDao.insertEvent(checkpointEvent)
+            val eventWithId = checkpointEvent.copy(id = eventId.toInt())
+            syncSingleQuestEvent(eventWithId)
+            
+            // Let the timer system handle resumed event creation naturally
+            // The timer system will detect the active quest and create the appropriate event
+            
+            Log.d("SupabaseSyncService", "Successfully created checkpoint: $checkpointName")
+        } catch (e: Exception) {
+            Log.e("SupabaseSyncService", "Error creating checkpoint: $checkpointName", e)
+        }
+    }
+
     fun syncQuestEvents() {
         CoroutineScope(Dispatchers.IO).launch {
             val events = questEventDao.getAllEvents().first()
@@ -52,7 +90,8 @@ class SupabaseSyncService(private val context: Context) {
                     event_name = event.eventName,
                     start_time = event.startTime,
                     end_time = if (event.endTime > 0) event.endTime else null,
-                    color_rgba = event.colorRgba
+                    color_rgba = event.colorRgba,
+                    comments = event.comments
                 )
             }
             if (eventsToSync.isNotEmpty()) {

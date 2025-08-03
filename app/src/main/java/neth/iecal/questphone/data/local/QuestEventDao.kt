@@ -10,10 +10,13 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface QuestEventDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertEvent(event: QuestEvent)
+    suspend fun insertEvent(event: QuestEvent): Long
 
     @Update
     suspend fun updateEvent(event: QuestEvent)
+
+    @Query("SELECT * FROM quest_events WHERE id = :id")
+    suspend fun getEventById(id: Int): QuestEvent?
 
     @Query("SELECT * FROM quest_events ORDER BY startTime DESC LIMIT 1")
     suspend fun getLatestEvent(): QuestEvent?
