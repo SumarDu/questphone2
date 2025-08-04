@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import neth.iecal.questphone.utils.CalendarSyncScheduler
 
 data class SettingsData(
+    val isEditingEnabled: Boolean = true,
     val isQuestCreationEnabled: Boolean = true,
     val isQuestDeletionEnabled: Boolean = true,
     val isItemCreationEnabled: Boolean = true,
@@ -22,7 +23,8 @@ data class SettingsData(
     // Quest filter settings for HomeScreen + dialog
     val showRepeatingQuestsInDialog: Boolean = true,
     val showClonedQuestsInDialog: Boolean = true,
-    val showOneTimeQuestsInDialog: Boolean = true
+    val showOneTimeQuestsInDialog: Boolean = true,
+    val unplannedBreakReasons: List<String> = emptyList()
 )
 
 class SettingsRepository(private val context: Context) {
@@ -84,6 +86,7 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun updateEditingPermission(isEnabled: Boolean) {
         val newSettings = _settings.value.copy(
+            isEditingEnabled = isEnabled,
             isQuestCreationEnabled = isEnabled,
             isQuestDeletionEnabled = isEnabled,
             isItemCreationEnabled = isEnabled,
@@ -134,4 +137,8 @@ class SettingsRepository(private val context: Context) {
         saveSettings(newSettings)
     }
 
+    suspend fun updateUnplannedBreakReasons(reasons: List<String>) {
+        val newSettings = _settings.value.copy(unplannedBreakReasons = reasons)
+        saveSettings(newSettings)
+    }
 }

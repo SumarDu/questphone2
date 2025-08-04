@@ -78,7 +78,6 @@ data class CommonQuestInfo(
     @Transient
     var synced: Boolean = false,
     var last_updated: Long = System.currentTimeMillis(),
-    var color_rgba: String = "",
     var calendar_event_id: Long? = null,
 
 
@@ -101,7 +100,6 @@ class QuestInfoState(
     initialBreakDurationMinutes: Int = 0,
     initialLastCompletedAt: Long = 0,
     initialQuestStartedAt: Long = 0,
-    initialColorRgba: String = "",
     initialSchedulingInfo: SchedulingInfo = SchedulingInfo()
 ) {
     var id = UUID.randomUUID().toString()
@@ -120,7 +118,6 @@ class QuestInfoState(
     var breakDurationMinutes by mutableIntStateOf(initialBreakDurationMinutes)
     var lastCompletedAt by mutableLongStateOf(initialLastCompletedAt)
     var questStartedAt by mutableLongStateOf(initialQuestStartedAt)
-    var colorRgba by mutableStateOf(initialColorRgba)
 
     inline fun < reified T : Any> toBaseQuest(questInfo: T? = null) = CommonQuestInfo(
         id = id,
@@ -139,8 +136,7 @@ class QuestInfoState(
         quest_duration_minutes = questDurationMinutes,
         break_duration_minutes = breakDurationMinutes,
         last_completed_at = lastCompletedAt,
-        quest_started_at = questStartedAt,
-        color_rgba = colorRgba
+        quest_started_at = questStartedAt
     )
     fun fromBaseQuest(commonQuestInfo: CommonQuestInfo){
         id = commonQuestInfo.id
@@ -159,7 +155,6 @@ class QuestInfoState(
         breakDurationMinutes = commonQuestInfo.break_duration_minutes
         lastCompletedAt = commonQuestInfo.last_completed_at
         questStartedAt = commonQuestInfo.quest_started_at
-        colorRgba = commonQuestInfo.color_rgba
     }
 }
 

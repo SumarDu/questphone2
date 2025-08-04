@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import neth.iecal.questphone.data.local.AppAlias
 import neth.iecal.questphone.data.local.AppAliasDao
 
-@Database(entities = [AppAlias::class, QuestEvent::class], version = 3, exportSchema = false)
+@Database(entities = [AppAlias::class, QuestEvent::class], version = 6, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
         abstract fun appAliasDao(): AppAliasDao
     abstract fun questEventDao(): QuestEventDao

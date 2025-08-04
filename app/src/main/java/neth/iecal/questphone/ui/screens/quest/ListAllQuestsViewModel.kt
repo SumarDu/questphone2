@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.UUID
 import neth.iecal.questphone.data.quest.CommonQuestInfo
@@ -41,6 +42,8 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
     val selectedTab = _selectedTab.asStateFlow()
 
     val questToDelete = MutableStateFlow<CommonQuestInfo?>(null)
+
+    val isEditingEnabled = settingsRepository.settings.map { it.isEditingEnabled }
 
     private val permanentQuests: Flow<List<CommonQuestInfo>> = questDao.getPermanentQuests()
     private val temporaryQuests: Flow<List<CommonQuestInfo>> = questDao.getClonedQuests()
@@ -99,11 +102,15 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
 
         fun onQuestCloneRequest(quest: CommonQuestInfo) {
         viewModelScope.launch {
-            val originalQuest = questDao.getQuestById(quest.id)
-            originalQuest?.let {
-                                val clonedQuest = it.copy(id = UUID.randomUUID().toString(), title = "${it.title} (Clone)")
-                questDao.upsertQuest(clonedQuest)
-                Toast.makeText(getApplication(), "Quest cloned", Toast.LENGTH_SHORT).show()
+            if (isEditingEnabled.first()) {
+                val originalQuest = questDao.getQuestById(quest.id)
+                originalQuest?.let {
+                    val clonedQuest = it.copy(id = UUID.randomUUID().toString(), title = "${it.title} (Clone)")
+                    questDao.upsertQuest(clonedQuest)
+                    Toast.makeText(getApplication(), "Quest cloned", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(getApplication(), "Editing is disabled in settings", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -114,13 +121,12 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
 
     fun onQuestDeleteConfirm() {
         viewModelScope.launch {
-            val settings = settingsRepository.settings.first()
-            if (settings.isQuestDeletionEnabled) {
+            if (isEditingEnabled.first()) {
                 questToDelete.value?.let {
                     questDao.deleteQuest(it)
                 }
             } else {
-                Toast.makeText(getApplication(), "Quest deletion is disabled in settings", Toast.LENGTH_SHORT).show()
+                Toast.makeText(getApplication(), "Editing is disabled in settings", Toast.LENGTH_SHORT).show()
             }
             questToDelete.value = null
         }

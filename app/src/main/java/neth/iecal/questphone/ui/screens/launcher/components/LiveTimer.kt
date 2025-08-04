@@ -11,12 +11,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -50,6 +54,7 @@ fun LiveTimer(
     val timerMode by timerViewModel.timerMode.collectAsState()
     val timerState: TimerState by timerViewModel.timerState.collectAsState()
     var showDialog by remember(timerMode) { mutableStateOf(false) }
+    var unplannedBreakReason by remember { mutableStateOf("") }
     var showAddTimeDialog by remember(timerMode) { mutableStateOf(false) }
     var showQuestListDialog by remember(timerMode) { mutableStateOf(false) }
     
@@ -79,12 +84,42 @@ fun LiveTimer(
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text("Unplanned Break") },
-            text = { Text("Do you want to start an unplanned break?") },
+            text = {
+                Column {
+                    Text("Select or enter a reason for the unplanned break:")
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedTextField(
+                        value = unplannedBreakReason,
+                        onValueChange = { unplannedBreakReason = it },
+                        label = { Text("Reason") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (settings.unplannedBreakReasons.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Or choose from your list:", style = MaterialTheme.typography.bodySmall)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyColumn(modifier = Modifier.height(150.dp)) {
+                            items(settings.unplannedBreakReasons) { reason ->
+                                Text(
+                                    text = reason,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { unplannedBreakReason = reason }
+                                        .padding(vertical = 12.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = {
-                        timerViewModel.startUnplannedBreak()
+                        timerViewModel.startUnplannedBreak(unplannedBreakReason)
                         showDialog = false
+                        unplannedBreakReason = ""
                     }
                 ) {
                     Text("Start")

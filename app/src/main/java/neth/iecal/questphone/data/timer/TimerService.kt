@@ -22,6 +22,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import neth.iecal.questphone.data.SchedulingType
+import neth.iecal.questphone.data.timer.TimerState
 import neth.iecal.questphone.data.local.AppDatabase
 import neth.iecal.questphone.data.local.QuestEvent
 import neth.iecal.questphone.data.local.QuestEventDao
@@ -43,7 +45,7 @@ class TimerService : Service() {
     private lateinit var supabaseSyncService: SupabaseSyncService
     private var stateBeforeUnplannedBreak: TimerState? = null
     private var unplannedBreakStartTime: Long? = null
-    private var unplannedBreakEventId: Int? = null
+    private var unplannedBreakEventId: String? = null
     private var temporaryAddedTimeMillis = 0L
     private var infoModeActive = false
     private var stateBeforeInfoMode: TimerState? = null
@@ -87,7 +89,8 @@ class TimerService : Service() {
                 return START_STICKY
             }
             ACTION_START_UNPLANNED_BREAK -> {
-                startUnplannedBreak()
+                val reason = intent.getStringExtra("UNPLANNED_BREAK_REASON") ?: ""
+                startUnplannedBreak(reason)
                 return START_STICKY
             }
             ACTION_STOP_UNPLANNED_BREAK -> {
@@ -285,7 +288,11 @@ class TimerService : Service() {
 
         // Skip event logging during unplanned breaks to prevent automatic event creation
         // Unplanned break events are handled manually in startUnplannedBreak/stopUnplannedBreak
-        if (_timerState.value.mode != TimerMode.UNPLANNED_BREAK && previousState.mode != TimerMode.UNPLANNED_BREAK) {
+        // ВАЖЛИВО: Також перевіряємо, чи не активна незапланована перерва через змінні стану
+        val isUnplannedBreakActive = unplannedBreakStartTime != null || unplannedBreakEventId != null
+        if (_timerState.value.mode != TimerMode.UNPLANNED_BREAK && 
+            previousState.mode != TimerMode.UNPLANNED_BREAK && 
+            !isUnplannedBreakActive) {
             handleEventLogging(previousState, _timerState.value)
         }
 
@@ -315,12 +322,15 @@ class TimerService : Service() {
             var breakDuration = 0L
             unplannedBreakStartTime?.let { breakDuration = breakEndTime - it }
             
+            var unplannedBreakEndTime: Long? = null
+            
             // Update the unplanned break event with end time
             unplannedBreakEventId?.let { eventId ->
                 val existingEvent = questEventDao.getEventById(eventId)
                 existingEvent?.let { event ->
                     val updatedEvent = event.copy(endTime = breakEndTime)
                     questEventDao.updateEvent(updatedEvent)
+                    unplannedBreakEndTime = breakEndTime
                     
                     // Sync updated event to Supabase
                     supabaseSyncService.syncSingleQuestEvent(updatedEvent)
@@ -337,7 +347,8 @@ class TimerService : Service() {
             stateBeforeUnplannedBreak = null
 
             // Create a resumed quest event if there was an active quest before the break
-            if (previousState?.mode == TimerMode.QUEST_COUNTDOWN && previousState.activeQuestId != null) {
+            // ВАЖЛИВО: startTime відновленої події = endTime незапланованої перерви
+            if (previousState?.mode == TimerMode.QUEST_COUNTDOWN && previousState.activeQuestId != null && unplannedBreakEndTime != null) {
                 questDao.getQuestById(previousState.activeQuestId)?.let { quest ->
                     // Update quest timing to account for the break duration
                     if (breakDuration > 0) {
@@ -346,22 +357,21 @@ class TimerService : Service() {
                     }
                     
                     // Create a new event for the resumed quest
+                    // StartTime дорівнює endTime незапланованої перерви
                     val resumedQuestEvent = neth.iecal.questphone.data.local.QuestEvent(
                         eventName = quest.title,
-                        startTime = breakEndTime,
-                        endTime = 0L, // Active event
-                        colorRgba = quest.color_rgba
+                        startTime = unplannedBreakEndTime!!, // Використовуємо endTime перерви
+                        endTime = 0L // Active event
                     )
                     
-                    val resumedEventId = questEventDao.insertEvent(resumedQuestEvent)
-                    val resumedEventWithId = resumedQuestEvent.copy(id = resumedEventId.toInt())
-                    supabaseSyncService.syncSingleQuestEvent(resumedEventWithId)
+                    questEventDao.insertEvent(resumedQuestEvent)
+                    supabaseSyncService.syncSingleQuestEvent(resumedQuestEvent)
                 }
             }
         }
     }
 
-    private fun startUnplannedBreak() {
+    private fun startUnplannedBreak(reason: String) {
         serviceScope.launch {
             stateBeforeUnplannedBreak = _timerState.value
             val breakStartTime = System.currentTimeMillis()
@@ -380,14 +390,13 @@ class TimerService : Service() {
                 eventName = "unplanned break",
                 startTime = breakStartTime,
                 endTime = 0L, // This will be set when the break ends
-                colorRgba = "#808080" // Gray color for unplanned breaks
+                comments = reason
             )
 
-            val eventId = questEventDao.insertEvent(unplannedBreakEvent)
-            unplannedBreakEventId = eventId.toInt()
+            questEventDao.insertEvent(unplannedBreakEvent)
+            unplannedBreakEventId = unplannedBreakEvent.id
 
-            val eventWithId = unplannedBreakEvent.copy(id = eventId.toInt())
-            supabaseSyncService.syncSingleQuestEvent(eventWithId)
+            supabaseSyncService.syncSingleQuestEvent(unplannedBreakEvent)
 
             _timerState.value = TimerState(mode = TimerMode.UNPLANNED_BREAK)
             // Unplanned break notifications removed
@@ -443,16 +452,56 @@ class TimerService : Service() {
         }
     }
 
+    private fun generateCalendarEventComment(quest: neth.iecal.questphone.data.quest.CommonQuestInfo?): String? {
+        if (quest?.calendar_event_id == null) return null
+        
+        val schedulingInfo = quest.scheduling_info
+        val eventType = when {
+            schedulingInfo?.type == SchedulingType.SPECIFIC_DATE -> {
+                "One-time event"
+            }
+            schedulingInfo?.type == SchedulingType.WEEKLY -> {
+                val dayName = quest.selected_days.firstOrNull()?.name?.lowercase()?.replaceFirstChar { it.uppercase() }
+                "Every $dayName"
+            }
+            schedulingInfo?.type == SchedulingType.MONTHLY_DATE -> {
+                "each month"
+            }
+            schedulingInfo?.type == SchedulingType.MONTHLY_BY_DAY -> {
+                val dayName = schedulingInfo.monthlyDayOfWeek?.name?.lowercase()?.replaceFirstChar { it.uppercase() }
+                val weekInMonth = schedulingInfo.monthlyWeekInMonth
+                when {
+                    weekInMonth == -1 -> "last $dayName of each month"
+                    weekInMonth == 1 -> "Every $dayName"
+                    else -> "Every $dayName"
+                }
+            }
+            else -> null
+        }
+        
+        return eventType?.let { "cal: $it" }
+    }
+
     private suspend fun handleEventLogging(previousState: TimerState, currentState: TimerState) {
         eventLoggingMutex.withLock {
+            // Skip normal event logging during unplanned breaks
+            // Unplanned break events are handled manually in startUnplannedBreak/stopUnplannedBreak
+            val latestEvent = questEventDao.getLatestEvent()
+
+            // Skip event logging if the latest event was a checkpoint created recently (within 3 seconds)
+            // This prevents race condition between createCheckpoint and handleEventLogging
+            val now = System.currentTimeMillis()
+            if (latestEvent?.eventName?.startsWith("cp:") == true && 
+                now - latestEvent.startTime < 3000) {
+                return@withLock
+            }
+
             // Skip normal event logging during unplanned breaks
             // Unplanned break events are handled manually in startUnplannedBreak/stopUnplannedBreak
             if (currentState.mode == TimerMode.UNPLANNED_BREAK || previousState.mode == TimerMode.UNPLANNED_BREAK) {
                 return@withLock
             }
             
-            val now = System.currentTimeMillis()
-            val latestEvent = questEventDao.getLatestEvent()
             val newEventName = getEventName(currentState)
 
             val isNewEventStarting = newEventName != null
@@ -469,19 +518,13 @@ class TimerService : Service() {
                     }
 
                     // Create the new event.
-                    val quest = currentState.activeQuestId?.let { questDao.getQuestById(it) }
-                    val colorRgba = when {
-                        newEventName == "break" -> "0.13,0.59,0.2,1.0" // Green
-                        newEventName == "overdue (break)" -> "0.76,0.18,0.13,1.0" // Red
-                        newEventName.startsWith("overdue") -> "0.86,0.08,0.24,1.0" // Crimson
-                        else -> quest?.color_rgba ?: ""
-                    }
-
+                    val quest = currentState.activeQuestId?.let { runBlocking { questDao.getQuestById(it) } }
+                    val calendarComment = generateCalendarEventComment(quest)
                     val newEvent = QuestEvent(
                         eventName = newEventName!!,
                         startTime = now,
                         endTime = 0L, // Mark as active
-                        colorRgba = colorRgba
+                        comments = calendarComment
                     )
                     questEventDao.insertEvent(newEvent)
                     // After inserting, fetch the latest event to get the auto-generated ID

@@ -82,7 +82,6 @@ fun SetBaseQuest(questInfoState: QuestInfoState, isTimeRangeSupported: Boolean =
 
     RewardSetter(questInfoState)
 
-    ColorSelector(questInfoState)
 
 }
 

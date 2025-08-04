@@ -13,7 +13,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -63,6 +65,9 @@ import android.text.TextUtils
 import neth.iecal.questphone.receivers.AdminReceiver
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.IconButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,14 +126,9 @@ fun SettingsScreen(navController: NavController) {
         ) {
             val settings by viewModel.settings.collectAsState()
 
-            val isEditingEnabled = settings.isQuestCreationEnabled &&
-                settings.isQuestDeletionEnabled &&
-                settings.isItemCreationEnabled &&
-                settings.isItemDeletionEnabled
-
             SettingSwitch(
-                title = "Editing permission",
-                isChecked = isEditingEnabled,
+                title = "Edit permission",
+                isChecked = settings.isEditingEnabled,
                 enabled = !settings.isSettingsLocked
             ) {
                 viewModel.onEditingPermissionChanged(it)
@@ -161,6 +161,86 @@ fun SettingsScreen(navController: NavController) {
                         Toast.makeText(context, "Checkpoint created: $checkpointName", Toast.LENGTH_SHORT).show()
                     }
                 )
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 16.dp))
+
+            // Unplanned Break Reasons Section
+            var showAddReasonDialog by remember { mutableStateOf(false) }
+            var newReason by remember { mutableStateOf("") }
+
+            Column {
+                Text(
+                    "Unplanned Break Reasons",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Box(modifier = Modifier.height(150.dp)) {
+                    LazyColumn {
+                        items(settings.unplannedBreakReasons) { reason ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(reason, modifier = Modifier.weight(1f))
+                                IconButton(onClick = {
+                                    val updatedReasons = settings.unplannedBreakReasons.toMutableList().apply {
+                                        remove(reason)
+                                    }
+                                    viewModel.updateUnplannedBreakReasons(updatedReasons)
+                                }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete reason")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = { showAddReasonDialog = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Reason", modifier = Modifier.padding(end = 8.dp))
+                    Text("Add Reason")
+                }
+
+                if (showAddReasonDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showAddReasonDialog = false },
+                        title = { Text("Add a new reason") },
+                        text = {
+                            OutlinedTextField(
+                                value = newReason,
+                                onValueChange = { newReason = it },
+                                label = { Text("Reason") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        },
+                        confirmButton = {
+                            Button(onClick = {
+                                if (newReason.isNotBlank()) {
+                                    val updatedReasons = settings.unplannedBreakReasons.toMutableList().apply {
+                                        add(newReason)
+                                    }
+                                    viewModel.updateUnplannedBreakReasons(updatedReasons)
+                                    newReason = ""
+                                    showAddReasonDialog = false
+                                }
+                            }) {
+                                Text("Add")
+                            }
+                        },
+                        dismissButton = {
+                            Button(onClick = { showAddReasonDialog = false }) {
+                                Text("Cancel")
+                            }
+                        }
+                    )
+                }
             }
 
             Divider(modifier = Modifier.padding(vertical = 16.dp))

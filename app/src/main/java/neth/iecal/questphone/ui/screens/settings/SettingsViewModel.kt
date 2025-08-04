@@ -115,21 +115,21 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             // Get current state to check if we're turning off editing permission
             val currentSettings = repository.settings.value
-            val wasEditingEnabled = currentSettings.isQuestCreationEnabled &&
-                currentSettings.isQuestDeletionEnabled &&
-                currentSettings.isItemCreationEnabled &&
-                currentSettings.isItemDeletionEnabled
+            val wasEditingEnabled = currentSettings.isEditingEnabled
 
-            // Update all editing permissions
-            repository.updateQuestCreation(isEnabled)
-            repository.updateQuestDeletion(isEnabled)
-            repository.updateItemCreation(isEnabled)
-            repository.updateItemDeletion(isEnabled)
+            // Update the editing permission
+            repository.updateEditingPermission(isEnabled)
 
-            // Create checkpoint when turning off editing permission
-            if (wasEditingEnabled && !isEnabled) {
-                supabaseSyncService.createCheckpoint("editing permission disabled")
+            // Create checkpoint when turning ON editing permission
+            if (!wasEditingEnabled && isEnabled) {
+                supabaseSyncService.createCheckpoint("editing permission enabled")
             }
+        }
+    }
+
+    fun updateUnplannedBreakReasons(reasons: List<String>) {
+        viewModelScope.launch {
+            repository.updateUnplannedBreakReasons(reasons)
         }
     }
 }

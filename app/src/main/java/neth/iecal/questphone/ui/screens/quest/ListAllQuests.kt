@@ -79,6 +79,7 @@ fun ListAllQuests(navHostController: NavHostController) {
     val filteredQuestList by viewModel.filteredQuests.collectAsState(initial = emptyList())
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedTab by viewModel.selectedTab.collectAsState()
+    val isEditingEnabled by viewModel.isEditingEnabled.collectAsState(initial = true)
     val questToDelete by viewModel.questToDelete.collectAsState()
 
     fun hasActiveOrOverdueQuestBlocking(currentQuest: CommonQuestInfo, allQuests: List<CommonQuestInfo>): Boolean {
@@ -110,10 +111,12 @@ fun ListAllQuests(navHostController: NavHostController) {
             )
         },
         floatingActionButton = {
-            androidx.compose.material3.FloatingActionButton(
-                onClick = { navHostController.navigate(Screen.AddNewQuest.route) },
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Quest")
+            if (isEditingEnabled) {
+                androidx.compose.material3.FloatingActionButton(
+                    onClick = { navHostController.navigate(Screen.AddNewQuest.route) },
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Quest")
+                }
             }
         },
         floatingActionButtonPosition = FabPosition.End
@@ -173,10 +176,11 @@ fun ListAllQuests(navHostController: NavHostController) {
                         },
                         onDelete = { viewModel.onQuestDeleteRequest(questBase) },
                         onClone = { viewModel.onQuestCloneRequest(questBase) },
-                        onEdit = {
+                        onEdit = { 
                             val route = questBase.integration_id.name + "/" + questBase.id
                             navHostController.navigate(route)
-                        }
+                        },
+                        isEditingEnabled = isEditingEnabled
                     )
                 }
                 item { Spacer(modifier = Modifier.size(12.dp)) } // Add space at the bottom
@@ -209,7 +213,8 @@ private fun QuestItem(
     onClick: () -> Unit,
     onDelete: () -> Unit,
     onClone: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    isEditingEnabled: Boolean
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Card(
@@ -251,14 +256,16 @@ private fun QuestItem(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f)
                         )
-                        IconButton(onClick = onClone) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Clone quest")
-                        }
-                        IconButton(onClick = onEdit) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit quest")
-                        }
-                        IconButton(onClick = onDelete) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete quest")
+                        if (isEditingEnabled) {
+                            IconButton(onClick = onClone) {
+                                Icon(Icons.Default.ContentCopy, contentDescription = "Clone quest")
+                            }
+                            IconButton(onClick = onEdit) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit quest")
+                            }
+                            IconButton(onClick = onDelete) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete quest")
+                            }
                         }
                     }
                     

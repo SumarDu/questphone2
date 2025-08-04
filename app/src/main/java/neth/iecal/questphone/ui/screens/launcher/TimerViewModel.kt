@@ -116,11 +116,12 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun startUnplannedBreak() {
-        val intent = Intent(getApplication(), TimerService::class.java).apply {
-            action = TimerService.ACTION_START_UNPLANNED_BREAK
+    fun startUnplannedBreak(reason: String) {
+        Intent(getApplication(), TimerService::class.java).also {
+            it.action = TimerService.ACTION_START_UNPLANNED_BREAK
+            it.putExtra("UNPLANNED_BREAK_REASON", reason)
+            getApplication<Application>().startService(it)
         }
-        getApplication<Application>().startService(intent)
     }
 
     private fun formatDuration(duration: Duration): String {

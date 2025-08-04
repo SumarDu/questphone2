@@ -22,7 +22,6 @@ class SupabaseSyncService(private val context: Context) {
                 event_name = event.eventName,
                 start_time = event.startTime,
                 end_time = if (event.endTime > 0) event.endTime else null,
-                color_rgba = event.colorRgba,
                 comments = event.comments
             )
             SupabaseClient.client.postgrest.from("quest_events").upsert(eventToSync, onConflict = "id")
@@ -51,12 +50,14 @@ class SupabaseSyncService(private val context: Context) {
             
             // Check if there's an active event that needs to be suspended
             val latestEvent = questEventDao.getLatestEvent()
+            var suspendedEventName: String? = null
             
             if (latestEvent != null && latestEvent.endTime == 0L) {
                 // Close the active event at checkpoint start time
                 val closedEvent = latestEvent.copy(endTime = now)
                 questEventDao.updateEvent(closedEvent)
                 syncSingleQuestEvent(closedEvent)
+                suspendedEventName = latestEvent.eventName
             }
             
             // Create the checkpoint event
@@ -64,16 +65,24 @@ class SupabaseSyncService(private val context: Context) {
                 eventName = "cp: $checkpointName",
                 startTime = now,
                 endTime = checkpointEndTime,
-                colorRgba = "#FFA500", // Orange color for checkpoints
                 comments = comments
             )
             
-            val eventId = questEventDao.insertEvent(checkpointEvent)
-            val eventWithId = checkpointEvent.copy(id = eventId.toInt())
-            syncSingleQuestEvent(eventWithId)
+            questEventDao.insertEvent(checkpointEvent)
+            syncSingleQuestEvent(checkpointEvent)
             
-            // Let the timer system handle resumed event creation naturally
-            // The timer system will detect the active quest and create the appropriate event
+            // ВАЖЛИВО: Створюємо відновлену подію з startTime = endTime чекпоїнта
+            if (suspendedEventName != null && !suspendedEventName.startsWith("cp:") && suspendedEventName != "unplanned break") {
+                val resumedEvent = neth.iecal.questphone.data.local.QuestEvent(
+                    eventName = suspendedEventName,
+                    startTime = checkpointEndTime, // StartTime дорівнює endTime чекпоїнта
+                    endTime = 0L, // Active event
+                    comments = null
+                )
+                
+                questEventDao.insertEvent(resumedEvent)
+                syncSingleQuestEvent(resumedEvent)
+            }
             
             Log.d("SupabaseSyncService", "Successfully created checkpoint: $checkpointName")
         } catch (e: Exception) {
@@ -90,7 +99,6 @@ class SupabaseSyncService(private val context: Context) {
                     event_name = event.eventName,
                     start_time = event.startTime,
                     end_time = if (event.endTime > 0) event.endTime else null,
-                    color_rgba = event.colorRgba,
                     comments = event.comments
                 )
             }
