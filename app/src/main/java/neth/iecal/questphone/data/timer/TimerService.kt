@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.util.Log
 import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.net.Uri
@@ -28,6 +29,7 @@ import neth.iecal.questphone.data.local.AppDatabase
 import neth.iecal.questphone.data.local.QuestEvent
 import neth.iecal.questphone.data.local.QuestEventDao
 import neth.iecal.questphone.data.remote.SupabaseSyncService
+import neth.iecal.questphone.services.INTENT_ACTION_UNLOCK_APP
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.utils.VibrationHelper
 import neth.iecal.questphone.utils.SchedulingUtils
@@ -50,6 +52,11 @@ class TimerService : Service() {
     private var infoModeActive = false
     private var stateBeforeInfoMode: TimerState? = null
     private var eventUpdateJob: Job? = null
+    private var breakEndedEarly = false
+    private var breakTerminationTime: Long? = null
+    private var unlockEndTime: Long? = null
+    private var currentUnlockDurationMillis: Long? = null
+    private var preUnlockTimerState: TimerState? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -61,15 +68,29 @@ class TimerService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "Timer Notifications"
-            val descriptionText = "Notifications for quest and break timers"
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
-                description = descriptionText
+            val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+
+            // Channel for regular, time-sensitive alerts
+            val timerChannel = NotificationChannel("timer_channel", "Timer Alerts", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Notifications for quest/break ending, etc."
+                enableVibration(true)
             }
-            val notificationManager: NotificationManager =
-                getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+            notificationManager.createNotificationChannel(timerChannel)
+
+            // Channel for overdue alerts
+            val overdueChannel = NotificationChannel("overdue_channel", "Overdue Alerts", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Notifications for when quests or breaks go overdue."
+                enableVibration(true)
+            }
+            notificationManager.createNotificationChannel(overdueChannel)
+
+            // Channel for the silent, ongoing unlock progress
+            val unlockChannel = NotificationChannel("unlock_channel", "Unlock Progress", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Shows the remaining time for an app unlock."
+                setSound(null, null)
+                enableVibration(false)
+            }
+            notificationManager.createNotificationChannel(unlockChannel)
         }
     }
 
@@ -95,6 +116,29 @@ class TimerService : Service() {
             }
             ACTION_STOP_UNPLANNED_BREAK -> {
                 stopUnplannedBreak()
+                return START_STICKY
+            }
+            ACTION_END_BREAK_EARLY -> {
+                Log.d("TimerService", "Received ACTION_END_BREAK_EARLY.")
+                val triggeredByUnlock = intent?.getBooleanExtra("triggered_by_unlock", false) ?: false
+                if (triggeredByUnlock) {
+                    val unlockDuration = intent?.getIntExtra("unlock_duration_minutes", 0) ?: 0
+                    val packageName = intent?.getStringExtra("package_name") ?: ""
+                    endBreakEarly(unlockDuration, packageName)
+                } else {
+                    endBreakEarly()
+                }
+                return START_STICKY
+            }
+            ACTION_START_UNLOCK_TIMER -> {
+                val unlockDuration = intent.getIntExtra(EXTRA_UNLOCK_DURATION, 0)
+                val packageName = intent.getStringExtra(EXTRA_PACKAGE_NAME)
+                val rewardCoins = intent.getIntExtra(EXTRA_REWARD_COINS, 0)
+                val preRewardCoins = intent.getIntExtra(EXTRA_PRE_REWARD_COINS, 0)
+
+                if (unlockDuration > 0 && packageName != null) {
+                    startUnlockTimer(unlockDuration, packageName, rewardCoins, preRewardCoins)
+                }
                 return START_STICKY
             }
         }
@@ -129,6 +173,64 @@ class TimerService : Service() {
                     _timerState.value = _timerState.value.copy(time = duration, lastOverdueNotificationTime = now)
                 } else {
                     _timerState.value = _timerState.value.copy(time = duration)
+                }
+            }
+            return
+        }
+        
+        // Handle unlock timer
+        if (_timerState.value.mode == TimerMode.UNLOCK) {
+            unlockEndTime?.let { endTime ->
+                if (now < endTime) {
+                    val remainingMillis = endTime - now
+                    val totalDurationMillis = currentUnlockDurationMillis ?: (1000 * 60) // Fallback to 1 min
+
+                    // Update the persistent progress notification
+                    val appName = _timerState.value.unlockPackageName?.let { getAppNameFromPackage(it) } ?: "App"
+                    sendNotification(
+                        title = "$appName Unlocked",
+                        message = formatDuration(Duration.ofMillis(remainingMillis)) + " remaining",
+                        type = NotificationType.UNLOCK_PROGRESS,
+                        progress = (totalDurationMillis - remainingMillis).toInt(),
+                        maxProgress = totalDurationMillis.toInt()
+                    )
+
+                    // Handle the 1-minute warning notification
+                    if (remainingMillis <= 60000 && !_timerState.value.unlockNotificationSent) {
+                        sendNotification("Unlock Ending Soon", "1 minute remaining.", NotificationType.UNLOCK_ENDING)
+                        _timerState.value = _timerState.value.copy(
+                            time = Duration.ofMillis(remainingMillis),
+                            unlockNotificationSent = true
+                        )
+                    } else {
+                        _timerState.value = _timerState.value.copy(time = Duration.ofMillis(remainingMillis))
+                    }
+                } else {
+                    // Unlock timer expired, dismiss the progress notification and restore the previous state
+                    val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                    notificationManager.cancel(NotificationType.UNLOCK_PROGRESS.ordinal + 1)
+
+                    currentUnlockDurationMillis?.let { duration ->
+                        breakTerminationTime?.let { terminationTime ->
+                            breakTerminationTime = terminationTime + duration
+                            Log.d("TimerService", "Adjusted breakTerminationTime by $duration ms.")
+                        }
+                    }
+
+                    preUnlockTimerState?.let {
+                        _timerState.value = it
+                        Log.d("TimerService", "Unlock finished. Restored state to: ${it.mode}")
+                    } ?: run {
+                        // Fallback to INACTIVE if there's no saved state
+                        _timerState.value = _timerState.value.copy(
+                            mode = TimerMode.INACTIVE,
+                            time = Duration.ZERO
+                        )
+                        Log.w("TimerService", "Unlock finished, but no pre-unlock state was saved. Setting to INACTIVE.")
+                    }
+                    unlockEndTime = null
+                    preUnlockTimerState = null // Clear the saved state
+                    currentUnlockDurationMillis = null // Clear the duration
                 }
             }
             return
@@ -196,11 +298,31 @@ class TimerService : Service() {
             temporaryAddedTimeMillis = 0L
         }
 
-        if (previousState.activeQuestId != null && previousState.activeQuestId != activeQuest?.id) {
-            // Removed alarm cancellation
+        // Handle overdue state from an early break termination
+        if (_timerState.value.mode == TimerMode.OVERTIME && _timerState.value.isBreakOvertime && breakEndedEarly) {
+            breakTerminationTime?.let { terminationTime ->
+                val overtimeDuration = Duration.ofMillis(now - terminationTime)
+                if (now - _timerState.value.lastOverdueNotificationTime >= TimeUnit.MINUTES.toMillis(3)) {
+                    sendNotification("Break Overdue!", "The break is now overdue.", NotificationType.BREAK_OVERDUE)
+                    _timerState.value = _timerState.value.copy(time = overtimeDuration, lastOverdueNotificationTime = now)
+                } else {
+                    _timerState.value = _timerState.value.copy(time = overtimeDuration)
+                }
+                currentStateHandled = true
+            }
+        }
+
+        if (previousState.activeQuestId != null && previousState.activeQuestId != _timerState.value.activeQuestId) {
+            handleEventLogging(previousState, _timerState.value)
         }
 
         if (activeQuest != null && activeQuest.quest_duration_minutes > 0) {
+            // Reset break flags if a quest is active to ensure a clean state
+            if (breakEndedEarly || breakTerminationTime != null) {
+                Log.d("TimerService", "New quest started, resetting break flags.")
+                breakEndedEarly = false
+                breakTerminationTime = null
+            }
             currentStateHandled = true
             val questDurationMillis = TimeUnit.MINUTES.toMillis(activeQuest.quest_duration_minutes.toLong())
             val actualQuestEndsAt = activeQuest.quest_started_at + questDurationMillis + temporaryAddedTimeMillis
@@ -258,7 +380,19 @@ class TimerService : Service() {
                 } catch (e: Exception) { /* Log error */ }
             }
 
-            if (now < breakEndsAt) {
+            // Check if break was ended early - if so, skip normal break logic
+            if (breakEndedEarly) {
+                Log.d("TimerService", "Break ended early flag is set, maintaining OVERTIME state")
+                val terminatedAt = breakTerminationTime
+                if (terminatedAt != null) {
+                    val overtimeDuration = Duration.ofMillis(now - terminatedAt)
+                    _timerState.value = TimerState(TimerMode.OVERTIME, overtimeDuration, recentlyCompleted.id, isBreakOvertime = true, isDeepFocusLocking = isLocking, lastOverdueNotificationTime = _timerState.value.lastOverdueNotificationTime)
+                } else {
+                    // Fallback in case timestamp is missing
+                    val overtimeDuration = Duration.ofMillis(now - breakEndsAt)
+                    _timerState.value = TimerState(TimerMode.OVERTIME, overtimeDuration, recentlyCompleted.id, isBreakOvertime = true, isDeepFocusLocking = isLocking, lastOverdueNotificationTime = _timerState.value.lastOverdueNotificationTime)
+                }
+            } else if (now < breakEndsAt) {
                 val timeUntilBreakEnd = Duration.ofMillis(breakEndsAt - now)
                 val remainingSeconds = timeUntilBreakEnd.seconds
 
@@ -269,6 +403,9 @@ class TimerService : Service() {
 
                 _timerState.value = TimerState(TimerMode.BREAK, timeUntilBreakEnd, recentlyCompleted.id, isDeepFocusLocking = isLocking, notificationSent = _timerState.value.notificationSent)
             } else {
+                // Natural break end - reset the early termination flag
+                breakEndedEarly = false
+                breakTerminationTime = null
                 val overtimeDuration = Duration.ofMillis(now - breakEndsAt)
                 if (now - previousState.lastOverdueNotificationTime >= TimeUnit.MINUTES.toMillis(3)) {
                     sendNotification("Break Overdue!", "The break is now overdue.", NotificationType.BREAK_OVERDUE)
@@ -320,7 +457,9 @@ class TimerService : Service() {
         serviceScope.launch {
             val breakEndTime = System.currentTimeMillis()
             var breakDuration = 0L
-            unplannedBreakStartTime?.let { breakDuration = breakEndTime - it }
+            unplannedBreakStartTime?.let { startTime ->
+                breakDuration = breakEndTime - startTime
+            }
             
             var unplannedBreakEndTime: Long? = null
             
@@ -348,7 +487,15 @@ class TimerService : Service() {
 
             // Create a resumed quest event if there was an active quest before the break
             // ВАЖЛИВО: startTime відновленої події = endTime незапланованої перерви
-            if (previousState?.mode == TimerMode.QUEST_COUNTDOWN && previousState.activeQuestId != null && unplannedBreakEndTime != null) {
+            
+            // Check if the latest event was a checkpoint created recently (within 3 seconds)
+            // This prevents race condition between createCheckpoint and stopUnplannedBreak
+            val latestEvent = questEventDao.getLatestEvent()
+            val now = System.currentTimeMillis()
+            val isRecentCheckpoint = latestEvent?.eventName?.startsWith("cp:") == true && 
+                now - latestEvent.startTime < 3000
+            
+            if (!isRecentCheckpoint && previousState?.mode == TimerMode.QUEST_COUNTDOWN && previousState.activeQuestId != null && unplannedBreakEndTime != null) {
                 questDao.getQuestById(previousState.activeQuestId)?.let { quest ->
                     // Update quest timing to account for the break duration
                     if (breakDuration > 0) {
@@ -442,12 +589,29 @@ class TimerService : Service() {
         }
     }
 
+    private fun getAppNameFromPackage(packageName: String): String {
+        return try {
+            val packageManager = applicationContext.packageManager
+            val applicationInfo = packageManager.getApplicationInfo(packageName, 0)
+            packageManager.getApplicationLabel(applicationInfo).toString()
+        } catch (e: Exception) {
+            Log.w("TimerService", "Could not get app name for package: $packageName", e)
+            packageName // Fallback to package name if app name can't be retrieved
+        }
+    }
+
     private fun getEventName(state: TimerState): String? {
         val quest = state.activeQuestId?.let { runBlocking { questDao.getQuestById(it) } }
         return when (state.mode) {
             TimerMode.QUEST_COUNTDOWN -> quest?.title
             TimerMode.OVERTIME -> if (state.isBreakOvertime) "overdue (break)" else "overdue (${quest?.title})"
             TimerMode.BREAK -> "break"
+            TimerMode.UNLOCK -> {
+                state.unlockPackageName?.let { packageName ->
+                    val appName = getAppNameFromPackage(packageName)
+                    "AppUnlock: $appName"
+                } ?: "AppUnlock: Unknown"
+            }
             else -> null
         }
     }
@@ -510,11 +674,13 @@ class TimerService : Service() {
             if (isNewEventStarting) {
                 // If no active event is running, or the new event is different, start a new event sequence.
                 if (!isActiveEventRunning || latestEvent?.eventName != newEventName) {
+                    var newEventStartTime = now
                     // Close the previous event if it exists and is active.
                     if (isActiveEventRunning) {
                         val closedEvent = latestEvent!!.copy(endTime = now)
                         questEventDao.updateEvent(closedEvent)
                         serviceScope.launch { supabaseSyncService.syncSingleQuestEvent(closedEvent) }
+                        newEventStartTime = closedEvent.endTime
                     }
 
                     // Create the new event.
@@ -522,9 +688,11 @@ class TimerService : Service() {
                     val calendarComment = generateCalendarEventComment(quest)
                     val newEvent = QuestEvent(
                         eventName = newEventName!!,
-                        startTime = now,
+                        startTime = newEventStartTime,
                         endTime = 0L, // Mark as active
-                        comments = calendarComment
+                        comments = calendarComment,
+                        rewardCoins = currentState.eventDetails?.rewardCoins,
+                        preRewardCoins = currentState.eventDetails?.preRewardCoins
                     )
                     questEventDao.insertEvent(newEvent)
                     // After inserting, fetch the latest event to get the auto-generated ID
@@ -550,27 +718,45 @@ class TimerService : Service() {
         BREAK_ENDING,
         QUEST_OVERDUE,
         BREAK_OVERDUE,
-        UNPLANNED_BREAK
+        UNPLANNED_BREAK,
+        UNLOCK_ENDING,
+        UNLOCK_PROGRESS
     }
 
-    private fun sendNotification(title: String, message: String, type: NotificationType) {
-        val soundUri = getSoundForNotificationType(type)
-        val vibrationPattern = getVibrationPatternForNotificationType(type)
-        
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setSmallIcon(neth.iecal.questphone.R.drawable.ic_launcher_foreground)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSound(soundUri)
-            .setVibrate(vibrationPattern)
-            .build()
+    private fun sendNotification(title: String, message: String, type: NotificationType, progress: Int = 0, maxProgress: Int = 0) {
+        val channelId = when (type) {
+            NotificationType.UNLOCK_PROGRESS -> "unlock_channel"
+            NotificationType.QUEST_OVERDUE, NotificationType.BREAK_OVERDUE, NotificationType.UNPLANNED_BREAK -> "overdue_channel"
+            else -> "timer_channel"
+        }
+
+        val builder = NotificationCompat.Builder(this, channelId).apply {
+            setSmallIcon(android.R.drawable.ic_dialog_info) // Using a default system icon
+            setContentTitle(title)
+            setContentText(message)
+
+            when (type) {
+                NotificationType.UNLOCK_PROGRESS -> {
+                    setOngoing(true)
+                    setSilent(true)
+                    setProgress(maxProgress, progress, false)
+                    priority = NotificationCompat.PRIORITY_LOW
+                }
+                else -> {
+                    setSound(getSoundForNotificationType(type))
+                    setVibrate(getVibrationPatternForNotificationType(type))
+                    priority = NotificationCompat.PRIORITY_HIGH
+                    setCategory(NotificationCompat.CATEGORY_ALARM)
+                }
+            }
+        }
 
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(type.ordinal + 1, notification)
-        
-        // Trigger vibration manually for better control
-        triggerVibration(type)
+        notificationManager.notify(type.ordinal + 1, builder.build())
+
+        if (type != NotificationType.UNLOCK_PROGRESS) {
+            triggerVibration(type)
+        }
     }
     
     private fun getSoundForNotificationType(type: NotificationType): Uri {
@@ -580,6 +766,8 @@ class TimerService : Service() {
             NotificationType.QUEST_OVERDUE -> neth.iecal.questphone.R.raw.overdue_quest
             NotificationType.BREAK_OVERDUE -> neth.iecal.questphone.R.raw.overdue_break
             NotificationType.UNPLANNED_BREAK -> neth.iecal.questphone.R.raw.overdue_break
+            NotificationType.UNLOCK_ENDING -> neth.iecal.questphone.R.raw.quest_expired // Using the same sound as quest expiry
+            NotificationType.UNLOCK_PROGRESS -> neth.iecal.questphone.R.raw.quest_expired // Will be silent due to channel settings
         }
         return Uri.parse("android.resource://" + packageName + "/" + soundResource)
     }
@@ -591,6 +779,8 @@ class TimerService : Service() {
             NotificationType.QUEST_OVERDUE -> longArrayOf(0, 200, 100, 200, 100, 200) // Triple short
             NotificationType.BREAK_OVERDUE -> longArrayOf(0, 400, 200, 400, 200, 400) // Triple medium
             NotificationType.UNPLANNED_BREAK -> longArrayOf(0, 1000, 300, 1000) // Long-pause-long
+            NotificationType.UNLOCK_ENDING -> longArrayOf(0, 300, 100, 300) // Same as QUEST_ENDING
+            NotificationType.UNLOCK_PROGRESS -> longArrayOf(0) // No vibration for progress updates
         }
     }
     
@@ -628,6 +818,142 @@ class TimerService : Service() {
         }
     }
 
+    private fun startUnlockTimer(durationMinutes: Int, packageName: String, rewardCoins: Int, preRewardCoins: Int) {
+        serviceScope.launch {
+            val eventDetails = EventDetails(rewardCoins = rewardCoins, preRewardCoins = preRewardCoins)
+            val currentState = _timerState.value
+
+            val unlockDurationMillis = TimeUnit.MINUTES.toMillis(durationMinutes.toLong())
+            unlockEndTime = System.currentTimeMillis() + unlockDurationMillis
+            currentUnlockDurationMillis = unlockDurationMillis
+
+            // Send intent to AppBlockerService to unlock the app immediately
+            val unlockIntent = Intent(INTENT_ACTION_UNLOCK_APP).apply {
+                putExtra("package_name", packageName)
+                putExtra("selected_time", TimeUnit.MINUTES.toMillis(durationMinutes.toLong()).toInt())
+            }
+            sendBroadcast(unlockIntent)
+            Log.d("TimerService", "Sent unlock intent to AppBlockerService for package: $packageName")
+
+            // If we are in a break or break's overdue, end it first to transition to UNLOCK.
+            if (currentState.mode == TimerMode.BREAK || (currentState.mode == TimerMode.OVERTIME && currentState.isBreakOvertime)) {
+                breakEndedEarly = true
+                breakTerminationTime = System.currentTimeMillis()
+                // Get all quests and find the most recently completed one
+                val allQuests = questDao.getAllQuestsSuspend()
+                val recentlyCompleted = allQuests
+                    .filter { it.last_completed_at > 0 }
+                    .maxByOrNull { it.last_completed_at }
+
+                if (recentlyCompleted != null) {
+                    val overtimeState = TimerState(
+                        mode = TimerMode.OVERTIME,
+                        time = Duration.ZERO,
+                        activeQuestId = recentlyCompleted.id,
+                        isBreakOvertime = true,
+                        isDeepFocusLocking = false,
+                        lastOverdueNotificationTime = System.currentTimeMillis()
+                    )
+                    preUnlockTimerState = overtimeState
+
+                    val previousStateForLog = _timerState.value
+                    _timerState.value = TimerState(
+                        mode = TimerMode.UNLOCK,
+                        time = Duration.ofMillis(unlockDurationMillis),
+                        activeQuestId = recentlyCompleted.id,
+                        unlockPackageName = packageName,
+                        eventDetails = eventDetails
+                    )
+                    handleEventLogging(previousStateForLog, _timerState.value)
+
+                    SchedulingUtils.scheduleUnlockWarningNotification(this@TimerService, unlockDurationMillis)
+                } else {
+                    Log.w("TimerService", "Cannot start unlock timer from break without a recently completed quest.")
+                }
+            } else {
+                preUnlockTimerState = currentState
+                _timerState.value = TimerState(
+                    mode = TimerMode.UNLOCK,
+                    time = Duration.ofMillis(unlockDurationMillis),
+                    activeQuestId = currentState.activeQuestId,
+                    unlockPackageName = packageName,
+                    eventDetails = eventDetails
+                )
+                handleEventLogging(currentState, _timerState.value)
+
+                SchedulingUtils.scheduleUnlockWarningNotification(this@TimerService, unlockDurationMillis)
+            }
+            Log.d("TimerService", "Unlock timer started. Ends at: $unlockEndTime")
+        }
+    }
+
+    private fun endBreakEarly(unlockDuration: Int? = null, packageName: String? = null, eventDetails: EventDetails? = null) {
+        Log.d("TimerService", "endBreakEarly method called.")
+        serviceScope.launch {
+            val currentState = _timerState.value
+            Log.d("TimerService", "Current state mode: ${currentState.mode}")
+            
+            // Only allow early termination if currently in break mode
+            if (currentState.mode != TimerMode.BREAK) {
+                Log.w("TimerService", "endBreakEarly called, but not in break mode. Aborting.")
+                return@launch
+            }
+            
+            val allQuests = questDao.getAllQuestsSuspend()
+            val recentlyCompleted = allQuests
+                .filter { it.last_completed_at > it.quest_started_at && it.break_duration_minutes > 0 }
+                .maxByOrNull { it.last_completed_at }
+            
+            if (recentlyCompleted != null) {
+                breakEndedEarly = true
+                breakTerminationTime = System.currentTimeMillis()
+                Log.d("TimerService", "Found recently completed quest: ${recentlyCompleted.title}")
+                val now = breakTerminationTime!!
+                val breakEndsAt = recentlyCompleted.last_completed_at + TimeUnit.MINUTES.toMillis(recentlyCompleted.break_duration_minutes.toLong())
+                
+                // Check if we're in deep focus mode for locking behavior
+                var isLocking = false
+                if (recentlyCompleted.integration_id == neth.iecal.questphone.data.IntegrationId.DEEP_FOCUS) {
+                    try {
+                        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+                        val deepFocus = json.decodeFromString<neth.iecal.questphone.data.quest.focus.DeepFocus>(recentlyCompleted.quest_json)
+                        if (deepFocus.completedWorkSessions < deepFocus.minWorkSessions && deepFocus.completedWorkSessions > 0) {
+                            isLocking = true
+                        }
+                        Log.d("TimerService", "Deep focus locking state: $isLocking")
+                    } catch (e: Exception) { 
+                        Log.e("TimerService", "Error decoding deep focus JSON", e)
+                    }
+                }
+                
+                // Force transition to overdue state with overtime starting at zero
+                val overtimeDuration = Duration.ZERO
+                Log.d("TimerService", "Forcing transition to overdue state.")
+                val previousState = _timerState.value
+                _timerState.value = TimerState(
+                    mode = TimerMode.OVERTIME, 
+                    time = overtimeDuration, 
+                    activeQuestId = recentlyCompleted.id, 
+                    isBreakOvertime = true, 
+                    isDeepFocusLocking = isLocking, 
+                    lastOverdueNotificationTime = now
+                )
+                // Only log the OVERTIME event if we're not about to start an unlock timer
+                if (unlockDuration == null || packageName == null) {
+                    handleEventLogging(previousState, _timerState.value)
+                }
+                Log.d("TimerService", "New state set to OVERTIME.")
+            } else {
+                Log.w("TimerService", "endBreakEarly called, but no recently completed quest found.")
+            }
+
+            // If the break was ended by an unlock purchase, start the unlock timer immediately.
+            if (unlockDuration != null && packageName != null && unlockDuration > 0 && packageName.isNotEmpty()) {
+                startUnlockTimer(unlockDuration, packageName, eventDetails?.rewardCoins ?: 0, eventDetails?.preRewardCoins ?: 0)
+            }
+        }
+    }
+
 
 
     companion object {
@@ -638,6 +964,12 @@ class TimerService : Service() {
         const val ACTION_COMPLETE_QUEST = "neth.iecal.questphone.action.COMPLETE_QUEST"
         const val ACTION_ADD_TIME = "neth.iecal.questphone.action.ADD_TIME"
         const val ACTION_TOGGLE_INFO_MODE = "neth.iecal.questphone.action.TOGGLE_INFO_MODE"
+        const val ACTION_END_BREAK_EARLY = "neth.iecal.questphone.action.END_BREAK_EARLY"
+        const val ACTION_START_UNLOCK_TIMER = "neth.iecal.questphone.action.START_UNLOCK_TIMER"
+        const val EXTRA_UNLOCK_DURATION = "unlock_duration_minutes"
+        const val EXTRA_PACKAGE_NAME = "package_name"
+        const val EXTRA_REWARD_COINS = "reward_coins"
+        const val EXTRA_PRE_REWARD_COINS = "pre_reward_coins"
 
         const val EXTRA_TIME_TO_ADD = "neth.iecal.questphone.extra.TIME_TO_ADD"
 

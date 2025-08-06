@@ -6,4 +6,10 @@
     <string name="title_activity_locked">LockedActivity</string>
     <string name="title_activity_onboard">OnboardActivity</string>
     <string name="accessibility_service_description">This service is required to block distracting apps and prevent uninstallation.</string>
+    
+    <!-- Unlock Warning Notification -->
+    <string name="unlock_warning_channel_name">Unlock Alerts</string>
+    <string name="unlock_warning_channel_description">Notifications about app unlock status</string>
+    <string name="unlock_warning_title">Unlock Ending Soon</string>
+    <string name="unlock_warning_message">Your app unlock will expire in 1 minute</string>
 </resources>

@@ -8,5 +8,7 @@ data class QuestEventSupabase(
     val event_name: String,
     val start_time: Long,
     val end_time: Long?,
-    val comments: String? = null
+    val comments: String? = null,
+    val reward_coins: Int? = null, // Amount of coins earned from quest completion
+    val pre_reward_coins: Int? = null // User's coin balance before reward was added
 )

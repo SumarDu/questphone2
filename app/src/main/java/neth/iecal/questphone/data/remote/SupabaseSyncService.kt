@@ -22,7 +22,9 @@ class SupabaseSyncService(private val context: Context) {
                 event_name = event.eventName,
                 start_time = event.startTime,
                 end_time = if (event.endTime > 0) event.endTime else null,
-                comments = event.comments
+                comments = event.comments,
+                reward_coins = event.rewardCoins,
+                pre_reward_coins = event.preRewardCoins
             )
             SupabaseClient.client.postgrest.from("quest_events").upsert(eventToSync, onConflict = "id")
             Log.d("SupabaseSyncService", "Successfully synced single quest event: ${event.id}")
@@ -99,7 +101,9 @@ class SupabaseSyncService(private val context: Context) {
                     event_name = event.eventName,
                     start_time = event.startTime,
                     end_time = if (event.endTime > 0) event.endTime else null,
-                    comments = event.comments
+                    comments = event.comments,
+                    reward_coins = event.rewardCoins,
+                    pre_reward_coins = event.preRewardCoins
                 )
             }
             if (eventsToSync.isNotEmpty()) {

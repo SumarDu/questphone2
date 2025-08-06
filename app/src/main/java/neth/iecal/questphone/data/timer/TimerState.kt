@@ -8,8 +8,14 @@ enum class TimerMode {
     BREAK,
     OVERTIME,
     UNPLANNED_BREAK,
-    INFO
+    INFO,
+    UNLOCK
 }
+
+data class EventDetails(
+    val rewardCoins: Int? = null,
+    val preRewardCoins: Int? = null
+)
 
 data class TimerState(
     val mode: TimerMode = TimerMode.INACTIVE,
@@ -19,5 +25,8 @@ data class TimerState(
     val questEndsAt: Long = 0,
     val isDeepFocusLocking: Boolean = false,
     val notificationSent: Boolean = false,
-    val lastOverdueNotificationTime: Long = 0
+    val unlockNotificationSent: Boolean = false,
+    val lastOverdueNotificationTime: Long = 0,
+    val unlockPackageName: String? = null,
+    val eventDetails: EventDetails? = null
 )

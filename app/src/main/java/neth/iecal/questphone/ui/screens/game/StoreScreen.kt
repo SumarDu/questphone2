@@ -1,6 +1,10 @@
 package neth.iecal.questphone.ui.screens.game
 
 import android.app.Application
+import android.content.Intent
+import kotlinx.coroutines.Dispatchers
+import neth.iecal.questphone.data.timer.TimerService
+import neth.iecal.questphone.ui.screens.launcher.TimerViewModel
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -37,14 +41,15 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import android.widget.Toast
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import neth.iecal.questphone.R
 import neth.iecal.questphone.data.game.*
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
@@ -71,6 +76,7 @@ class StoreViewModel(application: Application, private val appUnlockerItemDao: A
     var selectedCategory by mutableStateOf(Category.UNLOCKERS)
     var items by mutableStateOf<List<StoreItem>>(emptyList())
     var selectedItem by mutableStateOf<StoreItem?>(null)
+    var showPurchaseNotAllowedDialog by mutableStateOf(false)
     var itemToDelete by mutableStateOf<StoreItem?>(null)
 
     init {
@@ -104,7 +110,7 @@ class StoreViewModel(application: Application, private val appUnlockerItemDao: A
                     StoreItem(
                         id = item.id.toString(),
                         name = item.appName,
-                        description = "Unlocks ${item.appName} for $durationString",
+                        description = "Unlocks for $durationString",
                         icon = R.drawable.ic_launcher_foreground, // Replace with a real icon
                         price = item.price,
                         category = Category.UNLOCKERS,
@@ -121,8 +127,19 @@ class StoreViewModel(application: Application, private val appUnlockerItemDao: A
         selectedCategory = category
     }
 
-    fun selectItem(item: StoreItem) {
-        selectedItem = item
+    fun selectItem(item: StoreItem, timerState: neth.iecal.questphone.data.timer.TimerState) {
+        if (item.category == Category.UNLOCKERS) {
+            val isBreak = timerState.mode == neth.iecal.questphone.data.timer.TimerMode.BREAK
+            val isBreakOvertime = timerState.mode == neth.iecal.questphone.data.timer.TimerMode.OVERTIME && timerState.isBreakOvertime
+
+            if (isBreak || isBreakOvertime) {
+                selectedItem = item
+            } else {
+                showPurchaseNotAllowedDialog = true
+            }
+        } else {
+            selectedItem = item
+        }
     }
 
     fun deselectItem() {
@@ -133,8 +150,10 @@ class StoreViewModel(application: Application, private val appUnlockerItemDao: A
         viewModelScope.launch {
             val itemToPurchase = selectedItem ?: return@launch
             if (coins >= itemToPurchase.price) {
+                val prePurchaseCoins = coins
                 User.useCoins(itemToPurchase.price)
                 coins = User.userInfo.coins // Manually update coins
+
                 if (itemToPurchase.isFromEnum) {
                     val inventoryItem = InventoryItem.valueOf(itemToPurchase.id)
                     User.addItemsToInventory(hashMapOf(inventoryItem to 1))
@@ -142,11 +161,20 @@ class StoreViewModel(application: Application, private val appUnlockerItemDao: A
                     // Handle app unlocker purchase logic
                     val unlockerId = itemToPurchase.id.toIntOrNull()
                     if (unlockerId != null) {
-                        val unlocker = appUnlockerItemDao.getById(unlockerId)
-                        if (unlocker != null) {
-                            val expiryTime = System.currentTimeMillis() + (unlocker.unlockDurationMinutes * 60 * 1000L)
-                            ServiceInfo.unlockedApps[unlocker.packageName] = expiryTime
-                            saveServiceInfo(getApplication())
+                        viewModelScope.launch(Dispatchers.IO) {
+                            val unlocker = appUnlockerItemDao.getById(unlockerId)
+                            if (unlocker != null) {
+                                withContext(Dispatchers.Main) {
+                                    val intent = Intent(getApplication(), TimerService::class.java).apply {
+                                        action = TimerService.ACTION_START_UNLOCK_TIMER
+                                        putExtra(TimerService.EXTRA_UNLOCK_DURATION, unlocker.unlockDurationMinutes)
+                                        putExtra(TimerService.EXTRA_PACKAGE_NAME, unlocker.packageName)
+                                        putExtra(TimerService.EXTRA_REWARD_COINS, -itemToPurchase.price)
+                                        putExtra(TimerService.EXTRA_PRE_REWARD_COINS, prePurchaseCoins)
+                                    }
+                                    getApplication<Application>().startService(intent)
+                                }
+                            }
                         }
                     }
                 }
@@ -187,7 +215,8 @@ class StoreViewModel(application: Application, private val appUnlockerItemDao: A
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StoreScreen(
-    navController: NavController
+    navController: NavController,
+    timerViewModel: TimerViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val viewModel: StoreViewModel = viewModel(
@@ -231,14 +260,26 @@ fun StoreScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            CategorySelector(
-                selectedCategory = viewModel.selectedCategory,
-                onCategorySelected = { viewModel.selectCategory(it) }
-            )
+            // Category selector row
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(Category.entries) { category ->
+                    FilterChip(
+                        selected = category == viewModel.selectedCategory,
+                        onClick = { viewModel.selectCategory(category) },
+                        label = { Text(category.simpleName) }
+                    )
+                }
+            }
+            
+            // Items list
             StoreItemsList(
                 items = viewModel.items.filter { it.category == viewModel.selectedCategory },
-                onItemClick = { viewModel.selectItem(it) },
-                onDeleteClick = { viewModel.onDeleteItemRequest(it) }
+                onItemClick = { item -> viewModel.selectItem(item, timerViewModel.timerState.value) },
+                onDeleteClick = { item -> viewModel.onDeleteItemRequest(item) },
+                isDeletionEnabled = settings.isItemDeletionEnabled
             )
         }
 
@@ -247,7 +288,13 @@ fun StoreScreen(
                 item = viewModel.selectedItem!!,
                 onDismiss = { viewModel.deselectItem() },
                 onPurchase = { viewModel.purchaseSelectedItem() },
-                canAfford = viewModel.coins >= viewModel.selectedItem!!.price
+                canAfford = viewModel.coins >= (viewModel.selectedItem?.price ?: 0)
+            )
+        }
+
+        if (viewModel.showPurchaseNotAllowedDialog) {
+            PurchaseNotAllowedDialog(
+                onDismiss = { viewModel.showPurchaseNotAllowedDialog = false }
             )
         }
 
@@ -262,32 +309,26 @@ fun StoreScreen(
 }
 
 @Composable
-fun CategorySelector(selectedCategory: Category, onCategorySelected: (Category) -> Unit) {
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(Category.entries) { category ->
-            FilterChip(
-                selected = category == selectedCategory,
-                onClick = { onCategorySelected(category) },
-                label = { Text(category.simpleName) }
+fun StoreItemsList(
+    items: List<StoreItem>,
+    onItemClick: (StoreItem) -> Unit,
+    onDeleteClick: (StoreItem) -> Unit,
+    isDeletionEnabled: Boolean
+) {
+    LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+        items(items) { item ->
+            StoreItemCard(
+                item = item,
+                onClick = { onItemClick(item) },
+                onDelete = { onDeleteClick(item) },
+                isDeletionEnabled = isDeletionEnabled
             )
         }
     }
 }
 
 @Composable
-fun StoreItemsList(items: List<StoreItem>, onItemClick: (StoreItem) -> Unit, onDeleteClick: (StoreItem) -> Unit) {
-    LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
-        items(items) { item ->
-            StoreItemCard(item = item, onClick = { onItemClick(item) }, onDelete = { onDeleteClick(item) })
-        }
-    }
-}
-
-@Composable
-fun StoreItemCard(item: StoreItem, onClick: () -> Unit, onDelete: () -> Unit) {
+fun StoreItemCard(item: StoreItem, onClick: () -> Unit, onDelete: () -> Unit, isDeletionEnabled: Boolean) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -309,7 +350,7 @@ fun StoreItemCard(item: StoreItem, onClick: () -> Unit, onDelete: () -> Unit) {
                 Text(text = item.name, style = MaterialTheme.typography.titleMedium)
                 Text(text = item.description, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
-            if (!item.isFromEnum) {
+            if (!item.isFromEnum && isDeletionEnabled) {
                 IconButton(onClick = onDelete) {
                     Icon(Icons.Default.Delete, contentDescription = "Delete Item")
                 }
@@ -370,6 +411,20 @@ fun PurchaseDialog(item: StoreItem, onDismiss: () -> Unit, onPurchase: () -> Uni
             }
         }
     }
+}
+
+@Composable
+fun PurchaseNotAllowedDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Purchase Not Available") },
+        text = { Text("You can only purchase unlockers during a break or when a break is overdue.") },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("OK")
+            }
+        }
+    )
 }
 
 @Composable

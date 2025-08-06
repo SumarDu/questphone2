@@ -119,11 +119,8 @@ class AppBlockerService : Service() {
     private fun createNotification(): Notification {
         // Import required for NotificationCompat
         val builder = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("AppBlocker Active")
-            .setOngoing(true)
-            .setContentText("Protecting your time")
             .setSmallIcon(R.drawable.baseline_info_24) // This requires a notification icon in your drawable resources
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
 
         // Create a PendingIntent for when the notification is tapped

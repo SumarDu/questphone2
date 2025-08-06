@@ -10,7 +10,81 @@ import java.time.temporal.TemporalAdjusters
 import java.time.DayOfWeek as JavaDayOfWeek
 
 
+import android.app.AlarmManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import neth.iecal.questphone.R
+import neth.iecal.questphone.receivers.UnlockWarningReceiver
+import java.util.concurrent.TimeUnit
+
 object SchedulingUtils {
+
+    private const val UNLOCK_WARNING_NOTIFICATION_ID = 1001
+    private const val UNLOCK_WARNING_CHANNEL_ID = "unlock_warning_channel"
+
+    fun scheduleUnlockWarningNotification(context: Context, unlockDurationMillis: Long) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        
+        // Create an intent for the broadcast receiver
+        val intent = Intent(context, UnlockWarningReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            UNLOCK_WARNING_NOTIFICATION_ID,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Calculate trigger time (1 minute before unlock ends)
+        val triggerTime = System.currentTimeMillis() + unlockDurationMillis - TimeUnit.MINUTES.toMillis(1)
+
+        // Schedule the alarm
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerTime,
+                pendingIntent
+            )
+        } else {
+            alarmManager.setExact(
+                AlarmManager.RTC_WAKEUP,
+                triggerTime,
+                pendingIntent
+            )
+        }
+        
+        // Create notification channel (required for Android O and above)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                UNLOCK_WARNING_CHANNEL_ID,
+                context.getString(R.string.unlock_warning_channel_name),
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = context.getString(R.string.unlock_warning_channel_description)
+            }
+            
+            val notificationManager = context.getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    fun showUnlockWarningNotification(context: Context) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        
+        val notification = NotificationCompat.Builder(context, UNLOCK_WARNING_CHANNEL_ID)
+            .setSmallIcon(R.drawable.baseline_timer_24)  // Using existing timer icon
+            .setContentTitle(context.getString(R.string.unlock_warning_title))
+            .setContentText(context.getString(R.string.unlock_warning_message))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+        
+        notificationManager.notify(UNLOCK_WARNING_NOTIFICATION_ID, notification)
+    }
 
     /**
      * Checks if a quest should be available on the given date based on its scheduling info

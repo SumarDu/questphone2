@@ -51,6 +51,14 @@ import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.ui.screens.game.StreakFailedDialog
 import neth.iecal.questphone.ui.screens.game.StreakUpDialog
 import neth.iecal.questphone.utils.VibrationHelper
+import neth.iecal.questphone.data.local.AppDatabase
+import neth.iecal.questphone.data.local.QuestEvent
+import neth.iecal.questphone.data.remote.SupabaseSyncService
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.util.UUID
 
 enum class DialogState { COINS, LEVEL_UP, STREAK_UP, STREAK_FAILED, NONE }
 
@@ -78,6 +86,41 @@ fun calculateQuestReward(commonQuestInfo: CommonQuestInfo): Int {
         commonQuestInfo.reward_min
     } else {
         (commonQuestInfo.reward_min..commonQuestInfo.reward_max).random()
+    }
+}
+
+/**
+ * Log quest completion event with coin reward information
+ */
+suspend fun logQuestCompletionWithCoins(
+    context: android.content.Context,
+    questInfo: CommonQuestInfo,
+    rewardCoins: Int,
+    preRewardCoins: Int
+) {
+    try {
+        val questEventDao = AppDatabase.getDatabase(context).questEventDao()
+        val supabaseSyncService = SupabaseSyncService(context)
+
+        // Find the latest active event for the completed quest
+        val latestEvent = questEventDao.getLatestEvent()
+
+        // Commented out to prevent logging quest completion
+        // if (latestEvent != null && latestEvent.eventName == questInfo.title && latestEvent.endTime == 0L) {
+        //     val updatedEvent = latestEvent.copy(
+        //         endTime = System.currentTimeMillis(),
+        //         rewardCoins = rewardCoins,
+        //         preRewardCoins = preRewardCoins,
+        //         comments = latestEvent.comments ?: "Quest completed successfully"
+        //     )
+        //     questEventDao.updateEvent(updatedEvent)
+        //     supabaseSyncService.syncSingleQuestEvent(updatedEvent)
+        //     android.util.Log.d("RewardDialogInfo", "Updated quest event with completion details: ${updatedEvent.id}")
+        // } else {
+        //     android.util.Log.e("RewardDialogInfo", "Could not find a matching active event for quest: ${questInfo.title}")
+        // }
+    } catch (e: Exception) {
+        android.util.Log.e("RewardDialogInfo", "Error logging quest completion with coins", e)
     }
 }
 
@@ -116,13 +159,30 @@ fun RewardDialogMaker(  ) {
 
                 val questInfo = RewardDialogInfo.currentCommonQuestInfo
         val coinsEarned = RewardDialogInfo.rewardAmount
+        val context = LocalContext.current
+        
         LaunchedEffect(Unit) {
             val xp = if(isTriggeredViaQuestCompletion) xpToRewardForQuest(User.userInfo.level) else xpFromStreak(
                 User.userInfo.streak.currentStreak
             )
             User.addXp(xp)
             User.lastXpEarned = xp
+            
+            // Capture pre-reward coin balance before adding coins
+            val preRewardCoins = User.userInfo.coins
             User.addCoins(coinsEarned)
+            
+            // Log quest completion with coin information if triggered by quest completion
+            if (isTriggeredViaQuestCompletion && questInfo != null) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    logQuestCompletionWithCoins(
+                        context = context,
+                        questInfo = questInfo,
+                        rewardCoins = coinsEarned,
+                        preRewardCoins = preRewardCoins
+                    )
+                }
+            }
 
             didUserLevelUp = oldLevel != User.userInfo.level
 

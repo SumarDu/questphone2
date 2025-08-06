@@ -2,6 +2,7 @@ package neth.iecal.questphone.ui.screens.launcher
 
 import android.app.Application
 import android.content.Intent
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +17,7 @@ import neth.iecal.questphone.data.timer.TimerService.Companion.ACTION_ADD_TIME
 import neth.iecal.questphone.data.timer.TimerService.Companion.ACTION_COMPLETE_QUEST
 import neth.iecal.questphone.data.timer.TimerService.Companion.ACTION_COMPLETE_QUEST
 import neth.iecal.questphone.data.timer.TimerService.Companion.ACTION_STOP_UNPLANNED_BREAK
+import neth.iecal.questphone.data.timer.TimerService.Companion.ACTION_END_BREAK_EARLY
 import neth.iecal.questphone.data.timer.TimerService.Companion.EXTRA_TIME_TO_ADD
 import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
@@ -122,6 +124,24 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
             it.putExtra("UNPLANNED_BREAK_REASON", reason)
             getApplication<Application>().startService(it)
         }
+    }
+
+    fun endBreakEarly() {
+        Log.d("TimerViewModel", "endBreakEarly called. Sending intent to TimerService.")
+        val intent = Intent(getApplication(), TimerService::class.java).apply {
+            action = ACTION_END_BREAK_EARLY
+        }
+        getApplication<Application>().startService(intent)
+    }
+
+    fun startUnlockTimer(durationMinutes: Int, packageName: String) {
+        Log.d("TimerViewModel", "startUnlockTimer called. Sending intent to TimerService.")
+        val intent = Intent(getApplication(), TimerService::class.java).apply {
+            action = TimerService.ACTION_START_UNLOCK_TIMER
+            putExtra("unlock_duration_minutes", durationMinutes)
+            putExtra("package_name", packageName)
+        }
+        getApplication<Application>().startService(intent)
     }
 
     private fun formatDuration(duration: Duration): String {

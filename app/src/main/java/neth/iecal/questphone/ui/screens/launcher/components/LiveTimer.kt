@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import neth.iecal.questphone.data.timer.TimerMode
+import android.util.Log
 import neth.iecal.questphone.data.timer.TimerState
 import neth.iecal.questphone.ui.screens.launcher.TimerViewModel
 import neth.iecal.questphone.data.settings.SettingsRepository
@@ -78,6 +79,7 @@ fun LiveTimer(
         TimerMode.UNPLANNED_BREAK -> Color.Gray
         TimerMode.INACTIVE -> MaterialTheme.colorScheme.onSurface
         TimerMode.INFO -> Color(0xFF8A2BE2) // Purple
+        TimerMode.UNLOCK -> Color.Yellow
     }
 
     if (showDialog) {
@@ -152,9 +154,15 @@ fun LiveTimer(
             style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Bold),
             color = timerColor,
             modifier = Modifier.clickable(enabled = timerMode != TimerMode.INFO) {
+                Log.d("LiveTimer", "Timer clicked. Mode: $timerMode")
                 if (timerMode == TimerMode.UNPLANNED_BREAK) {
+                    Log.d("LiveTimer", "Stopping unplanned break.")
                     timerViewModel.stopUnplannedBreak()
-                } else if (timerMode != TimerMode.OVERTIME && timerMode != TimerMode.BREAK) {
+                } else if (timerMode == TimerMode.BREAK) {
+                    Log.d("LiveTimer", "Ending break early.")
+                    timerViewModel.endBreakEarly()
+                } else if (timerMode != TimerMode.OVERTIME && timerMode != TimerMode.UNLOCK) {
+                    Log.d("LiveTimer", "Showing unplanned break dialog.")
                     showDialog = true
                 }
             }

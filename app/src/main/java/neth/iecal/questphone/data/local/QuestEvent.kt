@@ -10,5 +10,7 @@ data class QuestEvent(
     val eventName: String,
     val startTime: Long,
     val endTime: Long,
-    val comments: String? = null
+    val comments: String? = null,
+    val rewardCoins: Int? = null, // Amount of coins earned from quest completion
+    val preRewardCoins: Int? = null // User's coin balance before reward was added
 )
