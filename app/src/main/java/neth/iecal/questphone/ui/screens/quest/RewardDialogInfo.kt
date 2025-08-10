@@ -76,6 +76,11 @@ object RewardDialogInfo{
     var streakData : StreakCheckReturn? = null
     var currentDialog by mutableStateOf<DialogState>(DialogState.COINS)
     var rewardAmount by mutableStateOf(0)
+    // Guard to avoid duplicate coin additions/logging for the same reward trigger
+    var hasProcessedCurrentReward by mutableStateOf(false)
+    // Global idempotency: track last processed session count per quest
+    // This persists across navigation/recomposition so we don't re-trigger rewards on re-entry
+    val lastProcessedSessionForQuest = androidx.compose.runtime.mutableStateMapOf<String, Int>()
 }
 
 /**
@@ -101,24 +106,106 @@ suspend fun logQuestCompletionWithCoins(
     try {
         val questEventDao = AppDatabase.getDatabase(context).questEventDao()
         val supabaseSyncService = SupabaseSyncService(context)
+        val now = System.currentTimeMillis()
 
-        // Find the latest active event for the completed quest
-        val latestEvent = questEventDao.getLatestEvent()
+        // First, try to find an active event (endTime == 0) for this quest
+        val activeEvents = questEventDao.getEventsByName(questInfo.title)
+        var activeEvent: QuestEvent? = null
+        
+        // Find the first active event (endTime == 0)
+        for (event in activeEvents) {
+            if (event.endTime == 0L) {
+                activeEvent = event
+                break
+            }
+        }
 
-        // Commented out to prevent logging quest completion
-        // if (latestEvent != null && latestEvent.eventName == questInfo.title && latestEvent.endTime == 0L) {
-        //     val updatedEvent = latestEvent.copy(
-        //         endTime = System.currentTimeMillis(),
-        //         rewardCoins = rewardCoins,
-        //         preRewardCoins = preRewardCoins,
-        //         comments = latestEvent.comments ?: "Quest completed successfully"
-        //     )
-        //     questEventDao.updateEvent(updatedEvent)
-        //     supabaseSyncService.syncSingleQuestEvent(updatedEvent)
-        //     android.util.Log.d("RewardDialogInfo", "Updated quest event with completion details: ${updatedEvent.id}")
-        // } else {
-        //     android.util.Log.e("RewardDialogInfo", "Could not find a matching active event for quest: ${questInfo.title}")
-        // }
+        if (activeEvent != null) {
+            // Found an active event, update it with reward details and close it
+            val updatedEvent = QuestEvent(
+                id = activeEvent.id,
+                eventName = activeEvent.eventName,
+                startTime = activeEvent.startTime,
+                endTime = now,
+                comments = activeEvent.comments,
+                rewardCoins = rewardCoins,
+                preRewardCoins = preRewardCoins,
+                isRewardPending = false
+            )
+            questEventDao.updateEvent(updatedEvent.copy(synced = false))
+            supabaseSyncService.syncSingleQuestEvent(updatedEvent)
+            android.util.Log.d("RewardDialogInfo", "Updated active quest event with reward: ${updatedEvent.id}")
+        } else {
+            // No active event, handle overdue completion or other cases
+            // Get the current event to get its startTime (for overdue matching)
+            val currentEvent = questEventDao.getLatestEvent()
+            
+            // Find a pending reward event that matches the quest name
+            val pendingEvent = questEventDao.findPendingRewardEvent(questInfo.title)
+
+            // If we have both events, check if their times match to ensure it's the correct one
+            val eventToUpdate = if (pendingEvent != null && currentEvent != null) {
+                if (pendingEvent.endTime == currentEvent.startTime) {
+                    pendingEvent
+                } else {
+                    // Times don't match, it's not the correct pending event
+                    null
+                }
+            } else {
+                pendingEvent
+            }
+
+            if (eventToUpdate != null) {
+                // Found the correct pending event, update it with reward details
+                val updatedEvent = eventToUpdate.copy(
+                    rewardCoins = rewardCoins,
+                    preRewardCoins = preRewardCoins,
+                    isRewardPending = false
+                )
+                questEventDao.updateEvent(updatedEvent.copy(synced = false))
+                supabaseSyncService.syncSingleQuestEvent(updatedEvent)
+                android.util.Log.d("RewardDialogInfo", "Updated pending quest event with reward: ${updatedEvent.id}")
+            } else {
+                // No correct pending event found, try to find any recent event for this quest that doesn't have reward info
+                val recentEvents = questEventDao.getEventsByName(questInfo.title)
+                var eventToUpdateWithReward = false
+                var eventToUpdate: QuestEvent? = null
+                
+                // Look for events that don't have reward info yet
+                for (event in recentEvents) {
+                    if (event.rewardCoins == null && event.preRewardCoins == null) {
+                        eventToUpdate = event
+                        eventToUpdateWithReward = true
+                        break
+                    }
+                }
+                
+                if (eventToUpdateWithReward && eventToUpdate != null) {
+                    // Found an event without reward info, update it
+                    val updatedEvent = eventToUpdate.copy(
+                        rewardCoins = rewardCoins,
+                        preRewardCoins = preRewardCoins
+                    )
+                    questEventDao.updateEvent(updatedEvent.copy(synced = false))
+                    supabaseSyncService.syncSingleQuestEvent(updatedEvent)
+                    android.util.Log.d("RewardDialogInfo", "Updated existing quest event with reward: ${updatedEvent.id}")
+                } else {
+                    // No correct pending event found, create a new one for a normally completed quest
+                    // This should be rare but handles edge cases
+                    val newEvent = QuestEvent(
+                        eventName = questInfo.title,
+                        startTime = now - 1000, // Approx start time
+                        endTime = now,
+                        rewardCoins = rewardCoins,
+                        preRewardCoins = preRewardCoins,
+                        comments = "Quest completed successfully"
+                    )
+                    questEventDao.insertEvent(newEvent)
+                    supabaseSyncService.syncSingleQuestEvent(newEvent)
+                    android.util.Log.d("RewardDialogInfo", "Logged new quest completion event: ${newEvent.id}")
+                }
+            }
+        }
     } catch (e: Exception) {
         android.util.Log.e("RewardDialogInfo", "Error logging quest completion with coins", e)
     }
@@ -132,6 +219,8 @@ fun checkForRewards(commonQuestInfo: CommonQuestInfo, rewardAmount: Int){
     RewardDialogInfo.currentCommonQuestInfo =  commonQuestInfo
     RewardDialogInfo.currentDialog = DialogState.COINS
     RewardDialogInfo.rewardAmount = rewardAmount
+    // Reset idempotency guard for this new reward session
+    RewardDialogInfo.hasProcessedCurrentReward = false
 }
 
 /**
@@ -162,6 +251,9 @@ fun RewardDialogMaker(  ) {
         val context = LocalContext.current
         
         LaunchedEffect(Unit) {
+            if (RewardDialogInfo.hasProcessedCurrentReward) {
+                return@LaunchedEffect
+            }
             val xp = if(isTriggeredViaQuestCompletion) xpToRewardForQuest(User.userInfo.level) else xpFromStreak(
                 User.userInfo.streak.currentStreak
             )
@@ -171,6 +263,8 @@ fun RewardDialogMaker(  ) {
             // Capture pre-reward coin balance before adding coins
             val preRewardCoins = User.userInfo.coins
             User.addCoins(coinsEarned)
+            // Mark as processed to prevent duplicate additions if recomposed
+            RewardDialogInfo.hasProcessedCurrentReward = true
             
             // Log quest completion with coin information if triggered by quest completion
             if (isTriggeredViaQuestCompletion && questInfo != null) {

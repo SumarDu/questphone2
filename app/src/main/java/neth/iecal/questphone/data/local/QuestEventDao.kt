@@ -22,5 +22,20 @@ interface QuestEventDao {
     suspend fun getLatestEvent(): QuestEvent?
 
     @Query("SELECT * FROM quest_events ORDER BY startTime DESC")
-    fun getAllEvents(): Flow<List<QuestEvent>>
+        fun getAllEvents(): Flow<List<QuestEvent>>
+
+    @Query("SELECT * FROM quest_events ORDER BY startTime ASC")
+    suspend fun getAllEventsList(): List<QuestEvent>
+
+    @Query("SELECT * FROM quest_events WHERE eventName = :eventName AND isRewardPending = 1 ORDER BY startTime DESC LIMIT 1")
+    suspend fun findPendingRewardEvent(eventName: String): QuestEvent?
+    
+    @Query("SELECT * FROM quest_events WHERE eventName = :eventName ORDER BY startTime DESC")
+    suspend fun getEventsByName(eventName: String): List<QuestEvent>
+    
+    @Query("SELECT * FROM quest_events WHERE synced = 0 ORDER BY startTime ASC")
+    suspend fun getUnsyncedEvents(): List<QuestEvent>
+    
+    @Query("UPDATE quest_events SET synced = 1 WHERE id IN (:eventIds)")
+    suspend fun markAsSynced(eventIds: List<String>)
 }

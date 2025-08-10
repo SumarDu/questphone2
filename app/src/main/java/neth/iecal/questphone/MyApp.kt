@@ -3,6 +3,14 @@ package neth.iecal.questphone
 import android.app.Application
 import android.net.ConnectivityManager
 import android.net.Network
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.PeriodicWorkRequestBuilder
 import neth.iecal.questphone.utils.VibrationHelper
 import neth.iecal.questphone.data.game.Pet
 import neth.iecal.questphone.data.game.User
@@ -11,6 +19,8 @@ import neth.iecal.questphone.utils.isOnline
 import neth.iecal.questphone.utils.triggerQuestSync
 import neth.iecal.questphone.utils.triggerStatsSync
 import neth.iecal.questphone.utils.CalendarSyncInitializer
+import neth.iecal.questphone.workers.SyncWorker
+import java.util.concurrent.TimeUnit
 
 class MyApp : Application() {
 
@@ -31,17 +41,51 @@ class MyApp : Application() {
             override fun onAvailable(network: Network) {
                 super.onAvailable(network)
                 // Trigger sync when network becomes available
-                triggerQuestSync(applicationContext)
-                triggerStatsSync(applicationContext)
+                enqueueQuestSync()
             }
         }
 
         connectivityManager.registerDefaultNetworkCallback(networkCallback)
-        if (isOnline()) {
-            triggerQuestSync(applicationContext)
-        }
-        
+        if (isOnline()) enqueueQuestSync()
+
         // Initialize calendar sync scheduling
         CalendarSyncInitializer.initialize(applicationContext)
+
+        // Ensure periodic background sync when connected
+        enqueuePeriodicQuestSync()
+    }
+
+    private fun enqueueQuestSync() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val request = OneTimeWorkRequestBuilder<SyncWorker>()
+            .setConstraints(constraints)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniqueWork(
+            "quest-sync-once",
+            ExistingWorkPolicy.KEEP,
+            request
+        )
+    }
+
+    private fun enqueuePeriodicQuestSync() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val periodic = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)
+            .setConstraints(constraints)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "quest-sync-periodic",
+            ExistingPeriodicWorkPolicy.KEEP,
+            periodic
+        )
     }
 }

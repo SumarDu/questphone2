@@ -34,6 +34,8 @@ data class DeepFocusSessionLog(
     val mood: Int? = null,
     @SerialName("study_topic")
     val studyTopic: String? = null,
+    @SerialName("concentration_drop_reason")
+    val concentrationDropReason: String? = null,
     @Transient
     val synced: Boolean = false
 )

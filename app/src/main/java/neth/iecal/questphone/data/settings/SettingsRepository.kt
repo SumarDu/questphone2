@@ -24,7 +24,11 @@ data class SettingsData(
     val showRepeatingQuestsInDialog: Boolean = true,
     val showClonedQuestsInDialog: Boolean = true,
     val showOneTimeQuestsInDialog: Boolean = true,
-    val unplannedBreakReasons: List<String> = emptyList()
+    val unplannedBreakReasons: List<String> = emptyList(),
+    // Overdue penalty configuration
+    val overduePenaltyEnabled: Boolean = false,
+    val overduePenaltyWindowMinutes: Int = 5, // apply penalty every N minutes in overdue
+    val overduePenaltyCoins: Int = 1 // coins to deduct per window
 )
 
 class SettingsRepository(private val context: Context) {
@@ -139,6 +143,24 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun updateUnplannedBreakReasons(reasons: List<String>) {
         val newSettings = _settings.value.copy(unplannedBreakReasons = reasons)
+        saveSettings(newSettings)
+    }
+
+    // Overdue penalty settings updaters
+    suspend fun updateOverduePenaltyEnabled(enabled: Boolean) {
+        val newSettings = _settings.value.copy(overduePenaltyEnabled = enabled)
+        saveSettings(newSettings)
+    }
+
+    suspend fun updateOverduePenaltyWindow(minutes: Int) {
+        val safeMinutes = minutes.coerceAtLeast(1)
+        val newSettings = _settings.value.copy(overduePenaltyWindowMinutes = safeMinutes)
+        saveSettings(newSettings)
+    }
+
+    suspend fun updateOverduePenaltyCoins(coins: Int) {
+        val safeCoins = coins.coerceAtLeast(0)
+        val newSettings = _settings.value.copy(overduePenaltyCoins = safeCoins)
         saveSettings(newSettings)
     }
 }

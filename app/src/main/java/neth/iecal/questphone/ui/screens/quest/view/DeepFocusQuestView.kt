@@ -68,6 +68,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import neth.iecal.questphone.data.quest.stats.StatsDatabaseProvider
+import neth.iecal.questphone.ui.screens.quest.logQuestCompletionWithCoins
 import neth.iecal.questphone.data.quest.stats.StatsInfo
 import neth.iecal.questphone.services.AppBlockerService
 import neth.iecal.questphone.services.INTENT_ACTION_START_DEEP_FOCUS
@@ -126,6 +127,8 @@ fun DeepFocusQuestView(
     val showSessionReviewDialog = remember { mutableStateOf(false) }
     val sessionNumberForReview = remember { mutableIntStateOf(0) }
     val showQuestCompletionReviewDialog = remember { mutableStateOf(false) }
+    val showConcentrationDropReasonDialog = remember { mutableStateOf(false) }
+    val concentrationDropReason = remember { mutableStateOf("") }
     val showStudyTopicDialog = remember { mutableStateOf(false) }
     val currentStudyTopic = remember { mutableStateOf("") }
 
@@ -161,36 +164,47 @@ fun DeepFocusQuestView(
 
     val userInfo = getUserInfo(LocalContext.current)
 
+    // Track rewarded sessions to prevent duplicate rewards
+    val rewardedSessions = remember { mutableStateOf(setOf<Int>()) }
     
-
-    fun onQuestComplete() {
-    // Increment session count, update next focus duration, and capture the new state
-    val newCompletedWorkSessions = deepFocus.completedWorkSessions + 1
-    deepFocus = deepFocus.copy(
-        completedWorkSessions = newCompletedWorkSessions,
-        nextFocusDurationInMillis = if (deepFocus.nextFocusDurationInMillis < deepFocus.focusTimeConfig.finalTimeInMs) {
-            minOf(
-                deepFocus.nextFocusDurationInMillis + deepFocus.focusTimeConfig.incrementTimeInMs,
-                deepFocus.focusTimeConfig.finalTimeInMs
-            )
-        } else {
-            deepFocus.nextFocusDurationInMillis
-        }
-    )
-    sessionNumberForReview.value = newCompletedWorkSessions
-
-    showSessionReviewDialog.value = true
-
-
-    val sessionsAfterComplete = deepFocus.completedWorkSessions
-
-    // Check if the minimum number of sessions has just been completed to grant rewards.
-    if (sessionsAfterComplete == deepFocus.minWorkSessions) {
-        val rewardAmount = calculateQuestReward(commonQuestInfo)
-        checkForRewards(commonQuestInfo, rewardAmount)
-
-        // Also log this to stats
-        scope.launch {
+    // Track if we've processed completion for the current session
+    val hasProcessedCompletion = remember { mutableStateOf(false)}
+    
+    // Non-Composable function to handle quest completion logic
+    fun handleQuestCompletion() {
+        if (hasProcessedCompletion.value) return
+        hasProcessedCompletion.value = true
+        
+        // Increment session count and update next focus duration
+        val newCompletedWorkSessions = deepFocus.completedWorkSessions + 1
+        deepFocus = deepFocus.copy(
+            completedWorkSessions = newCompletedWorkSessions,
+            nextFocusDurationInMillis = if (deepFocus.nextFocusDurationInMillis < deepFocus.focusTimeConfig.finalTimeInMs) {
+                minOf(
+                    deepFocus.nextFocusDurationInMillis + deepFocus.focusTimeConfig.incrementTimeInMs,
+                    deepFocus.focusTimeConfig.finalTimeInMs
+                )
+            } else {
+                deepFocus.nextFocusDurationInMillis
+            }
+        )
+        sessionNumberForReview.value = newCompletedWorkSessions
+        showSessionReviewDialog.value = true
+    }
+    // Use LaunchedEffect to handle side effects when quest completes
+    LaunchedEffect(deepFocus.completedWorkSessions) {
+        val sessionsAfterComplete = deepFocus.completedWorkSessions
+        if (sessionsAfterComplete == 0) return@LaunchedEffect
+        // Global idempotency: skip if this quest/session was already processed
+        val lastProcessed = neth.iecal.questphone.ui.screens.quest.RewardDialogInfo.lastProcessedSessionForQuest[commonQuestInfo.id]
+        if (lastProcessed == sessionsAfterComplete) return@LaunchedEffect
+        
+        // Handle rewards for completing minimum sessions
+        if (sessionsAfterComplete == deepFocus.minWorkSessions) {
+            val rewardAmount = calculateQuestReward(commonQuestInfo)
+            checkForRewards(commonQuestInfo, rewardAmount)
+            
+            // Also log this to stats
             val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
             statsDao.upsertStats(
                 StatsInfo(
@@ -200,13 +214,39 @@ fun DeepFocusQuestView(
                     reward_amount = rewardAmount
                 )
             )
+            // Mark this session as processed globally
+            neth.iecal.questphone.ui.screens.quest.RewardDialogInfo.lastProcessedSessionForQuest[commonQuestInfo.id] = sessionsAfterComplete
+        } 
+        // Handle rewards for extra sessions
+        else if (sessionsAfterComplete > deepFocus.minWorkSessions && !rewardedSessions.value.contains(sessionsAfterComplete)) {
+            val rewardAmount = deepFocus.reward_per_extra_session
+            val preRewardCoins = User.userInfo.coins
+            User.addCoins(rewardAmount)
+            
+            // Mark this session as rewarded
+            rewardedSessions.value = rewardedSessions.value + sessionsAfterComplete
+            
+            // Log the reward
+            logQuestCompletionWithCoins(
+                context = context,
+                questInfo = commonQuestInfo,
+                rewardCoins = rewardAmount,
+                preRewardCoins = preRewardCoins
+            )
+            
+            // Log to stats
+            val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
+            statsDao.upsertStats(
+                StatsInfo(
+                    id = UUID.randomUUID().toString(),
+                    quest_id = commonQuestInfo.id,
+                    user_id = User.userInfo.id,
+                    reward_amount = rewardAmount
+                )
+            )
+            // Mark this session as processed globally
+            neth.iecal.questphone.ui.screens.quest.RewardDialogInfo.lastProcessedSessionForQuest[commonQuestInfo.id] = sessionsAfterComplete
         }
-    } else if (sessionsAfterComplete > deepFocus.minWorkSessions) {
-        // Reward for extra session
-        User.addCoins(deepFocus.reward_per_extra_session)
-    }
-
-
 
     val isQuestFullyComplete = sessionsAfterComplete >= deepFocus.maxWorkSessions
 
@@ -232,7 +272,11 @@ fun DeepFocusQuestView(
     commonQuestInfo.synced = false
     commonQuestInfo.last_updated = System.currentTimeMillis()
     commonQuestInfo.quest_started_at = 0
-    commonQuestInfo.last_completed_at = System.currentTimeMillis() // Signal break start
+    // Signal break start ONLY if it wasn't initialized yet (existing <= 0).
+    // Do NOT reinitialize during ongoing or overdue break on screen re-entry.
+    if (commonQuestInfo.last_completed_at <= 0L) {
+        commonQuestInfo.last_completed_at = System.currentTimeMillis()
+    }
 
     scope.launch {
         Log.d("DeepFocusQuestView", "Saving Deep Focus session to local DB for quest: ${commonQuestInfo.id}")
@@ -299,7 +343,7 @@ fun DeepFocusQuestView(
     LaunchedEffect(Unit) {
         timerViewModel.questFinishedEvent.collect { questId ->
             if (questId == commonQuestInfo.id) {
-                onQuestComplete()
+                handleQuestCompletion()
             }
         }
     }
@@ -341,62 +385,127 @@ fun DeepFocusQuestView(
         )
     }
 
+    var sessionReviewConcentration by remember { mutableStateOf(0) }
+    var sessionReviewProductivity by remember { mutableStateOf(0) }
+    var sessionReviewWordsStudied by remember { mutableStateOf(0) }
+
     val showQuestCompletionDialogIfNeeded = {
         val sessions = deepFocus.completedWorkSessions
         // Special case: if the quest is fully complete, the session counter resets to 0.
         // In this case, we check against maxWorkSessions.
         val sessionsToCheck = if (sessions == 0 && isQuestComplete.value) deepFocus.maxWorkSessions else sessions
 
-        if (sessionsToCheck == deepFocus.minWorkSessions || (deepFocus.maxWorkSessions > deepFocus.minWorkSessions && sessionsToCheck == deepFocus.maxWorkSessions)) {
+        // Show survey after:
+        // - completing minimum sessions
+        // - each extra session (sessions > minWorkSessions) up to maxWorkSessions
+        if (
+            sessionsToCheck == deepFocus.minWorkSessions ||
+            (sessionsToCheck > deepFocus.minWorkSessions && sessionsToCheck <= deepFocus.maxWorkSessions)
+        ) {
             showQuestCompletionReviewDialog.value = true
         }
     }
 
-        if (showSessionReviewDialog.value) {
         val sessionLogDao = QuestDatabaseProvider.getInstance(context).deepFocusSessionLogDao()
         val supabaseSyncService = SupabaseSyncService(context)
+
+        if (showSessionReviewDialog.value) {
                 SessionReviewDialog(
             onDismiss = {
                 showSessionReviewDialog.value = false
                 showQuestCompletionDialogIfNeeded()
             },
             onConfirm = { concentration, productivity, wordsStudied ->
-                scope.launch {
-                    val endTime = System.currentTimeMillis()
-                    val sessionNumber = sessionNumberForReview.value
-                    val sessionType = if (sessionNumber <= deepFocus.minWorkSessions) "regular" else "extra"
+                if (concentration < 5) {
+                    // Store the results for later use
+                    sessionReviewConcentration = concentration
+                    sessionReviewProductivity = productivity
+                    sessionReviewWordsStudied = wordsStudied
+                    showSessionReviewDialog.value = false
+                    showConcentrationDropReasonDialog.value = true
+                } else {
+                    scope.launch {
+                        val endTime = System.currentTimeMillis()
+                        val sessionNumber = sessionNumberForReview.value
+                        val sessionType = if (sessionNumber <= deepFocus.minWorkSessions) "regular" else "extra"
 
-                    val newLog = DeepFocusSessionLog(
-                        questId = commonQuestInfo.id,
-                        questName = commonQuestInfo.title,
-                        sessionStartTime = sessionStartTime,
-                        sessionDuration = if (sessionStartTime > 0) endTime - sessionStartTime else 0,
-                        timestamp = endTime,
-                        sessionNumber = sessionNumber,
-                        sessionType = sessionType,
-                        studyTopic = if (sessionNumber <= deepFocus.minWorkSessions) deepFocus.currentRegularTopic else deepFocus.currentExtraTopic,
-                        concentration = concentration,
-                        productivity = productivity,
-                        wordsStudied = wordsStudied
-                    )
+                        val newLog = DeepFocusSessionLog(
+                            questId = commonQuestInfo.id,
+                            questName = commonQuestInfo.title,
+                            sessionStartTime = sessionStartTime,
+                            sessionDuration = if (sessionStartTime > 0) endTime - sessionStartTime else 0,
+                            timestamp = endTime,
+                            sessionNumber = sessionNumber,
+                            sessionType = sessionType,
+                            studyTopic = if (sessionNumber <= deepFocus.minWorkSessions) deepFocus.currentRegularTopic else deepFocus.currentExtraTopic,
+                            concentration = concentration,
+                            productivity = productivity,
+                            wordsStudied = wordsStudied
+                        )
 
-                    Log.d("DeepFocusQuestView", "Saving Deep Focus session log to local DB: ${newLog.client_uuid}")
-                    deepFocusSessionLogDao.insert(newLog)
+                        Log.d("DeepFocusQuestView", "Saving Deep Focus session log to local DB: ${newLog.client_uuid}")
+                        deepFocusSessionLogDao.insert(newLog)
 
-                    Log.d("DeepFocusQuestView", "Syncing Deep Focus session log to Supabase: ${newLog.client_uuid}")
-                    supabaseSyncService.syncDeepFocusLog(newLog)
+                        Log.d("DeepFocusQuestView", "Syncing Deep Focus session log to Supabase: ${newLog.client_uuid}")
+                        supabaseSyncService.syncDeepFocusLog(newLog)
 
-                    val justCompletedSessions = deepFocus.completedWorkSessions
-                    if (justCompletedSessions >= deepFocus.maxWorkSessions) {
-                        // This was the last session, reset the quest topics and session count for the next cycle
-                        deepFocus = deepFocus.copy(completedWorkSessions = 0, currentRegularTopic = null, currentExtraTopic = null)
+                        val justCompletedSessions = deepFocus.completedWorkSessions
+                        if (justCompletedSessions >= deepFocus.maxWorkSessions) {
+                            // This was the last session, reset the quest topics and session count for the next cycle
+                            deepFocus = deepFocus.copy(completedWorkSessions = 0, currentRegularTopic = null, currentExtraTopic = null)
+                        }
                     }
+                    showSessionReviewDialog.value = false
+                    showQuestCompletionDialogIfNeeded()
                 }
-                showSessionReviewDialog.value = false
-                showQuestCompletionDialogIfNeeded()
             }
         )
-    }
+        }
+
+        if (showConcentrationDropReasonDialog.value) {
+            ConcentrationDropReasonDialog(
+                onDismiss = {
+                    showConcentrationDropReasonDialog.value = false
+                    showQuestCompletionDialogIfNeeded()
+                },
+                onConfirm = { reason ->
+                    scope.launch {
+                        val endTime = System.currentTimeMillis()
+                        val sessionNumber = sessionNumberForReview.value
+                        val sessionType = if (sessionNumber <= deepFocus.minWorkSessions) "regular" else "extra"
+
+                        val newLog = DeepFocusSessionLog(
+                            questId = commonQuestInfo.id,
+                            questName = commonQuestInfo.title,
+                            sessionStartTime = sessionStartTime,
+                            sessionDuration = if (sessionStartTime > 0) endTime - sessionStartTime else 0,
+                            timestamp = endTime,
+                            sessionNumber = sessionNumber,
+                            sessionType = sessionType,
+                            studyTopic = if (sessionNumber <= deepFocus.minWorkSessions) deepFocus.currentRegularTopic else deepFocus.currentExtraTopic,
+                            concentration = sessionReviewConcentration,
+                            productivity = sessionReviewProductivity,
+                            wordsStudied = sessionReviewWordsStudied,
+                            concentrationDropReason = reason
+                        )
+
+                        Log.d("DeepFocusQuestView", "Saving Deep Focus session log to local DB: ${newLog.client_uuid}")
+                        deepFocusSessionLogDao.insert(newLog)
+
+                        Log.d("DeepFocusQuestView", "Syncing Deep Focus session log to Supabase: ${newLog.client_uuid}")
+                        supabaseSyncService.syncDeepFocusLog(newLog)
+
+                        val justCompletedSessions = deepFocus.completedWorkSessions
+                        if (justCompletedSessions >= deepFocus.maxWorkSessions) {
+                            // This was the last session, reset the quest topics and session count for the next cycle
+                            deepFocus = deepFocus.copy(completedWorkSessions = 0, currentRegularTopic = null, currentExtraTopic = null)
+                        }
+                    }
+                    showConcentrationDropReasonDialog.value = false
+                    showQuestCompletionDialogIfNeeded()
+                }
+            )
+        }
 
     BaseQuestView(
         hideStartQuestBtn = isQuestComplete.value || isQuestRunning || isFailed.value || !isInTimeRange.value,
@@ -405,7 +514,7 @@ fun DeepFocusQuestView(
         onQuestStarted = {
             startQuest()
         },
-        onQuestCompleted = { onQuestComplete() },
+        onQuestCompleted = { handleQuestCompletion() },
         isQuestCompleted = isQuestComplete,
         questStartComponent = null
     ) {

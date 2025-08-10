@@ -12,5 +12,7 @@ data class QuestEvent(
     val endTime: Long,
     val comments: String? = null,
     val rewardCoins: Int? = null, // Amount of coins earned from quest completion
-    val preRewardCoins: Int? = null // User's coin balance before reward was added
+    val preRewardCoins: Int? = null, // User's coin balance before reward was added
+    val isRewardPending: Boolean = false, // Flag to indicate if the reward is pending for a completed quest
+    val synced: Boolean = false // Flag to track if event has been synced to Supabase
 )

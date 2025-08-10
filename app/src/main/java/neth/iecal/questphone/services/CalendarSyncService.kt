@@ -121,12 +121,16 @@ class CalendarSyncService(private val context: Context, private val settingsRepo
         val breakRegex = "B(\\d+)".toRegex()
         val aiPromptRegex = "A\\[(.*?)\\]".toRegex()
 
+        // Check if any parameters were found, if not use default /C0D1B1
+        val hasParameters = parametersText.isNotEmpty()
+        val useDefaultParameters = !hasParameters
+        
         val rewardMatch = rewardRegex.find(parametersText)
-        val rewardMin = rewardMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        val rewardMin = rewardMatch?.groupValues?.get(1)?.toIntOrNull() ?: if (useDefaultParameters) 0 else 0
         val rewardMax = rewardMatch?.groupValues?.get(2)?.toIntOrNull() ?: rewardMin
 
-        val duration = durationRegex.find(parametersText)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-        val breakMinutes = breakRegex.find(parametersText)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        val duration = durationRegex.find(parametersText)?.groupValues?.get(1)?.toIntOrNull() ?: if (useDefaultParameters) 1 else 0
+        val breakMinutes = breakRegex.find(parametersText)?.groupValues?.get(1)?.toIntOrNull() ?: if (useDefaultParameters) 1 else 0
         val aiPrompt = aiPromptRegex.find(parametersText)?.groupValues?.get(1)
 
         return ParsedQuestParamsWithInstructions(rewardMin, rewardMax, duration, breakMinutes, aiPrompt, cleanedInstructions)

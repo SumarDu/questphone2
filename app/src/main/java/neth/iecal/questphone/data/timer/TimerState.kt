@@ -28,5 +28,9 @@ data class TimerState(
     val unlockNotificationSent: Boolean = false,
     val lastOverdueNotificationTime: Long = 0,
     val unlockPackageName: String? = null,
-    val eventDetails: EventDetails? = null
+    val eventDetails: EventDetails? = null,
+    val requestUnplannedBreakReason: Boolean = false,
+    val hasPenaltyApplied: Boolean = false,
+    // Number of penalty deductions applied during current overdue session
+    val overduePenaltyCount: Int = 0
 )

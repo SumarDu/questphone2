@@ -165,6 +165,61 @@ fun SettingsScreen(navController: NavController) {
 
             Divider(modifier = Modifier.padding(vertical = 16.dp))
 
+            // Overdue Penalties
+            Text(
+                "Overdue Penalties",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            SettingSwitch(
+                title = "Enable overdue penalties",
+                isChecked = settings.overduePenaltyEnabled,
+                enabled = !settings.isSettingsLocked,
+                onCheckedChange = { viewModel.setOverduePenaltyEnabled(it) }
+            )
+
+            // Numeric inputs for window and coins
+            val enabledPenaltyInputs = !settings.isSettingsLocked && settings.overduePenaltyEnabled
+            var overdueWindowInput by rememberSaveable(settings.overduePenaltyWindowMinutes) { mutableStateOf(settings.overduePenaltyWindowMinutes.toString()) }
+            var overdueCoinsInput by rememberSaveable(settings.overduePenaltyCoins) { mutableStateOf(settings.overduePenaltyCoins.toString()) }
+
+            OutlinedTextField(
+                value = overdueWindowInput,
+                onValueChange = { raw ->
+                    val digits = raw.filter { it.isDigit() }
+                    overdueWindowInput = digits
+                    val minutes = digits.toIntOrNull()?.coerceAtLeast(1) ?: 1
+                    if (minutes != settings.overduePenaltyWindowMinutes) {
+                        viewModel.setOverduePenaltyWindow(minutes)
+                    }
+                },
+                label = { Text("Penalty window (minutes)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                enabled = enabledPenaltyInputs,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = overdueCoinsInput,
+                onValueChange = { raw ->
+                    val digits = raw.filter { it.isDigit() }
+                    overdueCoinsInput = digits
+                    val coins = digits.toIntOrNull() ?: 0
+                    if (coins != settings.overduePenaltyCoins) {
+                        viewModel.setOverduePenaltyCoins(coins)
+                    }
+                },
+                label = { Text("Coins per window") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                enabled = enabledPenaltyInputs,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
+            )
+
+            Divider(modifier = Modifier.padding(vertical = 16.dp))
+
             // Unplanned Break Reasons Section
             var showAddReasonDialog by remember { mutableStateOf(false) }
             var newReason by remember { mutableStateOf("") }

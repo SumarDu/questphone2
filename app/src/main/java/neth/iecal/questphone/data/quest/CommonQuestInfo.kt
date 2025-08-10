@@ -217,6 +217,9 @@ interface QuestDao {
     @Query("SELECT * FROM CommonQuestInfo WHERE id = :id")
     suspend fun getQuestById(id: String): CommonQuestInfo?
 
+    @Query("SELECT COUNT(*) FROM CommonQuestInfo WHERE auto_destruct = :date AND title LIKE :titleQuery")
+    suspend fun getClonedQuestsCountForToday(date: String, titleQuery: String): Int
+
     @Query("SELECT * FROM CommonQuestInfo")
     fun getAllQuests(): Flow<List<CommonQuestInfo>>
 
@@ -253,7 +256,7 @@ interface QuestDao {
 
 
 
-@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class], version = 19, exportSchema = false)
+@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class], version = 20, exportSchema = false)
 @TypeConverters(BaseQuestConverter::class)
 abstract class QuestDatabase : RoomDatabase() {
     abstract fun appUnlockerItemDao(): AppUnlockerItemDao
@@ -262,6 +265,12 @@ abstract class QuestDatabase : RoomDatabase() {
 
 }
 
+
+val MIGRATION_19_20 = object : Migration(19, 20) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE deep_focus_session_logs ADD COLUMN concentrationDropReason TEXT")
+    }
+}
 
 val MIGRATION_18_19 = object : Migration(18, 19) {
     override fun migrate(database: SupportSQLiteDatabase) {
@@ -286,7 +295,7 @@ object QuestDatabaseProvider {
                 context.applicationContext,
                 QuestDatabase::class.java,
                 "quest_database"
-            ).addMigrations(MIGRATION_18_19).fallbackToDestructiveMigration().build()
+            ).addMigrations(MIGRATION_18_19, MIGRATION_19_20).fallbackToDestructiveMigration().build()
             INSTANCE = instance
             instance
         }

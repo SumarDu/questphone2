@@ -19,13 +19,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.window.DialogProperties
 
 @Composable
-fun RatingScale(label: String, rating: Int, onRatingSelected: (Int) -> Unit) {
+fun RatingScale(label: String, rating: Int, onRatingSelected: (Int) -> Unit, minLabel: String = "", maxLabel: String = "") {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         Text(text = label, style = MaterialTheme.typography.bodyLarge)
         Spacer(modifier = Modifier.height(8.dp))
+        
+        // Rating scale row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
@@ -47,6 +50,29 @@ fun RatingScale(label: String, rating: Int, onRatingSelected: (Int) -> Unit) {
                         fontSize = 14.sp
                     )
                 }
+            }
+        }
+        
+        // Anchor labels
+        if (minLabel.isNotEmpty() || maxLabel.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "1 - $minLabel",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "10 - $maxLabel",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -71,13 +97,17 @@ fun SessionReviewDialog(
                 RatingScale(
                     label = "How was your concentration level during the session?",
                     rating = concentration,
-                    onRatingSelected = { concentration = it }
+                    onRatingSelected = { concentration = it },
+                    minLabel = "зовсім розсіяний",
+                    maxLabel = "максимально концентрований"
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 RatingScale(
                     label = "How productive did you feel?",
                     rating = productivity,
-                    onRatingSelected = { productivity = it }
+                    onRatingSelected = { productivity = it },
+                    minLabel = "зовсім не продуктивно",
+                    maxLabel = "максимально продуктивно"
                 )
 
 

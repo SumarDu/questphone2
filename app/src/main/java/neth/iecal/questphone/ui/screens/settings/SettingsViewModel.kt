@@ -132,6 +132,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             repository.updateUnplannedBreakReasons(reasons)
         }
     }
+
+    // Overdue penalty settings
+    fun setOverduePenaltyEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            repository.updateOverduePenaltyEnabled(enabled)
+        }
+    }
+
+    fun setOverduePenaltyWindow(minutes: Int) {
+        viewModelScope.launch {
+            repository.updateOverduePenaltyWindow(minutes)
+        }
+    }
+
+    fun setOverduePenaltyCoins(coins: Int) {
+        viewModelScope.launch {
+            repository.updateOverduePenaltyCoins(coins)
+        }
+    }
 }
 
 class SettingsViewModelFactory(private val application: Application) : ViewModelProvider.Factory {

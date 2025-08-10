@@ -5,19 +5,22 @@ import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import neth.iecal.questphone.data.quest.QuestDao
 import neth.iecal.questphone.data.timer.TimerMode
 import neth.iecal.questphone.data.timer.TimerService
 import neth.iecal.questphone.data.timer.TimerService.Companion.ACTION_ADD_TIME
 import neth.iecal.questphone.data.timer.TimerService.Companion.ACTION_COMPLETE_QUEST
-import neth.iecal.questphone.data.timer.TimerService.Companion.ACTION_COMPLETE_QUEST
-import neth.iecal.questphone.data.timer.TimerService.Companion.ACTION_STOP_UNPLANNED_BREAK
 import neth.iecal.questphone.data.timer.TimerService.Companion.ACTION_END_BREAK_EARLY
+import neth.iecal.questphone.data.timer.TimerService.Companion.ACTION_SUBMIT_UNPLANNED_BREAK_REASON
+import neth.iecal.questphone.data.timer.TimerService.Companion.ACTION_STOP_UNPLANNED_BREAK
+import neth.iecal.questphone.data.timer.TimerService.Companion.EXTRA_UNPLANNED_BREAK_REASON
+import neth.iecal.questphone.data.timer.TimerService.Companion.LATER_MARKER
 import neth.iecal.questphone.data.timer.TimerService.Companion.EXTRA_TIME_TO_ADD
 import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
@@ -106,10 +109,14 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun cloneAndStartQuest(quest: CommonQuestInfo) {
         viewModelScope.launch {
+            val today = getCurrentDate()
+            val clonedQuestsCount = questDao.getClonedQuestsCountForToday(today, "${quest.title} [C%")
+            val newTitle = "${quest.title} [C${clonedQuestsCount + 1}]"
+
             val clonedQuest = quest.copy(
                 id = UUID.randomUUID().toString(),
-                title = quest.title + " [C]",
-                auto_destruct = getCurrentDate(), // Will be deleted next day
+                title = newTitle,
+                auto_destruct = today, // Will be deleted next day
                 quest_started_at = System.currentTimeMillis(),
                 last_completed_at = 0,
                 last_completed_on = ""
@@ -124,6 +131,22 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
             it.putExtra("UNPLANNED_BREAK_REASON", reason)
             getApplication<Application>().startService(it)
         }
+    }
+
+    fun startUnplannedBreakLater() {
+        Intent(getApplication(), TimerService::class.java).also {
+            it.action = TimerService.ACTION_START_UNPLANNED_BREAK
+            it.putExtra("UNPLANNED_BREAK_REASON", LATER_MARKER)
+            getApplication<Application>().startService(it)
+        }
+    }
+
+    fun submitUnplannedBreakReason(reason: String) {
+        val intent = Intent(getApplication(), TimerService::class.java).apply {
+            action = ACTION_SUBMIT_UNPLANNED_BREAK_REASON
+            putExtra(EXTRA_UNPLANNED_BREAK_REASON, reason)
+        }
+        getApplication<Application>().startService(intent)
     }
 
     fun endBreakEarly() {

@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.ServiceInfo
 import android.util.Log
 import android.media.AudioAttributes
@@ -28,13 +29,25 @@ import neth.iecal.questphone.data.timer.TimerState
 import neth.iecal.questphone.data.local.AppDatabase
 import neth.iecal.questphone.data.local.QuestEvent
 import neth.iecal.questphone.data.local.QuestEventDao
+import neth.iecal.questphone.data.local.PenaltyLogDao
+import neth.iecal.questphone.data.local.PenaltyLog
+import neth.iecal.questphone.data.IntegrationId
 import neth.iecal.questphone.data.remote.SupabaseSyncService
 import neth.iecal.questphone.services.INTENT_ACTION_UNLOCK_APP
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.utils.VibrationHelper
 import neth.iecal.questphone.utils.SchedulingUtils
+import neth.iecal.questphone.data.settings.SettingsRepository
+import neth.iecal.questphone.data.settings.SettingsData
+import neth.iecal.questphone.data.game.User
+import neth.iecal.questphone.data.game.useCoins
 import java.time.Duration
 import java.util.concurrent.TimeUnit
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import neth.iecal.questphone.workers.SyncWorker
 
 class TimerService : Service() {
 
@@ -44,10 +57,13 @@ class TimerService : Service() {
 
     private lateinit var questDao: neth.iecal.questphone.data.quest.QuestDao
     private lateinit var questEventDao: QuestEventDao
+    private lateinit var penaltyLogDao: PenaltyLogDao
     private lateinit var supabaseSyncService: SupabaseSyncService
     private var stateBeforeUnplannedBreak: TimerState? = null
     private var unplannedBreakStartTime: Long? = null
     private var unplannedBreakEventId: String? = null
+    private var lastUnplannedBreakEventId: String? = null
+    private var isUnplannedBreakReasonPending: Boolean = false
     private var temporaryAddedTimeMillis = 0L
     private var infoModeActive = false
     private var stateBeforeInfoMode: TimerState? = null
@@ -57,12 +73,44 @@ class TimerService : Service() {
     private var unlockEndTime: Long? = null
     private var currentUnlockDurationMillis: Long? = null
     private var preUnlockTimerState: TimerState? = null
+    // Overdue penalty tracking
+    private lateinit var settingsRepository: SettingsRepository
+    private var currentSettings: SettingsData = SettingsData()
+    private var overdueSessionStartAt: Long? = null
+    private var lastOverduePenaltyAppliedAt: Long? = null
+    private lateinit var penaltyPrefs: SharedPreferences
 
     override fun onCreate() {
         super.onCreate()
         questDao = neth.iecal.questphone.data.quest.QuestDatabaseProvider.getInstance(this).questDao()
         questEventDao = AppDatabase.getDatabase(this).questEventDao()
+        penaltyLogDao = AppDatabase.getDatabase(this).penaltyLogDao()
         supabaseSyncService = SupabaseSyncService(this)
+        settingsRepository = SettingsRepository(this)
+        // Initialize settings immediately to avoid using defaults before Flow emits
+        runCatching {
+            currentSettings = settingsRepository.settings.value
+            Log.d("TimerService", "Loaded settings eagerly: overduePenaltyEnabled=${'$'}{currentSettings.overduePenaltyEnabled}, window=${'$'}{currentSettings.overduePenaltyWindowMinutes}, coins=${'$'}{currentSettings.overduePenaltyCoins}")
+        }.onFailure { Log.w("TimerService", "Failed to eagerly load settings", it) }
+        penaltyPrefs = getSharedPreferences("overdue_penalty_state", MODE_PRIVATE)
+        // Load persisted markers if any
+        runCatching {
+            val base = penaltyPrefs.getLong("base_start", 0L)
+            overdueSessionStartAt = if (base == 0L) null else base
+            val last = penaltyPrefs.getLong("last_applied", 0L)
+            lastOverduePenaltyAppliedAt = if (last == 0L) null else last
+        }.onFailure { Log.w("TimerService", "Failed to load overdue penalty markers", it) }
+        // Observe settings for live updates
+        serviceScope.launch {
+            try {
+                settingsRepository.settings.collect { s ->
+                    currentSettings = s
+                    Log.d("TimerService", "Settings updated: overduePenaltyEnabled=${'$'}{s.overduePenaltyEnabled}, window=${'$'}{s.overduePenaltyWindowMinutes}, coins=${'$'}{s.overduePenaltyCoins}")
+                }
+            } catch (e: Exception) {
+                Log.w("TimerService", "Failed to collect settings flow", e)
+            }
+        }
         createNotificationChannel()
     }
 
@@ -94,6 +142,106 @@ class TimerService : Service() {
         }
     }
 
+    private fun setOverdueSessionBaseIfEntering(baseStartAt: Long) {
+        if (overdueSessionStartAt == null) {
+            overdueSessionStartAt = baseStartAt
+            lastOverduePenaltyAppliedAt = null
+            Log.d("TimerService", "Overdue session started at $baseStartAt for penalty tracking")
+            // Persist markers
+            runCatching {
+                penaltyPrefs.edit().putLong("base_start", baseStartAt).remove("last_applied").apply()
+            }.onFailure { Log.w("TimerService", "Failed to persist overdue base_start", it) }
+        }
+    }
+
+    private fun applyOverduePenaltyIfNeeded(now: Long, baseStartAt: Long) {
+        // Preconditions
+        if (!currentSettings.overduePenaltyEnabled) {
+            Log.d("TimerService", "Penalty skip: feature disabled in settings")
+            return
+        }
+        if (_timerState.value.mode != TimerMode.OVERTIME) {
+            Log.d("TimerService", "Penalty skip: not in OVERTIME mode (mode=${_timerState.value.mode})")
+            return
+        }
+        val windowMillis = TimeUnit.MINUTES.toMillis(currentSettings.overduePenaltyWindowMinutes.toLong()).coerceAtLeast(60_000L)
+        val coinsPerWindow = currentSettings.overduePenaltyCoins.coerceAtLeast(0)
+
+        val elapsed = now - baseStartAt
+        if (elapsed < windowMillis) {
+            Log.d(
+                "TimerService",
+                "Penalty wait: elapsed=${elapsed} < window=${windowMillis}, coinsPerWindow=${coinsPerWindow}, baseStartAt=${baseStartAt}, now=${now}"
+            )
+            return
+        }
+
+        val last = lastOverduePenaltyAppliedAt ?: baseStartAt
+        val windowsPassedTotal = (elapsed / windowMillis).toInt()
+        val windowsAppliedBefore = ((last - baseStartAt) / windowMillis).toInt()
+        val windowsToApply = windowsPassedTotal - windowsAppliedBefore
+        if (windowsToApply <= 0) {
+            Log.d(
+                "TimerService",
+                "Penalty noop: windowsToApply<=0 (elapsed=${elapsed}, window=${windowMillis}, last=${last}, base=${baseStartAt})"
+            )
+            return
+        }
+
+        // Advance the marker first to be idempotent against recompositions
+        lastOverduePenaltyAppliedAt = baseStartAt + windowsPassedTotal.toLong() * windowMillis
+        // Persist last applied marker
+        runCatching {
+            penaltyPrefs.edit().putLong("last_applied", lastOverduePenaltyAppliedAt ?: 0L).apply()
+        }.onFailure { Log.w("TimerService", "Failed to persist overdue last_applied", it) }
+
+        if (coinsPerWindow == 0) {
+            Log.d("TimerService", "Penalty skip: coinsPerWindow is 0")
+            return
+        }
+
+        val totalToDeduct = coinsPerWindow * windowsToApply
+        val currentCoins = User.userInfo.coins
+        val safeDeduct = totalToDeduct.coerceAtMost(currentCoins).coerceAtLeast(0)
+        if (safeDeduct > 0) {
+            Log.i(
+                "TimerService",
+                "Applying overdue penalty: -$safeDeduct coins ($coinsPerWindow per window x $windowsToApply windows); current=${currentCoins}"
+            )
+            User.useCoins(safeDeduct)
+            // Set penalty applied flag in current timer state
+            _timerState.value = _timerState.value.copy(
+                hasPenaltyApplied = true,
+                overduePenaltyCount = _timerState.value.overduePenaltyCount + 1
+            )
+            // Log penalty to local DB for sync
+            val log = PenaltyLog(
+                id = java.util.UUID.randomUUID().toString(),
+                occurredAt = now,
+                amount = safeDeduct,
+                balanceBefore = currentCoins,
+                synced = false
+            )
+            serviceScope.launch {
+                penaltyLogDao.insert(log)
+                try {
+                    val constraints = Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                    val work = OneTimeWorkRequestBuilder<SyncWorker>()
+                        .setConstraints(constraints)
+                        .build()
+                    WorkManager.getInstance(applicationContext).enqueue(work)
+                    Log.d("TimerService", "Enqueued SyncWorker for penalty log sync")
+                } catch (e: Exception) {
+                    Log.e("TimerService", "Failed to enqueue SyncWorker after penalty log insert", e)
+                }
+            }
+        } else {
+            Log.d("TimerService", "Penalty noop: safeDeduct=$safeDeduct, currentCoins=$currentCoins")
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_COMPLETE_QUEST -> {
@@ -116,6 +264,11 @@ class TimerService : Service() {
             }
             ACTION_STOP_UNPLANNED_BREAK -> {
                 stopUnplannedBreak()
+                return START_STICKY
+            }
+            ACTION_SUBMIT_UNPLANNED_BREAK_REASON -> {
+                val reason = intent.getStringExtra(EXTRA_UNPLANNED_BREAK_REASON) ?: ""
+                submitUnplannedBreakReason(reason)
                 return START_STICKY
             }
             ACTION_END_BREAK_EARLY -> {
@@ -164,6 +317,18 @@ class TimerService : Service() {
         val today = getCurrentDate()
         val previousState = _timerState.value
 
+        // Reset overdue penalty markers if not currently in overdue
+        if (previousState.mode != TimerMode.OVERTIME) {
+            overdueSessionStartAt = null
+            lastOverduePenaltyAppliedAt = null
+            // Clear persisted markers
+            penaltyPrefs.edit().clear().apply()
+            // Clear penalty applied flag if it was set
+            if (previousState.hasPenaltyApplied || previousState.overduePenaltyCount != 0) {
+                _timerState.value = _timerState.value.copy(hasPenaltyApplied = false, overduePenaltyCount = 0)
+            }
+        }
+
         // Handle unplanned break first to prevent it from being overridden
         if (_timerState.value.mode == TimerMode.UNPLANNED_BREAK) {
             unplannedBreakStartTime?.let { startTime ->
@@ -177,7 +342,7 @@ class TimerService : Service() {
             }
             return
         }
-        
+
         // Handle unlock timer
         if (_timerState.value.mode == TimerMode.UNLOCK) {
             unlockEndTime?.let { endTime ->
@@ -212,8 +377,11 @@ class TimerService : Service() {
 
                     currentUnlockDurationMillis?.let { duration ->
                         breakTerminationTime?.let { terminationTime ->
-                            breakTerminationTime = terminationTime + duration
-                            Log.d("TimerService", "Adjusted breakTerminationTime by $duration ms.")
+                            // Shift termination time forward by the unlock duration, but never into the future
+                            val adjusted = terminationTime + duration
+                            val nowTs = System.currentTimeMillis()
+                            breakTerminationTime = if (adjusted > nowTs) nowTs else adjusted
+                            Log.d("TimerService", "Adjusted breakTerminationTime by $duration ms. New value: $breakTerminationTime")
                         }
                     }
 
@@ -290,7 +458,7 @@ class TimerService : Service() {
                 infoModeActive = false
                 stateBeforeInfoMode = null
             }
-    
+
             return
         }
 
@@ -301,7 +469,8 @@ class TimerService : Service() {
         // Handle overdue state from an early break termination
         if (_timerState.value.mode == TimerMode.OVERTIME && _timerState.value.isBreakOvertime && breakEndedEarly) {
             breakTerminationTime?.let { terminationTime ->
-                val overtimeDuration = Duration.ofMillis(now - terminationTime)
+                val elapsed = (now - terminationTime).coerceAtLeast(0)
+                val overtimeDuration = Duration.ofMillis(elapsed)
                 if (now - _timerState.value.lastOverdueNotificationTime >= TimeUnit.MINUTES.toMillis(3)) {
                     sendNotification("Break Overdue!", "The break is now overdue.", NotificationType.BREAK_OVERDUE)
                     _timerState.value = _timerState.value.copy(time = overtimeDuration, lastOverdueNotificationTime = now)
@@ -331,7 +500,7 @@ class TimerService : Service() {
 
             if (now < actualQuestEndsAt) {
                 val remainingSeconds = remaining / 1000
-                if (remainingSeconds <= 60 && !previousState.notificationSent) {
+                if (remainingSeconds <= 60 && !_timerState.value.notificationSent) {
                     sendNotification("Quest ending soon!", "1 minute remaining.", NotificationType.QUEST_ENDING)
                     _timerState.value = _timerState.value.copy(notificationSent = true)
                 }
@@ -353,7 +522,9 @@ class TimerService : Service() {
                         activeQuestId = activeQuest.id,
                         isBreakOvertime = false,
                         questEndsAt = actualQuestEndsAt,
-                        lastOverdueNotificationTime = now
+                        lastOverdueNotificationTime = now,
+                        hasPenaltyApplied = _timerState.value.hasPenaltyApplied,
+                        overduePenaltyCount = _timerState.value.overduePenaltyCount
                     )
                 } else {
                     _timerState.value = TimerState(
@@ -362,9 +533,14 @@ class TimerService : Service() {
                         activeQuestId = activeQuest.id,
                         isBreakOvertime = false,
                         questEndsAt = actualQuestEndsAt,
-                        lastOverdueNotificationTime = previousState.lastOverdueNotificationTime
+                        lastOverdueNotificationTime = previousState.lastOverdueNotificationTime,
+                        hasPenaltyApplied = _timerState.value.hasPenaltyApplied,
+                        overduePenaltyCount = _timerState.value.overduePenaltyCount
                     )
                 }
+                // Apply overdue penalty for quest overdue
+                setOverdueSessionBaseIfEntering(actualQuestEndsAt)
+                applyOverduePenaltyIfNeeded(now, baseStartAt = actualQuestEndsAt)
             }
         } else if (recentlyCompleted != null) {
             currentStateHandled = true
@@ -385,18 +561,25 @@ class TimerService : Service() {
                 Log.d("TimerService", "Break ended early flag is set, maintaining OVERTIME state")
                 val terminatedAt = breakTerminationTime
                 if (terminatedAt != null) {
-                    val overtimeDuration = Duration.ofMillis(now - terminatedAt)
-                    _timerState.value = TimerState(TimerMode.OVERTIME, overtimeDuration, recentlyCompleted.id, isBreakOvertime = true, isDeepFocusLocking = isLocking, lastOverdueNotificationTime = _timerState.value.lastOverdueNotificationTime)
+                    val elapsed = (now - terminatedAt).coerceAtLeast(0)
+                    val overtimeDuration = Duration.ofMillis(elapsed)
+                    _timerState.value = TimerState(TimerMode.OVERTIME, overtimeDuration, recentlyCompleted.id, isBreakOvertime = true, isDeepFocusLocking = isLocking, lastOverdueNotificationTime = _timerState.value.lastOverdueNotificationTime, hasPenaltyApplied = _timerState.value.hasPenaltyApplied, overduePenaltyCount = _timerState.value.overduePenaltyCount)
+                    // Apply overdue penalty for break overdue (early termination)
+                    setOverdueSessionBaseIfEntering(terminatedAt)
+                    applyOverduePenaltyIfNeeded(now, baseStartAt = terminatedAt)
                 } else {
                     // Fallback in case timestamp is missing
-                    val overtimeDuration = Duration.ofMillis(now - breakEndsAt)
-                    _timerState.value = TimerState(TimerMode.OVERTIME, overtimeDuration, recentlyCompleted.id, isBreakOvertime = true, isDeepFocusLocking = isLocking, lastOverdueNotificationTime = _timerState.value.lastOverdueNotificationTime)
+                    val elapsed = (now - breakEndsAt).coerceAtLeast(0)
+                    val overtimeDuration = Duration.ofMillis(elapsed)
+                    _timerState.value = TimerState(TimerMode.OVERTIME, overtimeDuration, recentlyCompleted.id, isBreakOvertime = true, isDeepFocusLocking = isLocking, lastOverdueNotificationTime = _timerState.value.lastOverdueNotificationTime, hasPenaltyApplied = _timerState.value.hasPenaltyApplied, overduePenaltyCount = _timerState.value.overduePenaltyCount)
+                    setOverdueSessionBaseIfEntering(breakEndsAt)
+                    applyOverduePenaltyIfNeeded(now, baseStartAt = breakEndsAt)
                 }
             } else if (now < breakEndsAt) {
                 val timeUntilBreakEnd = Duration.ofMillis(breakEndsAt - now)
                 val remainingSeconds = timeUntilBreakEnd.seconds
 
-                if (remainingSeconds <= 60 && !previousState.notificationSent) {
+                if (remainingSeconds <= 60 && !_timerState.value.notificationSent) {
                     sendNotification("Break ending soon!", "1 minute remaining.", NotificationType.BREAK_ENDING)
                     _timerState.value = _timerState.value.copy(notificationSent = true)
                 }
@@ -406,17 +589,19 @@ class TimerService : Service() {
                 // Natural break end - reset the early termination flag
                 breakEndedEarly = false
                 breakTerminationTime = null
-                val overtimeDuration = Duration.ofMillis(now - breakEndsAt)
+                val elapsed = (now - breakEndsAt).coerceAtLeast(0)
+                val overtimeDuration = Duration.ofMillis(elapsed)
                 if (now - previousState.lastOverdueNotificationTime >= TimeUnit.MINUTES.toMillis(3)) {
                     sendNotification("Break Overdue!", "The break is now overdue.", NotificationType.BREAK_OVERDUE)
-                    _timerState.value = TimerState(TimerMode.OVERTIME, overtimeDuration, recentlyCompleted.id, isBreakOvertime = true, isDeepFocusLocking = isLocking, lastOverdueNotificationTime = now)
+                    _timerState.value = TimerState(TimerMode.OVERTIME, overtimeDuration, recentlyCompleted.id, isBreakOvertime = true, isDeepFocusLocking = isLocking, lastOverdueNotificationTime = now, notificationSent = false, hasPenaltyApplied = _timerState.value.hasPenaltyApplied, overduePenaltyCount = _timerState.value.overduePenaltyCount)
                 } else {
-                    _timerState.value = TimerState(TimerMode.OVERTIME, overtimeDuration, recentlyCompleted.id, isBreakOvertime = true, isDeepFocusLocking = isLocking, lastOverdueNotificationTime = previousState.lastOverdueNotificationTime)
+                    _timerState.value = TimerState(TimerMode.OVERTIME, overtimeDuration, recentlyCompleted.id, isBreakOvertime = true, isDeepFocusLocking = isLocking, lastOverdueNotificationTime = previousState.lastOverdueNotificationTime, notificationSent = false, hasPenaltyApplied = _timerState.value.hasPenaltyApplied, overduePenaltyCount = _timerState.value.overduePenaltyCount)
                 }
+                // Apply overdue penalty for break overdue (natural)
+                setOverdueSessionBaseIfEntering(breakEndsAt)
+                applyOverduePenaltyIfNeeded(now, baseStartAt = breakEndsAt)
             }
         }
-
-
 
         if (!currentStateHandled && _timerState.value.mode != TimerMode.INACTIVE) {
             infoModeActive = false
@@ -468,7 +653,7 @@ class TimerService : Service() {
                 val existingEvent = questEventDao.getEventById(eventId)
                 existingEvent?.let { event ->
                     val updatedEvent = event.copy(endTime = breakEndTime)
-                    questEventDao.updateEvent(updatedEvent)
+                    questEventDao.updateEvent(updatedEvent.copy(synced = false))
                     unplannedBreakEndTime = breakEndTime
                     
                     // Sync updated event to Supabase
@@ -481,7 +666,10 @@ class TimerService : Service() {
             unplannedBreakEventId = null
 
             val previousState = stateBeforeUnplannedBreak
-            _timerState.value = previousState ?: TimerState()
+            // Signal UI to ask for a custom reason if it was deferred
+            val shouldRequestReason = isUnplannedBreakReasonPending && lastUnplannedBreakEventId != null
+            _timerState.value = previousState?.copy(requestUnplannedBreakReason = shouldRequestReason)
+                ?: TimerState(requestUnplannedBreakReason = shouldRequestReason)
             
             stateBeforeUnplannedBreak = null
 
@@ -528,25 +716,45 @@ class TimerService : Service() {
             val latestEvent = questEventDao.getLatestEvent()
             if (latestEvent != null && latestEvent.endTime == 0L) {
                 val closedEvent = latestEvent.copy(endTime = breakStartTime)
-                questEventDao.updateEvent(closedEvent)
+                questEventDao.updateEvent(closedEvent.copy(synced = false))
                 supabaseSyncService.syncSingleQuestEvent(closedEvent)
             }
 
             // Create and log the new "unplanned break" event
+            val deferReason = reason == LATER_MARKER || reason.isBlank()
+            isUnplannedBreakReasonPending = deferReason
             val unplannedBreakEvent = neth.iecal.questphone.data.local.QuestEvent(
                 eventName = "unplanned break",
                 startTime = breakStartTime,
                 endTime = 0L, // This will be set when the break ends
-                comments = reason
+                comments = if (deferReason) null else reason
             )
 
             questEventDao.insertEvent(unplannedBreakEvent)
             unplannedBreakEventId = unplannedBreakEvent.id
+            lastUnplannedBreakEventId = unplannedBreakEvent.id
 
             supabaseSyncService.syncSingleQuestEvent(unplannedBreakEvent)
 
             _timerState.value = TimerState(mode = TimerMode.UNPLANNED_BREAK)
             // Unplanned break notifications removed
+        }
+    }
+
+    private fun submitUnplannedBreakReason(reason: String) {
+        serviceScope.launch {
+            val eventId = lastUnplannedBreakEventId
+            if (eventId != null) {
+                val existingEvent = questEventDao.getEventById(eventId)
+                if (existingEvent != null) {
+                    val updated = existingEvent.copy(comments = reason)
+                    questEventDao.updateEvent(updated.copy(synced = false))
+                    supabaseSyncService.syncSingleQuestEvent(updated)
+                    isUnplannedBreakReasonPending = false
+                    // Clear the UI request flag
+                    _timerState.value = _timerState.value.copy(requestUnplannedBreakReason = false)
+                }
+            }
         }
     }
 
@@ -604,7 +812,16 @@ class TimerService : Service() {
         val quest = state.activeQuestId?.let { runBlocking { questDao.getQuestById(it) } }
         return when (state.mode) {
             TimerMode.QUEST_COUNTDOWN -> quest?.title
-            TimerMode.OVERTIME -> if (state.isBreakOvertime) "overdue (break)" else "overdue (${quest?.title})"
+            TimerMode.OVERTIME -> {
+                // Important: break overdue must NOT be labeled as DeepFocus session
+                if (state.isBreakOvertime) {
+                    "overdue (break)"
+                } else if (quest?.integration_id == IntegrationId.DEEP_FOCUS) {
+                    quest.title // Keep the original quest event running
+                } else {
+                    "overdue (${quest?.title})"
+                }
+            }
             TimerMode.BREAK -> "break"
             TimerMode.UNLOCK -> {
                 state.unlockPackageName?.let { packageName ->
@@ -634,10 +851,15 @@ class TimerService : Service() {
             schedulingInfo?.type == SchedulingType.MONTHLY_BY_DAY -> {
                 val dayName = schedulingInfo.monthlyDayOfWeek?.name?.lowercase()?.replaceFirstChar { it.uppercase() }
                 val weekInMonth = schedulingInfo.monthlyWeekInMonth
+                val weekNumberString = when (weekInMonth) {
+                    1 -> "1st"
+                    2 -> "2nd"
+                    3 -> "3rd"
+                    else -> "${weekInMonth}th"
+                }
                 when {
                     weekInMonth == -1 -> "last $dayName of each month"
-                    weekInMonth == 1 -> "Every $dayName"
-                    else -> "Every $dayName"
+                    else -> "$weekNumberString $dayName of each month"
                 }
             }
             else -> null
@@ -652,11 +874,11 @@ class TimerService : Service() {
             // Unplanned break events are handled manually in startUnplannedBreak/stopUnplannedBreak
             val latestEvent = questEventDao.getLatestEvent()
 
-            // Skip event logging if the latest event was a checkpoint created recently (within 3 seconds)
+            // Skip event logging if the latest event was a checkpoint created recently (within 5 seconds)
             // This prevents race condition between createCheckpoint and handleEventLogging
             val now = System.currentTimeMillis()
             if (latestEvent?.eventName?.startsWith("cp:") == true && 
-                now - latestEvent.startTime < 3000) {
+                now - latestEvent.startTime < 5000) {
                 return@withLock
             }
 
@@ -675,24 +897,56 @@ class TimerService : Service() {
                 // If no active event is running, or the new event is different, start a new event sequence.
                 if (!isActiveEventRunning || latestEvent?.eventName != newEventName) {
                     var newEventStartTime = now
+                    // Extra guard: if the latest event with the SAME name was just closed moments ago,
+                    // skip creating a new one. This avoids duplication during checkpoint creation when
+                    // an active quest event is closed and will be resumed by checkpoint logic.
+                    if (latestEvent?.eventName == newEventName && latestEvent.endTime > 0L &&
+                        now - latestEvent.endTime < 5000) {
+                        return@withLock
+                    }
                     // Close the previous event if it exists and is active.
+                    val isOverdueTransition = previousState.mode == TimerMode.QUEST_COUNTDOWN &&
+                                          currentState.mode == TimerMode.OVERTIME &&
+                                          !currentState.isBreakOvertime
+
                     if (isActiveEventRunning) {
-                        val closedEvent = latestEvent!!.copy(endTime = now)
-                        questEventDao.updateEvent(closedEvent)
+                        val eventToClose = latestEvent!!
+                        val closedEvent = if (isOverdueTransition) {
+                            // It's the original quest event, close it and flag it as pending reward
+                            eventToClose.copy(endTime = now, isRewardPending = true)
+                        } else {
+                            // It's a different event, just close it normally
+                            eventToClose.copy(endTime = now)
+                        }
+                        questEventDao.updateEvent(closedEvent.copy(synced = false))
                         serviceScope.launch { supabaseSyncService.syncSingleQuestEvent(closedEvent) }
                         newEventStartTime = closedEvent.endTime
                     }
 
-                    // Create the new event.
                     val quest = currentState.activeQuestId?.let { runBlocking { questDao.getQuestById(it) } }
-                    val calendarComment = generateCalendarEventComment(quest)
+                    // Only add calendar comment to main quest events, not associated events like overdue or break
+                    val isMainQuestEvent = newEventName == quest?.title
+                    val calendarComment = if (isMainQuestEvent) generateCalendarEventComment(quest) else null
+                    // If DeepFocus main quest event, append session numbering comment: "session: n"
+                    val sessionComment: String? = if (isMainQuestEvent && quest?.integration_id == IntegrationId.DEEP_FOCUS) {
+                        try {
+                            val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+                            val deepFocus = json.decodeFromString<neth.iecal.questphone.data.quest.focus.DeepFocus>(quest.quest_json)
+                            val sessionNumber = deepFocus.completedWorkSessions + 1
+                            "session: $sessionNumber"
+                        } catch (e: Exception) { null }
+                    } else null
+                    val combinedComment = listOfNotNull(sessionComment, calendarComment).joinToString(" | ").ifEmpty { null }
+
+                    // The new 'overdue' event should not be flagged as pending
                     val newEvent = QuestEvent(
                         eventName = newEventName!!,
                         startTime = newEventStartTime,
-                        endTime = 0L, // Mark as active
-                        comments = calendarComment,
+                        endTime = 0L, // It's an active event now
+                        comments = combinedComment,
                         rewardCoins = currentState.eventDetails?.rewardCoins,
-                        preRewardCoins = currentState.eventDetails?.preRewardCoins
+                        preRewardCoins = currentState.eventDetails?.preRewardCoins,
+                        isRewardPending = false
                     )
                     questEventDao.insertEvent(newEvent)
                     // After inserting, fetch the latest event to get the auto-generated ID
@@ -706,7 +960,7 @@ class TimerService : Service() {
                 // If an event is currently active, close it.
                 if (isActiveEventRunning) {
                     val closedEvent = latestEvent!!.copy(endTime = now)
-                    questEventDao.updateEvent(closedEvent)
+                    questEventDao.updateEvent(closedEvent.copy(synced = false))
                     serviceScope.launch { supabaseSyncService.syncSingleQuestEvent(closedEvent) }
                 }
             }
@@ -954,11 +1208,10 @@ class TimerService : Service() {
         }
     }
 
-
-
     companion object {
         private val _timerState = MutableStateFlow(TimerState())
         val timerState: StateFlow<TimerState> = _timerState.asStateFlow()
+
         const val ACTION_START_UNPLANNED_BREAK = "neth.iecal.questphone.action.START_UNPLANNED_BREAK"
         const val ACTION_STOP_UNPLANNED_BREAK = "neth.iecal.questphone.action.STOP_UNPLANNED_BREAK"
         const val ACTION_COMPLETE_QUEST = "neth.iecal.questphone.action.COMPLETE_QUEST"
@@ -966,12 +1219,16 @@ class TimerService : Service() {
         const val ACTION_TOGGLE_INFO_MODE = "neth.iecal.questphone.action.TOGGLE_INFO_MODE"
         const val ACTION_END_BREAK_EARLY = "neth.iecal.questphone.action.END_BREAK_EARLY"
         const val ACTION_START_UNLOCK_TIMER = "neth.iecal.questphone.action.START_UNLOCK_TIMER"
+        const val ACTION_SUBMIT_UNPLANNED_BREAK_REASON = "neth.iecal.questphone.action.SUBMIT_UNPLANNED_BREAK_REASON"
+
         const val EXTRA_UNLOCK_DURATION = "unlock_duration_minutes"
         const val EXTRA_PACKAGE_NAME = "package_name"
         const val EXTRA_REWARD_COINS = "reward_coins"
         const val EXTRA_PRE_REWARD_COINS = "pre_reward_coins"
-
+        const val EXTRA_UNPLANNED_BREAK_REASON = "extra_unplanned_break_reason"
         const val EXTRA_TIME_TO_ADD = "neth.iecal.questphone.extra.TIME_TO_ADD"
+
+        const val LATER_MARKER = "__LATER__"
 
         private const val CHANNEL_ID = "timer_channel"
         private const val VIBRATOR_MANAGER_SERVICE = "vibrator_manager"

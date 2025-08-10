@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -58,6 +59,13 @@ fun LiveTimer(
     var unplannedBreakReason by remember { mutableStateOf("") }
     var showAddTimeDialog by remember(timerMode) { mutableStateOf(false) }
     var showQuestListDialog by remember(timerMode) { mutableStateOf(false) }
+    // Keep deferred reason dialog open until user explicitly closes it, even if break ends
+    var showDeferredReasonDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(timerState.requestUnplannedBreakReason) {
+        if (timerState.requestUnplannedBreakReason) {
+            showDeferredReasonDialog = true
+        }
+    }
     
     // Helper functions to categorize quests
     fun isRepeatingQuest(quest: CommonQuestInfo): Boolean {
@@ -117,14 +125,22 @@ fun LiveTimer(
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        timerViewModel.startUnplannedBreak(unplannedBreakReason)
-                        showDialog = false
-                        unplannedBreakReason = ""
-                    }
-                ) {
-                    Text("Start")
+                Row {
+                    Button(
+                        onClick = {
+                            timerViewModel.startUnplannedBreak(unplannedBreakReason)
+                            showDialog = false
+                            unplannedBreakReason = ""
+                        }
+                    ) { Text("Start") }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            timerViewModel.startUnplannedBreakLater()
+                            showDialog = false
+                            unplannedBreakReason = ""
+                        }
+                    ) { Text("Later") }
                 }
             },
             dismissButton = {
@@ -132,6 +148,42 @@ fun LiveTimer(
                     onClick = { showDialog = false }
                 ) {
                     Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Post-break custom reason dialog if the reason was deferred
+    if (showDeferredReasonDialog) {
+        var deferredReason by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showDeferredReasonDialog = false },
+            title = { Text("What was the reason?") },
+            text = {
+                Column {
+                    Text("Please enter a reason for your unplanned break:")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = deferredReason,
+                        onValueChange = { deferredReason = it },
+                        label = { Text("Reason") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (deferredReason.isNotBlank()) {
+                        timerViewModel.submitUnplannedBreakReason(deferredReason)
+                        showDeferredReasonDialog = false
+                    }
+                }) {
+                    Text("Submit")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showDeferredReasonDialog = false }) {
+                    Text("Later")
                 }
             }
         )
@@ -176,7 +228,11 @@ fun LiveTimer(
                     showAddTimeDialog = true
                 }
             },
-            enabled = timerMode != TimerMode.UNPLANNED_BREAK && !(timerMode == TimerMode.OVERTIME && !timerState.isBreakOvertime) && timerMode != TimerMode.INFO && !timerState.isDeepFocusLocking
+            enabled = timerMode != TimerMode.UNPLANNED_BREAK &&
+               !(timerMode == TimerMode.OVERTIME && !timerState.isBreakOvertime) &&
+               timerMode != TimerMode.INFO &&
+               timerMode != TimerMode.UNLOCK &&
+               !timerState.isDeepFocusLocking
         ) {
             Icon(Icons.Default.Add, contentDescription = "Add")
         }

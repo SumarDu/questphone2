@@ -8,6 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,6 +58,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
+import java.time.LocalDate
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -100,7 +102,6 @@ import neth.iecal.questphone.utils.isSetToDefaultLauncher
 import neth.iecal.questphone.utils.openDefaultLauncherSettings
 import kotlinx.serialization.json.Json
 import neth.iecal.questphone.utils.SchedulingUtils
-import java.time.LocalDate
 
 private val json = Json { ignoreUnknownKeys = true }
 
@@ -116,6 +117,45 @@ fun HomeScreen(navController: NavController) {
     val timerText by timerViewModel.timerText.collectAsState()
     val timerMode by timerViewModel.timerMode.collectAsState()
     val timerState by TimerService.timerState.collectAsState()
+    
+    // Reactive coin balance state
+    var showPenaltyDialog by remember { mutableStateOf(false) }
+
+    if (showPenaltyDialog) {
+        AlertDialog(
+            onDismissRequest = { showPenaltyDialog = false },
+            confirmButton = {
+                TextButton(onClick = { showPenaltyDialog = false }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showPenaltyDialog = false
+                    navController.navigate(Screen.Store.route)
+                }) {
+                    Text("Магазин")
+                }
+            },
+            title = { Text("Штрафи під час прострочки") },
+            text = {
+                val count = timerState.overduePenaltyCount
+                Column {
+                    Text(text = "Кількість списань: $count")
+                    if (timerMode != neth.iecal.questphone.data.timer.TimerMode.OVERTIME) {
+                        Spacer(Modifier.size(8.dp))
+                        Text(text = "Наразі прострочки немає.", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    }
+                }
+            }
+        )
+    }
+    var coinBalance by remember { mutableStateOf(User.userInfo.coins) }
+    
+    // Update coin balance when timer state changes (to catch penalty deductions)
+    LaunchedEffect(timerState) {
+        coinBalance = User.userInfo.coins
+    }
     var showStartConfirmation by remember { mutableStateOf(false) }
     var selectedQuestForConfirmation by remember { mutableStateOf<CommonQuestInfo?>(null) }
     var showQuestFinishedDialog by remember { mutableStateOf(false) }
@@ -233,17 +273,23 @@ fun HomeScreen(navController: NavController) {
 
         }
     }
+    // Sidebar visibility state and dimensions
+    val sidebarWidth = 48.dp
+    val edgeTapWidth = 24.dp
+    var isSidebarVisible by remember { mutableStateOf(false) }
+
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding)
     ) {
+        // Sidebar overlays content; no left gutter
+
         // Main content area
         Box(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
+                .fillMaxSize()
                 .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown()
@@ -315,12 +361,17 @@ fun HomeScreen(navController: NavController) {
                     .padding(8.dp)
                     .size(20.dp)
                     .clickable{
-                        navController.navigate(Screen.Store.route)
+                        showPenaltyDialog = true
                     }
             )
             Text(
-                text = "${User.userInfo.coins}",
+                text = "$coinBalance",
                 style = MaterialTheme.typography.bodyLarge,
+                color = if (timerMode == TimerMode.OVERTIME && timerState.hasPenaltyApplied) {
+                    Color.Red
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                }
             )
             Spacer(Modifier.size(8.dp))
 
@@ -440,7 +491,12 @@ fun HomeScreen(navController: NavController) {
                         isFailed = isOver,
                         isActive = isActive,
                         isOverdue = isOverdue,
-                        modifier = Modifier.clickable(enabled = timerMode != TimerMode.UNPLANNED_BREAK && timerMode != TimerMode.INFO && !(timerState.isDeepFocusLocking && baseQuest.id != timerState.activeQuestId)) {
+                        modifier = Modifier.clickable(
+                            enabled = timerMode != TimerMode.UNPLANNED_BREAK &&
+                                      timerMode != TimerMode.INFO &&
+                                      timerMode != TimerMode.UNLOCK &&
+                                      !(timerState.isDeepFocusLocking && baseQuest.id != timerState.activeQuestId)
+                        ) {
                             // --- Quest Interaction Restrictions ---
                             
                             // Check if this quest is finished and can reopen the "Quest Finished" dialog
@@ -534,7 +590,79 @@ fun HomeScreen(navController: NavController) {
             }
 
         }
-    }}
+        }
+        // Backdrop: close sidebar on single tap anywhere outside the sidebar
+        if (isSidebarVisible) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { isSidebarVisible = false }
+                        )
+                    }
+            )
+        }
+
+        // Animated right sidebar (hidden by default, slides in on demand)
+        androidx.compose.animation.AnimatedVisibility(
+            modifier = Modifier.align(Alignment.CenterEnd),
+            visible = isSidebarVisible,
+            enter = androidx.compose.animation.slideInHorizontally { fullWidth -> fullWidth },
+            exit = androidx.compose.animation.slideOutHorizontally { fullWidth -> fullWidth }
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(sidebarWidth)
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                SidebarButton(text = "TMRW") {
+                    // TODO: Navigate to tomorrow's quests
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                SidebarButton(text = "YDAY") {
+                    // TODO: Navigate to yesterday's quests
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                SidebarButton(icon = Icons.Default.DateRange) {
+                    val intent = Intent(Intent.ACTION_MAIN)
+                    intent.addCategory(Intent.CATEGORY_APP_CALENDAR)
+                    try {
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        // Handle case where no calendar app is found
+                        Log.e("HomeScreen", "No calendar app found", e)
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                SidebarButton(icon = Icons.Default.List) {
+                    if (timerState.mode != TimerMode.INFO && !timerState.isDeepFocusLocking && !hasActiveOrOverdueQuestBlocking(CommonQuestInfo(), questList)) {
+                        navController.navigate(Screen.ListAllQuest.route)
+                    }
+                }
+            }
+        }
+
+        // Right-edge double-tap trigger to toggle sidebar visibility (only when hidden)
+        if (!isSidebarVisible) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .width(edgeTapWidth)
+                    .fillMaxHeight()
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onDoubleTap = {
+                                isSidebarVisible = true
+                            }
+                        )
+                    }
+            )
+        }
+    }
+    }
 
     if (showStartConfirmation) {
         AlertDialog(
@@ -649,41 +777,6 @@ fun HomeScreen(navController: NavController) {
                 }
             }
         )
-    }
-        
-        // Persistent Sidebar
-        Column(
-            modifier = Modifier
-                .width(48.dp) // Narrower sidebar
-                .fillMaxHeight(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            SidebarButton(text = "TMRW") {
-                // TODO: Navigate to tomorrow's quests
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            SidebarButton(text = "YDAY") {
-                // TODO: Navigate to yesterday's quests
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            SidebarButton(icon = Icons.Default.DateRange) {
-                val intent = Intent(Intent.ACTION_MAIN)
-                intent.addCategory(Intent.CATEGORY_APP_CALENDAR)
-                try {
-                    context.startActivity(intent)
-                } catch (e: Exception) {
-                    // Handle case where no calendar app is found
-                    Log.e("HomeScreen", "No calendar app found", e)
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            SidebarButton(icon = Icons.Default.List) {
-                if (timerState.mode != TimerMode.INFO && !timerState.isDeepFocusLocking && !hasActiveOrOverdueQuestBlocking(CommonQuestInfo(), questList)) {
-                    navController.navigate(Screen.ListAllQuest.route)
-                }
-            }
-        }
     }
 }
 

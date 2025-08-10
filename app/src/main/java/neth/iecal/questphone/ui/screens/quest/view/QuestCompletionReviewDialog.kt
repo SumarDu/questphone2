@@ -14,14 +14,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 
 @Composable
-fun QuestRatingScale(label: String, rating: Int, onRatingSelected: (Int) -> Unit, range: IntRange = 1..10) {
+fun QuestRatingScale(label: String, rating: Int, onRatingSelected: (Int) -> Unit, range: IntRange = 1..10, minLabel: String = "", maxLabel: String = "") {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         Text(text = label, style = MaterialTheme.typography.bodyLarge)
         Spacer(modifier = Modifier.height(8.dp))
+        
+        // Rating scale row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
@@ -43,6 +46,29 @@ fun QuestRatingScale(label: String, rating: Int, onRatingSelected: (Int) -> Unit
                         fontSize = 14.sp
                     )
                 }
+            }
+        }
+        
+        // Anchor labels
+        if (minLabel.isNotEmpty() || maxLabel.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "${range.first} - $minLabel",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "${range.last} - $maxLabel",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -101,7 +127,9 @@ fun QuestCompletionReviewDialog(
                 QuestRatingScale(
                     label = "How difficult was the material?",
                     rating = difficulty,
-                    onRatingSelected = { difficulty = it }
+                    onRatingSelected = { difficulty = it },
+                    minLabel = "дуже легко",
+                    maxLabel = "дуже складно"
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 EmojiMoodScale(
@@ -109,6 +137,11 @@ fun QuestCompletionReviewDialog(
                     rating = mood,
                     onRatingSelected = { mood = it }
                 )
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Later")
             }
         },
         confirmButton = {
