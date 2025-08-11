@@ -58,7 +58,9 @@ import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.ui.navigation.Screen
 import neth.iecal.questphone.ui.screens.launcher.QuestItem
 import neth.iecal.questphone.utils.QuestHelper
-import neth.iecal.questphone.utils.formatHour
+import neth.iecal.questphone.utils.formatTimeMinutes
+import neth.iecal.questphone.utils.toMinutesRange
+import neth.iecal.questphone.utils.isAllDayRange
 import neth.iecal.questphone.utils.formatInstantToDate
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.utils.getCurrentDay
@@ -250,11 +252,10 @@ fun QuestDialog(
                                         items = questList,
                                         key = { it.id }
                                     ) { baseQuest ->
-                                        val timeRange =
-                                            "${formatHour(baseQuest.time_range[0])} - ${formatHour(baseQuest.time_range[1])} : "
-                                        val prefix =
-                                            if (baseQuest.time_range[0] == 0 && baseQuest.time_range[1] == 24) ""
-                                            else timeRange
+                                        val (s, e) = toMinutesRange(baseQuest.time_range)
+                                        val timeRange = "${formatTimeMinutes(s)} - ${formatTimeMinutes(e)} : "
+                                        val prefix = if (isAllDayRange(baseQuest.time_range)) "" else timeRange
+
                                         val isOver = questHelper.isOver(baseQuest)
 
                                         QuestItem(

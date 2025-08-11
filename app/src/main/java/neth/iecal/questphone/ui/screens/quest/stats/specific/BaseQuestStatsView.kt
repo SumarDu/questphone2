@@ -80,7 +80,9 @@ import neth.iecal.questphone.data.quest.stats.StatsDatabaseProvider
 import neth.iecal.questphone.data.quest.stats.StatsInfo
 
 import neth.iecal.questphone.utils.daysSince
-import neth.iecal.questphone.utils.formatHour
+import neth.iecal.questphone.utils.formatTimeMinutes
+import neth.iecal.questphone.utils.toMinutesRange
+import neth.iecal.questphone.utils.isAllDayRange
 import neth.iecal.questphone.utils.getStartOfWeek
 import neth.iecal.questphone.utils.toJavaDayOfWeek
 import java.time.DayOfWeek
@@ -220,11 +222,15 @@ fun QuestHeader(baseData: CommonQuestInfo, currentStreak: Int) {
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${formatHour(baseData.time_range[0])} - ${formatHour(baseData.time_range[1])}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                    )
+                    run {
+                        val (s, e) = toMinutesRange(baseData.time_range)
+                        val txt = if (isAllDayRange(baseData.time_range)) "All day" else "${formatTimeMinutes(s)} - ${formatTimeMinutes(e)}"
+                        Text(
+                            text = txt,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        )
+                    }
                 }
 
                 // Right side - Current streak with fire icon
@@ -525,10 +531,14 @@ fun QuestDetailsCard(baseData: CommonQuestInfo) {
                 QuestInfoRow(label = "Current Status", value = "Destroyed")
             }
             QuestInfoRow(label = "Days Active", value = baseData.selected_days.toString())
-            QuestInfoRow(
-                label = "Time Range",
-                value = "${formatHour(baseData.time_range[0])} - ${formatHour(baseData.time_range[1])}"
-            )
+            run {
+                val (s, e) = toMinutesRange(baseData.time_range)
+                val txt = if (isAllDayRange(baseData.time_range)) "All day" else "${formatTimeMinutes(s)} - ${formatTimeMinutes(e)}"
+                QuestInfoRow(
+                    label = "Time Range",
+                    value = txt
+                )
+            }
             QuestInfoRow(label = "Created", value = baseData.created_on)
 
             QuestInfoRow(label = "Integration", value = baseData.integration_id.name)

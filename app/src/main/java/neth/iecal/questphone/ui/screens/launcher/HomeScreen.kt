@@ -4,7 +4,10 @@ import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -18,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,12 +36,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.AlertDialog
@@ -92,7 +98,9 @@ import neth.iecal.questphone.ui.screens.launcher.components.LiveTimer
 import neth.iecal.questphone.ui.screens.quest.DialogState
 import neth.iecal.questphone.ui.screens.quest.RewardDialogInfo
 import neth.iecal.questphone.utils.QuestHelper
-import neth.iecal.questphone.utils.formatHour
+import neth.iecal.questphone.utils.formatTimeMinutes
+import neth.iecal.questphone.utils.toMinutesRange
+import neth.iecal.questphone.utils.isAllDayRange
 import neth.iecal.questphone.utils.formatInstantToDate
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.data.timer.TimerMode
@@ -105,7 +113,7 @@ import neth.iecal.questphone.utils.SchedulingUtils
 
 private val json = Json { ignoreUnknownKeys = true }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
@@ -275,7 +283,7 @@ fun HomeScreen(navController: NavController) {
     }
     // Sidebar visibility state and dimensions
     val sidebarWidth = 48.dp
-    val edgeTapWidth = 24.dp
+    val edgeTapWidth = 36.dp
     var isSidebarVisible by remember { mutableStateOf(false) }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -431,6 +439,7 @@ fun HomeScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.Center)
+                .offset(y = (-32).dp),
         ) {
 
             Column(
@@ -470,13 +479,39 @@ fun HomeScreen(navController: NavController) {
                 }
             }
 
-            LazyColumn(
-                modifier = Modifier.heightIn(max = 300.dp)
-            ) {
-                items(questList.size){ index ->
-                    val baseQuest = questList[index]
-                    val timeRange = "${formatHour(baseQuest.time_range[0])} - ${formatHour(baseQuest.time_range[1])} : "
-                    val prefix = if(baseQuest.time_range[0]==0&&baseQuest.time_range[1]==24) "" else timeRange
+            // Paginated list: 4 quests per page with snap paging
+            val tileHeight = 72.dp
+            val tileSpacing = 12.dp
+            // Sort quests: non-all-day first by start minutes; all-day at the end
+            val sortedQuests = questList.sortedWith(
+                compareBy(
+                    { if (isAllDayRange(it.time_range)) 1 else 0 },
+                    { toMinutesRange(it.time_range).first }
+                )
+            )
+            val pageCount = (sortedQuests.size + 3) / 4
+            if (pageCount > 0) {
+                val pagerState = androidx.compose.foundation.pager.rememberPagerState(
+                    initialPage = 0,
+                    pageCount = { pageCount }
+                )
+                androidx.compose.foundation.pager.VerticalPager(
+                    state = pagerState,
+                    modifier = Modifier.height(tileHeight * 4 + tileSpacing * 3 + tileSpacing * 2),
+                    pageSpacing = tileSpacing,
+                    userScrollEnabled = pageCount > 1,
+                ) { page ->
+                    val start = page * 4
+                    val end = minOf(start + 4, sortedQuests.size)
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(tileSpacing)
+                    ) {
+                        for (index in start until end) {
+                            val baseQuest = sortedQuests[index]
+                    val (startMin, endMin) = toMinutesRange(baseQuest.time_range)
+                    val timeRange = "${formatTimeMinutes(startMin)} - ${formatTimeMinutes(endMin)} : "
+                    val prefix = if (isAllDayRange(baseQuest.time_range)) "" else timeRange
                     val isOver = questHelper.isOver(baseQuest)
                     val isCompleted = completedQuests.contains(baseQuest.title)
                     val isActive = timerState.activeQuestId == baseQuest.id && (timerMode == TimerMode.QUEST_COUNTDOWN || timerMode == TimerMode.BREAK)
@@ -485,52 +520,42 @@ fun HomeScreen(navController: NavController) {
                     val isOverdue = baseQuest.quest_started_at > 0 && 
                         baseQuest.last_completed_on != getCurrentDate() && 
                         System.currentTimeMillis() > (baseQuest.quest_started_at + TimeUnit.MINUTES.toMillis(baseQuest.quest_duration_minutes.toLong()))
-                    QuestItem(
-                        text =  if(QuestHelper.Companion.isInTimeRange(baseQuest) && isOver) baseQuest.title else  prefix +  baseQuest.title,
-                        isCompleted = isCompleted,
-                        isFailed = isOver,
-                        isActive = isActive,
-                        isOverdue = isOverdue,
-                        modifier = Modifier.clickable(
-                            enabled = timerMode != TimerMode.UNPLANNED_BREAK &&
-                                      timerMode != TimerMode.INFO &&
-                                      timerMode != TimerMode.UNLOCK &&
-                                      !(timerState.isDeepFocusLocking && baseQuest.id != timerState.activeQuestId)
-                        ) {
+                    run {
+                        val durationText = formatDuration(baseQuest.quest_duration_minutes)
+                        val timeText = if (isAllDayRange(baseQuest.time_range)) "All day" else "${formatTimeMinutes(startMin)} - ${formatTimeMinutes(endMin)}"
+                        val subtitle = "$durationText • $timeText"
+                        val statusColor = when {
+                            isOver || isOverdue -> Color(0xFFEF4444) // red-500
+                            isActive -> Color(0xFFF59E0B) // yellow-500
+                            isCompleted -> Color(0xFF10B981) // green-500
+                            else -> Color(0xFF10B981)
+                        }
+
+                        val onTileClick: () -> Unit = onTileClick@{
                             // --- Quest Interaction Restrictions ---
-                            
-                            // Check if this quest is finished and can reopen the "Quest Finished" dialog
                             if (isQuestFinishedAndCanReopen(baseQuest)) {
                                 finishedQuestId = baseQuest.id
                                 finishedQuestForReopening = baseQuest
                                 showQuestFinishedDialog = true
-                                return@clickable
+                                return@onTileClick
                             }
-                            
-                            // Check if there's an active or overdue quest blocking interactions
                             if (hasActiveOrOverdueQuestBlocking(baseQuest, questList)) {
-                                // Don't allow clicking on other quests when there's an active/overdue quest
-                                return@clickable
+                                return@onTileClick
                             }
-
-                            // --- Original Quest Locking Logic ---
                             // For completed quests, always open info screen directly
                             if (isCompleted) {
                                 viewQuest(baseQuest, navController)
-                                return@clickable
+                                return@onTileClick
                             }
-                            
-                            // For active quests, always open quest view screen directly (same as "Complete Quest")
+                            // For active quests, always open quest view screen directly
                             if (isActive) {
                                 navController.navigate(Screen.ViewQuest.route + baseQuest.id)
-                                return@clickable
+                                return@onTileClick
                             }
-                            
-                            // 1. Standard SwiftMark check (only if not locked by Deep Focus)
+                            // SwiftMark confirmation
                             if (baseQuest.integration_id == IntegrationId.SWIFT_MARK) {
                                 val sharedPreferences = context.getSharedPreferences("swift_mark_prefs", MODE_PRIVATE)
                                 val isConfirmed = sharedPreferences.getBoolean("is_confirmed_${baseQuest.id}", false)
-
                                 if (!isConfirmed) {
                                     selectedQuestForConfirmation = baseQuest
                                     showStartConfirmation = true
@@ -538,13 +563,51 @@ fun HomeScreen(navController: NavController) {
                                     viewQuest(baseQuest, navController)
                                 }
                             } else {
-                                // For non-SwiftMark quests, clicking them directly opens the view without confirmation.
                                 viewQuest(baseQuest, navController)
                             }
-                        })
+                        }
+
+                        val enabled = timerMode != TimerMode.UNPLANNED_BREAK &&
+                                      timerMode != TimerMode.INFO &&
+                                      timerMode != TimerMode.UNLOCK &&
+                                      !(timerState.isDeepFocusLocking && baseQuest.id != timerState.activeQuestId)
+
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            QuestTile(
+                                title = baseQuest.title,
+                                subtitle = subtitle,
+                                statusColor = statusColor,
+                                enabled = enabled,
+                                onClick = { if (enabled) onTileClick() },
+                                onPlay = { if (enabled) onTileClick() },
+                                modifier = Modifier
+                                    .fillMaxWidth(0.94f)
+                                    .height(tileHeight)
+                            )
+                        }
+                    }
+                    }
                 }
+                // Page indicator under the pager (e.g., 1/4), aligned to the right
+                if (pageCount > 1) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, end = 16.dp),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        Text(
+                            text = "${pagerState.currentPage + 1}/$pageCount",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF9CA3AF)
+                        )
+                    }
+                }
+            }
                 if(!isSetToDefaultLauncher(context)){
-                    item {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -584,8 +647,6 @@ fun HomeScreen(navController: NavController) {
                                 )
                             }
                         }
-
-                    }
                 }
             }
 
@@ -777,6 +838,77 @@ fun HomeScreen(navController: NavController) {
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun QuestTile(
+    title: String,
+    subtitle: String,
+    statusColor: Color,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    onPlay: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(enabled = enabled, onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF1F2937) // gray-800
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .width(6.dp)
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(statusColor)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF9CA3AF) // gray-400
+                    )
+                }
+            }
+            IconButton(onClick = onPlay, enabled = enabled) {
+                Icon(
+                    imageVector = Icons.Outlined.PlayCircle,
+                    contentDescription = "Play",
+                    tint = Color(0xFF9CA3AF)
+                )
+            }
+        }
+    }
+}
+
+private fun formatDuration(totalMinutes: Int): String {
+    val h = totalMinutes / 60
+    val m = totalMinutes % 60
+    return buildString {
+        if (h > 0) append("${h}h")
+        if (m > 0) {
+            if (isNotEmpty()) append(" ")
+            append("${m}m")
+        }
+        if (isEmpty()) append("0m")
     }
 }
 

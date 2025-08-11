@@ -41,7 +41,9 @@ import neth.iecal.questphone.ui.screens.quest.calculateQuestReward
 import neth.iecal.questphone.ui.screens.quest.view.components.MdPad
 import neth.iecal.questphone.ui.theme.JetBrainsMonoFont
 import neth.iecal.questphone.utils.QuestHelper
-import neth.iecal.questphone.utils.formatHour
+import neth.iecal.questphone.utils.formatTimeMinutes
+import neth.iecal.questphone.utils.toMinutesRange
+import neth.iecal.questphone.utils.isAllDayRange
 import neth.iecal.questphone.utils.getCurrentDate
 import java.time.Duration
 import java.util.UUID
@@ -228,7 +230,11 @@ fun SwiftMarkQuestView(
 
             if (!isInTimeRange.value) {
                 Text(
-                    text = "Time: ${formatHour(commonQuestInfo.time_range[0])} to ${formatHour(commonQuestInfo.time_range[1])}",
+                    text = run {
+                        val (s, e) = toMinutesRange(commonQuestInfo.time_range)
+                        if (isAllDayRange(commonQuestInfo.time_range)) "Time: All day"
+                        else "Time: ${formatTimeMinutes(s)} to ${formatTimeMinutes(e)}"
+                    },
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)
                 )
             }

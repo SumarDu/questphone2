@@ -145,6 +145,48 @@ fun formatHour(hour: Int): String {
         else -> "${hour - 12} PM"
     }
 }
+
+// New: format minutes-from-midnight to 12h string (e.g., 0 -> 12 AM, 780 -> 1:00 PM)
+fun formatTimeMinutes(totalMinutes: Int): String {
+    val minutes = ((totalMinutes % 1440) + 1440) % 1440 // normalize
+    val h24 = minutes / 60
+    val m = minutes % 60
+    val am = h24 < 12 || h24 == 24
+    val h12 = when (h24 % 12) {
+        0 -> 12
+        else -> h24 % 12
+    }
+    return if (m == 0) {
+        "$h12 ${if (am) "AM" else "PM"}"
+    } else {
+        String.format(Locale.getDefault(), "%d:%02d %s", h12, m, if (am) "AM" else "PM")
+    }
+}
+
+// New: convert a legacy hour-based range [hStart,hEnd] or minute-based [mStart,mEnd]
+// into a pair of minutes (start,end). All-day can be [0,24] or [0,1440].
+fun toMinutesRange(range: List<Int>): Pair<Int, Int> {
+    if (range.size < 2) return 0 to 1440
+    val (a, b) = range[0] to range[1]
+    return if (b > 24 || a > 24) {
+        // Already in minutes
+        a to b
+    } else {
+        // Legacy hours -> minutes
+        val start = a.coerceIn(0, 24) * 60
+        val end = b.coerceIn(0, 24) * 60
+        start to if (end == 0) 1440 else end
+    }
+}
+
+// New: recognizes all-day in both hour-based and minute-based ranges
+fun isAllDayRange(range: List<Int>): Boolean {
+    if (range.size < 2) return false
+    val a = range[0]
+    val b = range[1]
+    return (a == 0 && b == 24) || (a == 0 && b == 1440)
+}
+
 fun getAllDatesBetween(startDate: Date, endDate: Date): List<Date> {
     val dates = mutableListOf<Date>()
     val cal = Calendar.getInstance()

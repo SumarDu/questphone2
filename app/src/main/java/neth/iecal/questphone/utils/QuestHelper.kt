@@ -31,8 +31,10 @@ class QuestHelper(val context: Context) {
     }
 
     fun isOver(baseData: CommonQuestInfo): Boolean {
-        val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        return currentHour > baseData.time_range[1]
+        val cal = Calendar.getInstance()
+        val nowMinutes = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
+        val (start, end) = toMinutesRange(baseData.time_range)
+        return nowMinutes > end
     }
 
     companion object {
@@ -40,9 +42,10 @@ class QuestHelper(val context: Context) {
         private const val QUEST_IS_RUNNING_SUFFIX = "quest_state_"
 
         fun isInTimeRange(baseData: CommonQuestInfo): Boolean {
-            val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-            val timeRange = baseData.time_range
-            return currentHour in timeRange[0]..timeRange[1]
+            val cal = Calendar.getInstance()
+            val nowMinutes = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
+            val (start, end) = toMinutesRange(baseData.time_range)
+            return nowMinutes in start..end
         }
 
 
