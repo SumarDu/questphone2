@@ -87,6 +87,24 @@ class AppBlockerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Support starting the service with an action to eliminate broadcast timing issues
+        when (intent?.action) {
+            INTENT_ACTION_START_DEEP_FOCUS -> {
+                val exceptions = intent.getStringArrayListExtra("exception")
+                if (exceptions != null) {
+                    ServiceInfo.deepFocus.exceptionApps = exceptions.toHashSet()
+                }
+                ServiceInfo.deepFocus.isRunning = true
+                // Immediately configure focus mode
+                turnDeepFocus()
+            }
+            INTENT_ACTION_STOP_DEEP_FOCUS -> {
+                ServiceInfo.deepFocus.isRunning = false
+                ServiceInfo.deepFocus.exceptionApps = hashSetOf()
+                // Reload user-configured locked apps
+                loadLockedApps()
+            }
+        }
         return START_STICKY
     }
 

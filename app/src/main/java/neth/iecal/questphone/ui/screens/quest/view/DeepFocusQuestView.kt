@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +36,7 @@ import neth.iecal.questphone.data.timer.TimerService
 import android.util.Log
 import neth.iecal.questphone.ui.screens.launcher.TimerViewModel
 import java.util.concurrent.TimeUnit
+import java.util.UUID
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -85,8 +88,6 @@ import neth.iecal.questphone.utils.isAllDayRange
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.utils.json
 import neth.iecal.questphone.utils.sendRefreshRequest
-import java.util.UUID
-
 
 private const val NOTIFICATION_CHANNEL_ID = "focus_timer_channel"
 private const val NOTIFICATION_ID = 1001
@@ -171,11 +172,17 @@ fun DeepFocusQuestView(
     
     // Track if we've processed completion for the current session
     val hasProcessedCompletion = remember { mutableStateOf(false)}
+    // Flag to indicate that a session has JUST completed, to gate side-effects
+    val justCompletedSession = remember { mutableStateOf(false) }
+    // Track overdue state that requires explicit confirmation to grant reward and start break
+    val overduePending = remember { mutableStateOf(false) }
     
     // Non-Composable function to handle quest completion logic
     fun handleQuestCompletion() {
         if (hasProcessedCompletion.value) return
         hasProcessedCompletion.value = true
+        // Mark that we have just completed a session so LaunchedEffect can react once
+        justCompletedSession.value = true
         
         // Increment session count and update next focus duration
         val newCompletedWorkSessions = deepFocus.completedWorkSessions + 1
@@ -191,106 +198,71 @@ fun DeepFocusQuestView(
             }
         )
         sessionNumberForReview.value = newCompletedWorkSessions
-        showSessionReviewDialog.value = true
+        // Show review dialog immediately only for regular sessions (before minimum)
+        // For minimum and extra sessions, we defer showing until user presses 'Complete session'
+        if (newCompletedWorkSessions < deepFocus.minWorkSessions) {
+            showSessionReviewDialog.value = true
+        }
     }
     // Use LaunchedEffect to handle side effects when quest completes
     LaunchedEffect(deepFocus.completedWorkSessions) {
         val sessionsAfterComplete = deepFocus.completedWorkSessions
         if (sessionsAfterComplete == 0) return@LaunchedEffect
-        // Global idempotency: skip if this quest/session was already processed
-        val lastProcessed = neth.iecal.questphone.ui.screens.quest.RewardDialogInfo.lastProcessedSessionForQuest[commonQuestInfo.id]
-        if (lastProcessed == sessionsAfterComplete) return@LaunchedEffect
-        
-        // Handle rewards for completing minimum sessions
-        if (sessionsAfterComplete == deepFocus.minWorkSessions) {
-            val rewardAmount = calculateQuestReward(commonQuestInfo)
-            checkForRewards(commonQuestInfo, rewardAmount)
-            
-            // Also log this to stats
-            val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
-            statsDao.upsertStats(
-                StatsInfo(
-                    id = UUID.randomUUID().toString(),
-                    quest_id = commonQuestInfo.id,
-                    user_id = User.userInfo.id,
-                    reward_amount = rewardAmount
-                )
-            )
-            // Mark this session as processed globally
-            neth.iecal.questphone.ui.screens.quest.RewardDialogInfo.lastProcessedSessionForQuest[commonQuestInfo.id] = sessionsAfterComplete
-        } 
-        // Handle rewards for extra sessions
-        else if (sessionsAfterComplete > deepFocus.minWorkSessions && !rewardedSessions.value.contains(sessionsAfterComplete)) {
-            val rewardAmount = deepFocus.reward_per_extra_session
-            val preRewardCoins = User.userInfo.coins
-            User.addCoins(rewardAmount)
-            
-            // Mark this session as rewarded
-            rewardedSessions.value = rewardedSessions.value + sessionsAfterComplete
-            
-            // Log the reward
-            logQuestCompletionWithCoins(
-                context = context,
-                questInfo = commonQuestInfo,
-                rewardCoins = rewardAmount,
-                preRewardCoins = preRewardCoins
-            )
-            
-            // Log to stats
-            val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
-            statsDao.upsertStats(
-                StatsInfo(
-                    id = UUID.randomUUID().toString(),
-                    quest_id = commonQuestInfo.id,
-                    user_id = User.userInfo.id,
-                    reward_amount = rewardAmount
-                )
-            )
-            // Mark this session as processed globally
-            neth.iecal.questphone.ui.screens.quest.RewardDialogInfo.lastProcessedSessionForQuest[commonQuestInfo.id] = sessionsAfterComplete
+
+        if (sessionsAfterComplete >= deepFocus.minWorkSessions) {
+            // Overdue state must be shown even after screen re-entry if not yet confirmed
+            // Enter overdue for every session at or beyond minimum, but only if we haven't confirmed yet for this session
+            if (commonQuestInfo.last_completed_at == 0L) {
+                overduePending.value = true
+
+                // Persist updated quest state (keep quest_started_at to let TimerService show OVERTIME)
+                commonQuestInfo.quest_json = json.encodeToString(deepFocus)
+                commonQuestInfo.synced = false
+                commonQuestInfo.last_updated = System.currentTimeMillis()
+
+                scope.launch {
+                    Log.d("DeepFocusQuestView", "Saving Deep Focus session (pending overdue) to local DB for quest: ${commonQuestInfo.id}")
+                    dao.upsertQuest(commonQuestInfo)
+                }
+                // Stop service once when entering overdue
+                sendRefreshRequest(context, INTENT_ACTION_STOP_DEEP_FOCUS)
+                ServiceInfo.deepFocus.isRunning = false
+            } else {
+                // If last_completed_at already set, we've already confirmed and started break for this session
+                overduePending.value = false
+            }
+        } else if (sessionsAfterComplete < deepFocus.minWorkSessions) {
+            // Only run normal break flow immediately after a session completion
+            if (!justCompletedSession.value) return@LaunchedEffect
+            // Normal flow before reaching minimum: start a regular break without rewards
+            if (deepFocus.long_break_after_sessions > 0 && sessionsAfterComplete % deepFocus.long_break_after_sessions == 0) {
+                commonQuestInfo.break_duration_minutes = TimeUnit.MILLISECONDS.toMinutes(deepFocus.longBreakDurationInMillis).toInt()
+            } else {
+                commonQuestInfo.break_duration_minutes = TimeUnit.MILLISECONDS.toMinutes(deepFocus.breakDurationInMillis).toInt()
+            }
+
+            // Transition to break only once per session: act only if quest was running
+            if (commonQuestInfo.quest_started_at > 0L) {
+                commonQuestInfo.last_completed_at = System.currentTimeMillis()
+                commonQuestInfo.quest_started_at = 0
+                // Stop service once when transitioning to break
+                sendRefreshRequest(context, INTENT_ACTION_STOP_DEEP_FOCUS)
+                ServiceInfo.deepFocus.isRunning = false
+            }
+            commonQuestInfo.quest_json = json.encodeToString(deepFocus)
+            commonQuestInfo.synced = false
+            commonQuestInfo.last_updated = System.currentTimeMillis()
+
+            dao.upsertQuest(commonQuestInfo)
+            overduePending.value = false
         }
-
-    val isQuestFullyComplete = sessionsAfterComplete >= deepFocus.maxWorkSessions
-
-    if (isQuestFullyComplete) {
-        // Quest is fully done, mark as complete and reset for the next time.
-        commonQuestInfo.last_completed_on = getCurrentDate()
-        commonQuestInfo.last_completed_at = System.currentTimeMillis()
-        isQuestComplete.value = true
-        // The quest cycle is complete. The state will be reset after the session review.
+        // Reset the one-shot completion flag after handling side-effects
+        justCompletedSession.value = false
     }
-
-    // Set break duration for the upcoming break
-    if (deepFocus.long_break_after_sessions > 0 && sessionsAfterComplete % deepFocus.long_break_after_sessions == 0) {
-        // Time for a long break
-        commonQuestInfo.break_duration_minutes = TimeUnit.MILLISECONDS.toMinutes(deepFocus.longBreakDurationInMillis).toInt()
-    } else {
-        // Regular break
-        commonQuestInfo.break_duration_minutes = TimeUnit.MILLISECONDS.toMinutes(deepFocus.breakDurationInMillis).toInt()
-    }
-
-    // Update quest state in DB after every session.
-    commonQuestInfo.quest_json = json.encodeToString(deepFocus)
-    commonQuestInfo.synced = false
-    commonQuestInfo.last_updated = System.currentTimeMillis()
-    commonQuestInfo.quest_started_at = 0
-    // Signal break start ONLY if it wasn't initialized yet (existing <= 0).
-    // Do NOT reinitialize during ongoing or overdue break on screen re-entry.
-    if (commonQuestInfo.last_completed_at <= 0L) {
-        commonQuestInfo.last_completed_at = System.currentTimeMillis()
-    }
-
-    scope.launch {
-        Log.d("DeepFocusQuestView", "Saving Deep Focus session to local DB for quest: ${commonQuestInfo.id}")
-        dao.upsertQuest(commonQuestInfo)
-    }
-
-    // Stop the foreground service and timer after each session.
-    sendRefreshRequest(context, INTENT_ACTION_STOP_DEEP_FOCUS)
-    ServiceInfo.deepFocus.isRunning = false
-}
 
     fun launchQuest(topic: String) {
+        // Reset completion guard for the new session so it can be counted on finish
+        hasProcessedCompletion.value = false
         val isRegularBlock = deepFocus.completedWorkSessions < deepFocus.minWorkSessions
         deepFocus = if (isRegularBlock) {
             deepFocus.copy(currentRegularTopic = topic)
@@ -315,17 +287,28 @@ fun DeepFocusQuestView(
         val timerServiceIntent = Intent(context, TimerService::class.java)
         context.startService(timerServiceIntent)
 
-        if (!ServiceInfo.isUsingAccessibilityService && ServiceInfo.appBlockerService == null) {
-            startForegroundService(context, Intent(context, AppBlockerService::class.java))
-        }
+        // Set flags BEFORE starting the app blocker service to avoid race on first launch
         ServiceInfo.deepFocus.isRunning = true
         ServiceInfo.deepFocus.exceptionApps = deepFocus.unrestrictedApps.toHashSet()
-        val intent = Intent(INTENT_ACTION_START_DEEP_FOCUS)
-        intent.putStringArrayListExtra("exception", deepFocus.unrestrictedApps.toCollection(ArrayList()))
-        context.sendBroadcast(intent)
+
+        if (!ServiceInfo.isUsingAccessibilityService && ServiceInfo.appBlockerService == null) {
+            // Start service with action and extras so it can initialize immediately (no broadcast race)
+            val appBlockerIntent = Intent(context, AppBlockerService::class.java).apply {
+                action = INTENT_ACTION_START_DEEP_FOCUS
+                putStringArrayListExtra("exception", deepFocus.unrestrictedApps.toCollection(ArrayList()))
+            }
+            startForegroundService(context, appBlockerIntent)
+        } else {
+            // If service already running, send broadcast to refresh
+            val intent = Intent(INTENT_ACTION_START_DEEP_FOCUS)
+            intent.putStringArrayListExtra("exception", deepFocus.unrestrictedApps.toCollection(ArrayList()))
+            context.sendBroadcast(intent)
+        }
     }
 
     fun startQuest() {
+        // Do not allow starting a new session if the quest is already fully completed
+        if (isQuestComplete.value) return
         val sessions = deepFocus.completedWorkSessions
         val isRegularBlock = sessions < deepFocus.minWorkSessions
 
@@ -518,7 +501,70 @@ fun DeepFocusQuestView(
         },
         onQuestCompleted = { handleQuestCompletion() },
         isQuestCompleted = isQuestComplete,
-        questStartComponent = null
+        questStartComponent = if (overduePending.value && deepFocus.completedWorkSessions >= deepFocus.minWorkSessions) {
+            {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            // Guard: avoid double-processing if already confirmed
+                            if (commonQuestInfo.last_completed_at != 0L) {
+                                overduePending.value = false
+                                return@launch
+                            }
+                            val sessionsAfterComplete = deepFocus.completedWorkSessions
+                            // Grant reward depending on session stage
+                            val rewardAmount = if (sessionsAfterComplete == deepFocus.minWorkSessions) {
+                                calculateQuestReward(commonQuestInfo)
+                            } else {
+                                deepFocus.reward_per_extra_session
+                            }
+                            checkForRewards(commonQuestInfo, rewardAmount)
+                            val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
+                            statsDao.upsertStats(
+                                StatsInfo(
+                                    id = UUID.randomUUID().toString(),
+                                    quest_id = commonQuestInfo.id,
+                                    user_id = User.userInfo.id,
+                                    reward_amount = rewardAmount
+                                )
+                            )
+                            neth.iecal.questphone.ui.screens.quest.RewardDialogInfo.lastProcessedSessionForQuest[commonQuestInfo.id] = sessionsAfterComplete
+
+                            // Set break duration
+                            if (deepFocus.long_break_after_sessions > 0 && sessionsAfterComplete % deepFocus.long_break_after_sessions == 0) {
+                                commonQuestInfo.break_duration_minutes = TimeUnit.MILLISECONDS.toMinutes(deepFocus.longBreakDurationInMillis).toInt()
+                            } else {
+                                commonQuestInfo.break_duration_minutes = TimeUnit.MILLISECONDS.toMinutes(deepFocus.breakDurationInMillis).toInt()
+                            }
+
+                            // Mark quest done for the day if max sessions reached
+                            val isQuestFullyComplete = sessionsAfterComplete >= deepFocus.maxWorkSessions
+                            if (isQuestFullyComplete) {
+                                commonQuestInfo.last_completed_on = getCurrentDate()
+                                isQuestComplete.value = true
+                            }
+
+                            // Start break and persist
+                            commonQuestInfo.last_completed_at = System.currentTimeMillis()
+                            commonQuestInfo.quest_started_at = 0
+                            commonQuestInfo.quest_json = json.encodeToString(deepFocus)
+                            commonQuestInfo.synced = false
+                            commonQuestInfo.last_updated = System.currentTimeMillis()
+
+                            dao.upsertQuest(commonQuestInfo)
+                            overduePending.value = false
+
+                            // Trigger review flows now that user confirmed completion
+                            sessionNumberForReview.value = sessionsAfterComplete
+                            showSessionReviewDialog.value = true
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Complete session")
+                }
+            }
+        } else null
     ) {
 
         Column(
@@ -570,6 +616,8 @@ fun DeepFocusQuestView(
                 modifier = Modifier.padding(top = 32.dp)
             )
 
+            // Overdue confirmation button moved to Start area via questStartComponent
+
             if (deepFocus.minWorkSessions > 1) {
                 Text(
                     text = "Sessions: ${deepFocus.completedWorkSessions} / ${deepFocus.minWorkSessions}",
@@ -582,7 +630,7 @@ fun DeepFocusQuestView(
                     (1..deepFocus.maxWorkSessions).forEach { sessionNumber ->
                         val isCompleted = sessionNumber <= deepFocus.completedWorkSessions
                         val isOptional = sessionNumber > deepFocus.minWorkSessions
-                        val isClickable = (sessionNumber == deepFocus.completedWorkSessions + 1) && !isQuestRunning
+                        val isClickable = (sessionNumber == deepFocus.completedWorkSessions + 1) && !isQuestRunning && !overduePending.value && !isQuestComplete.value
 
                         val color = when {
                             isCompleted -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)

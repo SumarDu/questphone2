@@ -817,7 +817,8 @@ class TimerService : Service() {
                 if (state.isBreakOvertime) {
                     "overdue (break)"
                 } else if (quest?.integration_id == IntegrationId.DEEP_FOCUS) {
-                    quest.title // Keep the original quest event running
+                    // Use a distinct name so overdue is logged as a separate event in quest_events
+                    "overdue (${quest.title})"
                 } else {
                     "overdue (${quest?.title})"
                 }
