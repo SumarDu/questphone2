@@ -13,10 +13,15 @@ fun ConcentrationDropReasonDialog(
     onConfirm: (String) -> Unit
 ) {
     var reason by remember { mutableStateOf("") }
+    val isConfirmEnabled = reason.isNotBlank()
 
     AlertDialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        onDismissRequest = {},
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false
+        ),
         modifier = Modifier.fillMaxWidth(0.95f),
         title = { Text(text = "Concentration Drop Reason") },
         text = {
@@ -35,7 +40,7 @@ fun ConcentrationDropReasonDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(reason) }) {
+            Button(onClick = { onConfirm(reason) }, enabled = isConfirmEnabled) {
                 Text("Confirm")
             }
         }

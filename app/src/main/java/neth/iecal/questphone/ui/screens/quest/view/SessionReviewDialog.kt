@@ -86,10 +86,15 @@ fun SessionReviewDialog(
     var concentration by remember { mutableStateOf(0) }
     var productivity by remember { mutableStateOf(5) }
     var wordsStudied by remember { mutableStateOf("") }
+    val isConfirmEnabled = concentration > 0 && productivity > 0
 
     AlertDialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        onDismissRequest = {},
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false
+        ),
         modifier = Modifier.fillMaxWidth(0.95f),
         title = { Text(text = "Session Review") },
         text = {
@@ -123,7 +128,10 @@ fun SessionReviewDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(concentration, productivity, wordsStudied.toIntOrNull() ?: 0) }) {
+            Button(
+                onClick = { onConfirm(concentration, productivity, wordsStudied.toIntOrNull() ?: 0) },
+                enabled = isConfirmEnabled
+            ) {
                 Text("Confirm")
             }
         }

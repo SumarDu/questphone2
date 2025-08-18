@@ -292,9 +292,8 @@ fun RewardDialogMaker(  ) {
                 CoinDialog(
                     reward = coinsEarned,
                     onDismiss = {
-                        // If user leveled up, show level up dialog next, otherwise end
-                        RewardDialogInfo.currentDialog =
-                            if (didUserLevelUp) DialogState.LEVEL_UP else DialogState.NONE
+                        // Skip Level Up dialog; end flow after coins
+                        RewardDialogInfo.currentDialog = DialogState.NONE
                     }
                 )
             }
@@ -311,8 +310,8 @@ fun RewardDialogMaker(  ) {
 
             DialogState.STREAK_UP -> {
                 StreakUpDialog {
-                    RewardDialogInfo.currentDialog =
-                        if (didUserLevelUp) DialogState.LEVEL_UP else DialogState.NONE
+                    // Skip Level Up dialog after streak up; end flow
+                    RewardDialogInfo.currentDialog = DialogState.NONE
                 }
             }
             DialogState.STREAK_FAILED ->

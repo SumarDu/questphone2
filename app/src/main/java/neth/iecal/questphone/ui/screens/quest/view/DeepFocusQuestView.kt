@@ -176,6 +176,52 @@ fun DeepFocusQuestView(
     val justCompletedSession = remember { mutableStateOf(false) }
     // Track overdue state that requires explicit confirmation to grant reward and start break
     val overduePending = remember { mutableStateOf(false) }
+    // Capture reliable start time of the just-finished session for logging
+    var completedSessionStartTime by remember { mutableStateOf(0L) }
+
+    // AI Photo Proof integration (reuse existing `context` declared earlier)
+    val settingsRepository = remember { neth.iecal.questphone.data.settings.SettingsRepository(context) }
+    val settings by settingsRepository.settings.collectAsState()
+    val pendingPostProofAction = remember { mutableStateOf<(() -> Unit)?>(null) }
+    var isPhotoProofLoading by remember { mutableStateOf(false) }
+    val cameraLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.TakePicturePreview(),
+        onResult = { bitmap ->
+            if (bitmap != null) {
+                isPhotoProofLoading = true
+                scope.launch {
+                    val apiKey = settings.geminiApiKey
+                    if (apiKey.isNullOrBlank()) {
+                        android.widget.Toast.makeText(context, "Gemini API Key is not set", android.widget.Toast.LENGTH_LONG).show()
+                        isPhotoProofLoading = false
+                        return@launch
+                    }
+                    val (isMatch, _) = neth.iecal.questphone.data.ai.GeminiPro.verifyImage(
+                        commonQuestInfo.ai_photo_proof_description,
+                        apiKey,
+                        bitmap
+                    )
+                    if (isMatch) {
+                        pendingPostProofAction.value?.invoke()
+                    } else {
+                        android.widget.Toast.makeText(context, "Photo does not match the required description.", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                    isPhotoProofLoading = false
+                    pendingPostProofAction.value = null
+                }
+            }
+        }
+    )
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                cameraLauncher.launch(null)
+            } else {
+                android.widget.Toast.makeText(context, "Camera permission is required for AI Photo Proof", android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+    )
     
     // Non-Composable function to handle quest completion logic
     fun handleQuestCompletion() {
@@ -183,6 +229,12 @@ fun DeepFocusQuestView(
         hasProcessedCompletion.value = true
         // Mark that we have just completed a session so LaunchedEffect can react once
         justCompletedSession.value = true
+        // Snapshot session start time for logging before any state resets
+        completedSessionStartTime = if (commonQuestInfo.quest_started_at > 0) {
+            commonQuestInfo.quest_started_at
+        } else {
+            sessionStartTime
+        }
         
         // Increment session count and update next focus duration
         val newCompletedWorkSessions = deepFocus.completedWorkSessions + 1
@@ -326,6 +378,10 @@ fun DeepFocusQuestView(
     }
 
     LaunchedEffect(Unit) {
+        // If process/view was recreated during a running session, restore start time from persisted state
+        if (sessionStartTime == 0L && commonQuestInfo.quest_started_at > 0L) {
+            sessionStartTime = commonQuestInfo.quest_started_at
+        }
         timerViewModel.questFinishedEvent.collect { questId ->
             if (questId == commonQuestInfo.id) {
                 handleQuestCompletion()
@@ -349,6 +405,11 @@ fun DeepFocusQuestView(
     val progressState = remember(progress) { mutableFloatStateOf(progress) }
 
     if (showQuestCompletionReviewDialog.value) {
+        // Decide if the "Later" button should be shown: only for extra sessions except the last one
+        val sessionsNow = deepFocus.completedWorkSessions
+        val effectiveSessions = if (sessionsNow == 0 && isQuestComplete.value) deepFocus.maxWorkSessions else sessionsNow
+        val showLaterButton = effectiveSessions > deepFocus.minWorkSessions && effectiveSessions < deepFocus.maxWorkSessions
+
         QuestCompletionReviewDialog(
             onDismiss = { showQuestCompletionReviewDialog.value = false },
             onConfirm = { difficulty, mood ->
@@ -366,7 +427,8 @@ fun DeepFocusQuestView(
                     WorkManager.getInstance(context).enqueue(syncWorkRequest)
                 }
                 showQuestCompletionReviewDialog.value = false
-            }
+            },
+            showLater = showLaterButton
         )
     }
 
@@ -414,11 +476,21 @@ fun DeepFocusQuestView(
                         val sessionNumber = sessionNumberForReview.value
                         val sessionType = if (sessionNumber <= deepFocus.minWorkSessions) "regular" else "extra"
 
+                        val plannedDuration = kotlin.runCatching { TimeUnit.MINUTES.toMillis(commonQuestInfo.quest_duration_minutes.toLong()) }.getOrDefault(0L)
+                        val inferredStart = if (plannedDuration > 0) endTime - plannedDuration else 0L
+                        val startMs = when {
+                            completedSessionStartTime > 0L -> completedSessionStartTime
+                            sessionStartTime > 0L -> sessionStartTime
+                            commonQuestInfo.quest_started_at > 0L -> commonQuestInfo.quest_started_at
+                            inferredStart > 0L -> inferredStart
+                            else -> endTime
+                        }
+                        val durationMs = if (startMs in 1 until endTime) endTime - startMs else 0L
                         val newLog = DeepFocusSessionLog(
                             questId = commonQuestInfo.id,
                             questName = commonQuestInfo.title,
-                            sessionStartTime = sessionStartTime,
-                            sessionDuration = if (sessionStartTime > 0) endTime - sessionStartTime else 0,
+                            sessionStartTime = startMs,
+                            sessionDuration = durationMs,
                             timestamp = endTime,
                             sessionNumber = sessionNumber,
                             sessionType = sessionType,
@@ -430,6 +502,14 @@ fun DeepFocusQuestView(
 
                         Log.d("DeepFocusQuestView", "Saving Deep Focus session log to local DB: ${newLog.client_uuid}")
                         deepFocusSessionLogDao.insert(newLog)
+
+                        // Clear quest_started_at immediately after local log so TimerService can switch to BREAK promptly
+                        if (commonQuestInfo.quest_started_at > 0L) {
+                            commonQuestInfo.quest_started_at = 0
+                            commonQuestInfo.last_updated = System.currentTimeMillis()
+                            commonQuestInfo.synced = false
+                            dao.upsertQuest(commonQuestInfo)
+                        }
 
                         Log.d("DeepFocusQuestView", "Syncing Deep Focus session log to Supabase: ${newLog.client_uuid}")
                         supabaseSyncService.syncDeepFocusLog(newLog)
@@ -459,11 +539,21 @@ fun DeepFocusQuestView(
                         val sessionNumber = sessionNumberForReview.value
                         val sessionType = if (sessionNumber <= deepFocus.minWorkSessions) "regular" else "extra"
 
+                        val plannedDuration2 = kotlin.runCatching { TimeUnit.MINUTES.toMillis(commonQuestInfo.quest_duration_minutes.toLong()) }.getOrDefault(0L)
+                        val inferredStart2 = if (plannedDuration2 > 0) endTime - plannedDuration2 else 0L
+                        val startMs2 = when {
+                            completedSessionStartTime > 0L -> completedSessionStartTime
+                            sessionStartTime > 0L -> sessionStartTime
+                            commonQuestInfo.quest_started_at > 0L -> commonQuestInfo.quest_started_at
+                            inferredStart2 > 0L -> inferredStart2
+                            else -> endTime
+                        }
+                        val durationMs2 = if (startMs2 in 1 until endTime) endTime - startMs2 else 0L
                         val newLog = DeepFocusSessionLog(
                             questId = commonQuestInfo.id,
                             questName = commonQuestInfo.title,
-                            sessionStartTime = sessionStartTime,
-                            sessionDuration = if (sessionStartTime > 0) endTime - sessionStartTime else 0,
+                            sessionStartTime = startMs2,
+                            sessionDuration = durationMs2,
                             timestamp = endTime,
                             sessionNumber = sessionNumber,
                             sessionType = sessionType,
@@ -518,6 +608,62 @@ fun DeepFocusQuestView(
                             } else {
                                 deepFocus.reward_per_extra_session
                             }
+                            // If AI Photo Proof enabled, gate the rest of the flow behind successful proof
+                            if (commonQuestInfo.ai_photo_proof) {
+                                pendingPostProofAction.value = {
+                                    scope.launch {
+                                        checkForRewards(commonQuestInfo, rewardAmount)
+                                        val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
+                                        statsDao.upsertStats(
+                                            StatsInfo(
+                                                id = UUID.randomUUID().toString(),
+                                                quest_id = commonQuestInfo.id,
+                                                user_id = User.userInfo.id,
+                                                reward_amount = rewardAmount
+                                            )
+                                        )
+                                        neth.iecal.questphone.ui.screens.quest.RewardDialogInfo.lastProcessedSessionForQuest[commonQuestInfo.id] = sessionsAfterComplete
+
+                                        // Set break duration
+                                        if (deepFocus.long_break_after_sessions > 0 && sessionsAfterComplete % deepFocus.long_break_after_sessions == 0) {
+                                            commonQuestInfo.break_duration_minutes = java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(deepFocus.longBreakDurationInMillis).toInt()
+                                        } else {
+                                            commonQuestInfo.break_duration_minutes = java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(deepFocus.breakDurationInMillis).toInt()
+                                        }
+
+                                        // Mark quest done for the day if max sessions reached
+                                        val isQuestFullyComplete = sessionsAfterComplete >= deepFocus.maxWorkSessions
+                                        if (isQuestFullyComplete) {
+                                            commonQuestInfo.last_completed_on = getCurrentDate()
+                                            isQuestComplete.value = true
+                                        }
+
+                                        // Start break and persist (clear quest_started_at now so TimerService enters BREAK)
+                                        commonQuestInfo.last_completed_at = System.currentTimeMillis()
+                                        commonQuestInfo.quest_started_at = 0
+                                        commonQuestInfo.quest_json = json.encodeToString(deepFocus)
+                                        commonQuestInfo.synced = false
+                                        commonQuestInfo.last_updated = System.currentTimeMillis()
+
+                                        dao.upsertQuest(commonQuestInfo)
+                                        overduePending.value = false
+
+                                        // Trigger review flows now that user confirmed completion
+                                        sessionNumberForReview.value = sessionsAfterComplete
+                                        showSessionReviewDialog.value = true
+                                    }
+                                }
+                                // Request camera or permission
+                                when (android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                    androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) -> {
+                                        cameraLauncher.launch(null)
+                                    }
+                                    else -> {
+                                        permissionLauncher.launch(android.Manifest.permission.CAMERA)
+                                    }
+                                }
+                                return@launch
+                            }
                             checkForRewards(commonQuestInfo, rewardAmount)
                             val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
                             statsDao.upsertStats(
@@ -544,7 +690,7 @@ fun DeepFocusQuestView(
                                 isQuestComplete.value = true
                             }
 
-                            // Start break and persist
+                            // Start break and persist (clear quest_started_at now so TimerService enters BREAK)
                             commonQuestInfo.last_completed_at = System.currentTimeMillis()
                             commonQuestInfo.quest_started_at = 0
                             commonQuestInfo.quest_json = json.encodeToString(deepFocus)

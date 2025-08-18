@@ -111,15 +111,21 @@ fun EmojiMoodScale(label: String, rating: Int, onRatingSelected: (Int) -> Unit) 
 @Composable
 fun QuestCompletionReviewDialog(
     onDismiss: () -> Unit,
-    onConfirm: (difficulty: Int, mood: Int) -> Unit
+    onConfirm: (difficulty: Int, mood: Int) -> Unit,
+    showLater: Boolean = false
 ) {
     var difficulty by remember { mutableStateOf(0) }
 
     var mood by remember { mutableStateOf(0) }
+    val isConfirmEnabled = difficulty > 0 && mood > 0
 
     AlertDialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        onDismissRequest = {},
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false
+        ),
         modifier = Modifier.fillMaxWidth(0.95f),
         title = { Text(text = "Quest Review") },
         text = {
@@ -139,13 +145,13 @@ fun QuestCompletionReviewDialog(
                 )
             }
         },
-        dismissButton = {
-            Button(onClick = onDismiss) {
-                Text("Later")
+        dismissButton = if (showLater) {
+            {
+                Button(onClick = onDismiss) { Text("Later") }
             }
-        },
+        } else null,
         confirmButton = {
-            Button(onClick = { onConfirm(difficulty, mood) }) {
+            Button(onClick = { onConfirm(difficulty, mood) }, enabled = isConfirmEnabled) {
                 Text("Confirm")
             }
         }
