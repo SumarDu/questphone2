@@ -191,6 +191,19 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
                         )
                     }
 
+                    // QR proof toggle
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("QR Proof", style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = questInfoState.qrProof,
+                            onCheckedChange = { questInfoState.qrProof = it }
+                        )
+                    }
+
                     OutlinedButton(
                         onClick = { showDialog.value = true },
                     ) {
@@ -245,7 +258,9 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
                             isReviewDialogVisible.value = true
 
                         },
-                        enabled = questInfoState.selectedDays.isNotEmpty() && (settings.isQuestCreationEnabled || editQuestId != null),
+                        enabled =
+                            questInfoState.selectedDays.isNotEmpty() &&
+                            (settings.isQuestCreationEnabled || editQuestId != null),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

@@ -38,6 +38,8 @@ import neth.iecal.questphone.ui.screens.launcher.TimerViewModel
 import java.util.concurrent.TimeUnit
 import java.util.UUID
 import androidx.compose.foundation.background
+import kotlinx.coroutines.tasks.await
+ 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -88,6 +90,9 @@ import neth.iecal.questphone.utils.isAllDayRange
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.utils.json
 import neth.iecal.questphone.utils.sendRefreshRequest
+
+// Proof mode for completion gating
+enum class ProofMode { NONE, PHOTO, QR }
 
 private const val NOTIFICATION_CHANNEL_ID = "focus_timer_channel"
 private const val NOTIFICATION_ID = 1001
@@ -183,30 +188,61 @@ fun DeepFocusQuestView(
     val settingsRepository = remember { neth.iecal.questphone.data.settings.SettingsRepository(context) }
     val settings by settingsRepository.settings.collectAsState()
     val pendingPostProofAction = remember { mutableStateOf<(() -> Unit)?>(null) }
-    var isPhotoProofLoading by remember { mutableStateOf(false) }
+    var proofMode by remember { mutableStateOf(ProofMode.NONE) }
+    var isProofLoading by remember { mutableStateOf(false) }
     val cameraLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.TakePicturePreview(),
         onResult = { bitmap ->
             if (bitmap != null) {
-                isPhotoProofLoading = true
+                isProofLoading = true
                 scope.launch {
-                    val apiKey = settings.geminiApiKey
-                    if (apiKey.isNullOrBlank()) {
-                        android.widget.Toast.makeText(context, "Gemini API Key is not set", android.widget.Toast.LENGTH_LONG).show()
-                        isPhotoProofLoading = false
-                        return@launch
+                    when (proofMode) {
+                        ProofMode.PHOTO -> {
+                            val apiKey = settings.geminiApiKey
+                            if (apiKey.isNullOrBlank()) {
+                                android.widget.Toast.makeText(context, "Gemini API Key is not set", android.widget.Toast.LENGTH_LONG).show()
+                                isProofLoading = false
+                                proofMode = ProofMode.NONE
+                                return@launch
+                            }
+                            val (isMatch, _) = neth.iecal.questphone.data.ai.GeminiPro.verifyImage(
+                                commonQuestInfo.ai_photo_proof_description,
+                                apiKey,
+                                bitmap
+                            )
+                            if (isMatch) {
+                                pendingPostProofAction.value?.invoke()
+                            } else {
+                                android.widget.Toast.makeText(context, "Photo does not match the required description.", android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        }
+                        ProofMode.QR -> {
+                            try {
+                                val image = com.google.mlkit.vision.common.InputImage.fromBitmap(bitmap, 0)
+                                val options = com.google.mlkit.vision.barcode.BarcodeScannerOptions.Builder()
+                                    .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_QR_CODE)
+                                    .build()
+                                val scanner = com.google.mlkit.vision.barcode.BarcodeScanning.getClient(options)
+                                val barcodes = scanner.process(image).await()
+                                val payload: String = barcodes.firstOrNull()?.rawValue ?: ""
+                                if (payload.isNotBlank()) {
+                                    val ok = neth.iecal.questphone.utils.QrProofUtils.validateWithGlobalSecret(payload)
+                                    if (ok) {
+                                        pendingPostProofAction.value?.invoke()
+                                    } else {
+                                        android.widget.Toast.makeText(context, "Invalid or expired QR code.", android.widget.Toast.LENGTH_LONG).show()
+                                    }
+                                } else {
+                                    android.widget.Toast.makeText(context, "No QR code detected.", android.widget.Toast.LENGTH_LONG).show()
+                                }
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(context, "Failed to process QR code.", android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        }
+                        else -> { /* no-op */ }
                     }
-                    val (isMatch, _) = neth.iecal.questphone.data.ai.GeminiPro.verifyImage(
-                        commonQuestInfo.ai_photo_proof_description,
-                        apiKey,
-                        bitmap
-                    )
-                    if (isMatch) {
-                        pendingPostProofAction.value?.invoke()
-                    } else {
-                        android.widget.Toast.makeText(context, "Photo does not match the required description.", android.widget.Toast.LENGTH_LONG).show()
-                    }
-                    isPhotoProofLoading = false
+                    isProofLoading = false
+                    proofMode = ProofMode.NONE
                     pendingPostProofAction.value = null
                 }
             }
@@ -218,7 +254,7 @@ fun DeepFocusQuestView(
             if (isGranted) {
                 cameraLauncher.launch(null)
             } else {
-                android.widget.Toast.makeText(context, "Camera permission is required for AI Photo Proof", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(context, "Camera permission is required for proof", android.widget.Toast.LENGTH_LONG).show()
             }
         }
     )
@@ -608,8 +644,8 @@ fun DeepFocusQuestView(
                             } else {
                                 deepFocus.reward_per_extra_session
                             }
-                            // If AI Photo Proof enabled, gate the rest of the flow behind successful proof
-                            if (commonQuestInfo.ai_photo_proof) {
+                            // If QR or AI Photo Proof enabled, gate the rest of the flow behind successful proof
+                            if (commonQuestInfo.qr_proof || commonQuestInfo.ai_photo_proof) {
                                 pendingPostProofAction.value = {
                                     scope.launch {
                                         checkForRewards(commonQuestInfo, rewardAmount)
@@ -652,6 +688,16 @@ fun DeepFocusQuestView(
                                         sessionNumberForReview.value = sessionsAfterComplete
                                         showSessionReviewDialog.value = true
                                     }
+                                }
+                                // Decide proof mode and launch camera
+                                if (commonQuestInfo.qr_proof) {
+                                    if (commonQuestInfo.qr_secret_key.isBlank()) {
+                                        android.widget.Toast.makeText(context, "QR secret key is not configured", android.widget.Toast.LENGTH_LONG).show()
+                                        return@launch
+                                    }
+                                    proofMode = ProofMode.QR
+                                } else if (commonQuestInfo.ai_photo_proof) {
+                                    proofMode = ProofMode.PHOTO
                                 }
                                 // Request camera or permission
                                 when (android.content.pm.PackageManager.PERMISSION_GRANTED) {

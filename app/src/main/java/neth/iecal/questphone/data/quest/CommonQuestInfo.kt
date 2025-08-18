@@ -71,6 +71,9 @@ data class CommonQuestInfo(
     var is_destroyed : Boolean = false,
     var ai_photo_proof: Boolean = false,
     var ai_photo_proof_description: String = "",
+    // QR validation gating
+    var qr_proof: Boolean = false,
+    var qr_secret_key: String = "",
     var quest_duration_minutes: Int = 0,
     var break_duration_minutes: Int = 0,
     var last_completed_at: Long = 0,
@@ -96,6 +99,8 @@ class QuestInfoState(
     initialTimeRange: List<Int> = listOf(0,24),
     initialAiPhotoProof: Boolean = false,
     initialAiPhotoProofDescription: String = "",
+    initialQrProof: Boolean = false,
+    initialQrSecretKey: String = "",
     initialQuestDurationMinutes: Int = 0,
     initialBreakDurationMinutes: Int = 0,
     initialLastCompletedAt: Long = 0,
@@ -114,6 +119,8 @@ class QuestInfoState(
     var initialTimeRange by mutableStateOf(initialTimeRange)
     var aiPhotoProof by mutableStateOf(initialAiPhotoProof)
     var aiPhotoProofDescription by mutableStateOf(initialAiPhotoProofDescription)
+    var qrProof by mutableStateOf(initialQrProof)
+    var qrSecretKey by mutableStateOf(initialQrSecretKey)
     var questDurationMinutes by mutableIntStateOf(initialQuestDurationMinutes)
     var breakDurationMinutes by mutableIntStateOf(initialBreakDurationMinutes)
     var lastCompletedAt by mutableLongStateOf(initialLastCompletedAt)
@@ -133,6 +140,8 @@ class QuestInfoState(
         quest_json = if(questInfo!=null) json.encodeToString(questInfo) else "",
         ai_photo_proof = aiPhotoProof,
         ai_photo_proof_description = aiPhotoProofDescription,
+        qr_proof = qrProof,
+        qr_secret_key = qrSecretKey,
         quest_duration_minutes = questDurationMinutes,
         break_duration_minutes = breakDurationMinutes,
         last_completed_at = lastCompletedAt,
@@ -151,13 +160,15 @@ class QuestInfoState(
         initialTimeRange = commonQuestInfo.time_range
         aiPhotoProof = commonQuestInfo.ai_photo_proof
         aiPhotoProofDescription = commonQuestInfo.ai_photo_proof_description
+        qrProof = commonQuestInfo.qr_proof
+        qrSecretKey = commonQuestInfo.qr_secret_key
         questDurationMinutes = commonQuestInfo.quest_duration_minutes
         breakDurationMinutes = commonQuestInfo.break_duration_minutes
         lastCompletedAt = commonQuestInfo.last_completed_at
         questStartedAt = commonQuestInfo.quest_started_at
     }
-}
 
+}
 
 object BaseQuestConverter {
 
@@ -256,7 +267,7 @@ interface QuestDao {
 
 
 
-@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class], version = 20, exportSchema = false)
+@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class], version = 21, exportSchema = false)
 @TypeConverters(BaseQuestConverter::class)
 abstract class QuestDatabase : RoomDatabase() {
     abstract fun appUnlockerItemDao(): AppUnlockerItemDao
@@ -285,6 +296,16 @@ val MIGRATION_17_18 = object : Migration(17, 18) {
     }
 }
 
+// Add QR proof columns to CommonQuestInfo
+val MIGRATION_20_21 = object : Migration(20, 21) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Boolean in Room backed by INTEGER with default 0
+        database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN qr_proof INTEGER NOT NULL DEFAULT 0")
+        // Secret key string for HMAC validation
+        database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN qr_secret_key TEXT NOT NULL DEFAULT ''")
+    }
+}
+
 object QuestDatabaseProvider {
     @Volatile
     private var INSTANCE: QuestDatabase? = null
@@ -295,7 +316,7 @@ object QuestDatabaseProvider {
                 context.applicationContext,
                 QuestDatabase::class.java,
                 "quest_database"
-            ).addMigrations(MIGRATION_18_19, MIGRATION_19_20).fallbackToDestructiveMigration().build()
+            ).addMigrations(MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21).fallbackToDestructiveMigration().build()
             INSTANCE = instance
             instance
         }

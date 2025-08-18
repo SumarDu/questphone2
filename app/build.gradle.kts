@@ -136,4 +136,7 @@ dependencies {
     implementation (libs.guava)
 
     implementation("com.github.skydoves:colorpicker-compose:1.0.0")
+    // ML Kit Barcode Scanning for QR
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
  }
