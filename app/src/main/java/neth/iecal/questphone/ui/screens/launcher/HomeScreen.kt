@@ -4,6 +4,11 @@ import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.pager.VerticalPager
@@ -68,9 +73,13 @@ import java.time.LocalDate
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import neth.iecal.questphone.data.preferences.GestureSettingsRepository
@@ -80,10 +89,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.geometry.Offset
 import androidx.navigation.NavController
 import kotlinx.coroutines.coroutineScope
 import neth.iecal.questphone.R
 import neth.iecal.questphone.utils.VibrationHelper
+import androidx.core.graphics.drawable.toBitmap
 import neth.iecal.questphone.data.game.StreakCheckReturn
 import neth.iecal.questphone.data.game.User
 import neth.iecal.questphone.data.game.checkIfStreakFailed
@@ -211,6 +223,20 @@ fun HomeScreen(navController: NavController) {
     val swipeDownApp by gestureRepo.swipeDownApp.collectAsState(initial = null)
     val swipeLeftApp by gestureRepo.swipeLeftApp.collectAsState(initial = null)
     val swipeRightApp by gestureRepo.swipeRightApp.collectAsState(initial = null)
+    // New gestures
+    val twoFingerSwipeUpApp by gestureRepo.twoFingerSwipeUpApp.collectAsState(initial = null)
+    val twoFingerSwipeDownApp by gestureRepo.twoFingerSwipeDownApp.collectAsState(initial = null)
+    val doubleTapBottomLeftApp by gestureRepo.doubleTapBottomLeftApp.collectAsState(initial = null)
+    val doubleTapBottomRightApp by gestureRepo.doubleTapBottomRightApp.collectAsState(initial = null)
+    val longPressApp by gestureRepo.longPressApp.collectAsState(initial = null)
+    val edgeLeftSwipeUpApp by gestureRepo.edgeLeftSwipeUpApp.collectAsState(initial = null)
+    val edgeLeftSwipeDownApp by gestureRepo.edgeLeftSwipeDownApp.collectAsState(initial = null)
+    val edgeRightSwipeUpApp by gestureRepo.edgeRightSwipeUpApp.collectAsState(initial = null)
+    val edgeRightSwipeDownApp by gestureRepo.edgeRightSwipeDownApp.collectAsState(initial = null)
+    // Bottom quick applet settings
+    val bottomRightMode by gestureRepo.doubleTapBottomRightMode.collectAsState(initial = "single")
+    val bottomAppletApps by gestureRepo.bottomAppletApps.collectAsState(initial = emptyList())
+    var showBottomApplet by remember { mutableStateOf(false) }
 
     val dao = QuestDatabaseProvider.getInstance(context).questDao()
 
@@ -285,6 +311,11 @@ fun HomeScreen(navController: NavController) {
     val sidebarWidth = 48.dp
     val edgeTapWidth = 36.dp
     var isSidebarVisible by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+    val edgeTapWidthPx = with(density) { edgeTapWidth.toPx() }
+    val sidebarWidthPx = with(density) { sidebarWidth.toPx() }
+    val cornerMarginPx = with(density) { 96.dp.toPx() }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
     Box(
@@ -298,11 +329,63 @@ fun HomeScreen(navController: NavController) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .onSizeChanged { containerSize = it }
+                // Tap/long-press/double-tap handler
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = {
+                            longPressApp?.let { pkg ->
+                                context.packageManager.getLaunchIntentForPackage(pkg)?.let { intent ->
+                                    context.startActivity(intent)
+                                    VibrationHelper.vibrate(30)
+                                }
+                            }
+                        },
+                        onDoubleTap = { pos: Offset ->
+                            val w = containerSize.width.toFloat()
+                            val h = containerSize.height.toFloat()
+                            if (h > 0 && w > 0 && pos.y > h - cornerMarginPx) {
+                                when {
+                                    pos.x < cornerMarginPx -> {
+                                        doubleTapBottomLeftApp?.let { pkg ->
+                                            context.packageManager.getLaunchIntentForPackage(pkg)?.let { intent ->
+                                                context.startActivity(intent)
+                                                VibrationHelper.vibrate(30)
+                                            }
+                                        }
+                                    }
+                                    pos.x > w - cornerMarginPx -> {
+                                        if (bottomRightMode == "applet") {
+                                            showBottomApplet = true
+                                            VibrationHelper.vibrate(15)
+                                        } else {
+                                            doubleTapBottomRightApp?.let { pkg ->
+                                                context.packageManager.getLaunchIntentForPackage(pkg)?.let { intent ->
+                                                    context.startActivity(intent)
+                                                    VibrationHelper.vibrate(30)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    )
+                }
                 .pointerInput(Unit) {
                 awaitEachGesture {
-                    awaitFirstDown()
+                    val firstDown = awaitFirstDown()
+                    val startX = firstDown.position.x
+                    val startY = firstDown.position.y
+                    val isLeftEdge = startX < edgeTapWidthPx
+                    // Reserve the outermost right gutter (sidebar drag area). Allow right-edge swipe just to the left of it.
+                    val isRightEdge = if (containerSize.width > 0) {
+                        val w = containerSize.width.toFloat()
+                        startX in (w - sidebarWidthPx - edgeTapWidthPx)..(w - sidebarWidthPx)
+                    } else false
                     var dragX = 0f
                     var dragY = 0f
+                    var twoFingerDragY = 0f
                     do {
                         val ev = awaitPointerEvent()
                         val change = ev.changes.first()
@@ -310,6 +393,30 @@ fun HomeScreen(navController: NavController) {
                         dragY += change.positionChange().y
 
                         val swipeThreshold = 50f
+                        val edgeSwipeThreshold = 40f
+
+                        // Two-finger vertical swipe detection
+                        if (ev.changes.size >= 2) {
+                            val avgDy = (ev.changes.map { it.positionChange().y }.average()).toFloat()
+                            twoFingerDragY += avgDy
+                            if (twoFingerDragY < -swipeThreshold) {
+                                scope.launch {
+                                    twoFingerSwipeUpApp?.let { pkg ->
+                                        context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
+                                    }
+                                }
+                                VibrationHelper.vibrate(30)
+                                break
+                            } else if (twoFingerDragY > swipeThreshold) {
+                                scope.launch {
+                                    twoFingerSwipeDownApp?.let { pkg ->
+                                        context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
+                                    }
+                                }
+                                VibrationHelper.vibrate(30)
+                                break
+                            }
+                        }
 
                         if (abs(dragX) > abs(dragY)) { // Horizontal swipe
                             if (dragX > swipeThreshold) { // Swipe Right
@@ -330,6 +437,46 @@ fun HomeScreen(navController: NavController) {
                                 break
                             }
                         } else { // Vertical swipe
+                            // Edge vertical swipes take precedence to avoid conflicts with generic swipes
+                            if (isLeftEdge) {
+                                if (dragY < -edgeSwipeThreshold) { // Left Edge Swipe Up
+                                    scope.launch {
+                                        edgeLeftSwipeUpApp?.let { pkg ->
+                                            context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
+                                        }
+                                    }
+                                    VibrationHelper.vibrate(30)
+                                    break
+                                } else if (dragY > edgeSwipeThreshold) { // Left Edge Swipe Down
+                                    scope.launch {
+                                        edgeLeftSwipeDownApp?.let { pkg ->
+                                            context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
+                                        }
+                                    }
+                                    VibrationHelper.vibrate(30)
+                                    break
+                                }
+                            } else if (isRightEdge) {
+                                if (dragY < -edgeSwipeThreshold) { // Right Edge Swipe Up
+                                    scope.launch {
+                                        edgeRightSwipeUpApp?.let { pkg ->
+                                            context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
+                                        }
+                                    }
+                                    VibrationHelper.vibrate(30)
+                                    break
+                                } else if (dragY > edgeSwipeThreshold) { // Right Edge Swipe Down
+                                    scope.launch {
+                                        edgeRightSwipeDownApp?.let { pkg ->
+                                            context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
+                                        }
+                                    }
+                                    VibrationHelper.vibrate(30)
+                                    break
+                                }
+                            }
+
+                            // Generic vertical swipes (non-edge)
                             if (dragY < -swipeThreshold) { // Swipe Up
                                 scope.launch {
                                     val pkg = swipeUpApp
@@ -706,6 +853,33 @@ fun HomeScreen(navController: NavController) {
             }
         }
 
+        // Bottom-right double-tap: launch app or open quick applet
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .width(140.dp)
+                .height(140.dp)
+                .pointerInput(bottomRightMode, doubleTapBottomRightApp, bottomAppletApps) {
+                    detectTapGestures(
+                        onDoubleTap = {
+                            if (bottomRightMode == "applet") {
+                                if (bottomAppletApps.isNotEmpty()) {
+                                    VibrationHelper.vibrate(15)
+                                    showBottomApplet = true
+                                }
+                            } else {
+                                doubleTapBottomRightApp?.let { pkg ->
+                                    context.packageManager.getLaunchIntentForPackage(pkg)?.let { intent ->
+                                        VibrationHelper.vibrate(15)
+                                        context.startActivity(intent)
+                                    }
+                                }
+                            }
+                        }
+                    )
+                }
+        )
+
         // Right-edge double-tap trigger to toggle sidebar visibility (only when hidden)
         if (!isSidebarVisible) {
             Box(
@@ -721,6 +895,63 @@ fun HomeScreen(navController: NavController) {
                         )
                     }
             )
+        }
+        // Bottom Quick Applet overlay
+        if (showBottomApplet) {
+            // Scrim
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.35f))
+                    .clickable { showBottomApplet = false }
+            )
+        }
+        AnimatedVisibility(
+            visible = showBottomApplet,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            val packages = bottomAppletApps.take(6)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    .padding(horizontal = 16.dp, vertical = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    packages.forEach { pkg ->
+                        val icon = remember(pkg) {
+                            try { context.packageManager.getApplicationIcon(pkg) } catch (e: Exception) { null }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 4.dp)
+                                .clickable {
+                                    context.packageManager.getLaunchIntentForPackage(pkg)?.let { intent ->
+                                        context.startActivity(intent)
+                                        VibrationHelper.vibrate(20)
+                                        showBottomApplet = false
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            icon?.let {
+                                Image(
+                                    bitmap = it.toBitmap().asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(56.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     }
