@@ -691,10 +691,6 @@ fun DeepFocusQuestView(
                                 }
                                 // Decide proof mode and launch camera
                                 if (commonQuestInfo.qr_proof) {
-                                    if (commonQuestInfo.qr_secret_key.isBlank()) {
-                                        android.widget.Toast.makeText(context, "QR secret key is not configured", android.widget.Toast.LENGTH_LONG).show()
-                                        return@launch
-                                    }
                                     proofMode = ProofMode.QR
                                 } else if (commonQuestInfo.ai_photo_proof) {
                                     proofMode = ProofMode.PHOTO
