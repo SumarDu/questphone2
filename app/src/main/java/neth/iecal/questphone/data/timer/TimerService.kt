@@ -4,12 +4,12 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.net.Uri
 import android.content.SharedPreferences
 import android.content.pm.ServiceInfo
 import android.util.Log
 import android.media.AudioAttributes
 import android.media.RingtoneManager
-import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.os.VibrationEffect
@@ -31,6 +31,8 @@ import neth.iecal.questphone.data.local.QuestEvent
 import neth.iecal.questphone.data.local.QuestEventDao
 import neth.iecal.questphone.data.local.PenaltyLogDao
 import neth.iecal.questphone.data.local.PenaltyLog
+import neth.iecal.questphone.data.quest.BlockedUnlockerDao
+import neth.iecal.questphone.data.quest.SanctionsEnforcer
 import neth.iecal.questphone.data.IntegrationId
 import neth.iecal.questphone.data.remote.SupabaseSyncService
 import neth.iecal.questphone.services.INTENT_ACTION_UNLOCK_APP
@@ -58,6 +60,7 @@ class TimerService : Service() {
     private lateinit var questDao: neth.iecal.questphone.data.quest.QuestDao
     private lateinit var questEventDao: QuestEventDao
     private lateinit var penaltyLogDao: PenaltyLogDao
+    private lateinit var blockedUnlockerDao: BlockedUnlockerDao
     private lateinit var supabaseSyncService: SupabaseSyncService
     private var stateBeforeUnplannedBreak: TimerState? = null
     private var unplannedBreakStartTime: Long? = null
@@ -79,12 +82,15 @@ class TimerService : Service() {
     private var overdueSessionStartAt: Long? = null
     private var lastOverduePenaltyAppliedAt: Long? = null
     private lateinit var penaltyPrefs: SharedPreferences
+    // Sanctions enforcement throttling (to avoid heavy DB work every tick)
+    private var lastSanctionsEnforcedAt: Long = 0L
 
     override fun onCreate() {
         super.onCreate()
         questDao = neth.iecal.questphone.data.quest.QuestDatabaseProvider.getInstance(this).questDao()
         questEventDao = AppDatabase.getDatabase(this).questEventDao()
         penaltyLogDao = AppDatabase.getDatabase(this).penaltyLogDao()
+        blockedUnlockerDao = neth.iecal.questphone.data.quest.QuestDatabaseProvider.getInstance(this).blockedUnlockerDao()
         supabaseSyncService = SupabaseSyncService(this)
         settingsRepository = SettingsRepository(this)
         // Initialize settings immediately to avoid using defaults before Flow emits
@@ -220,6 +226,9 @@ class TimerService : Service() {
                 occurredAt = now,
                 amount = safeDeduct,
                 balanceBefore = currentCoins,
+                source = "overdue_penalty",
+                questId = null,
+                questTitle = null,
                 synced = false
             )
             serviceScope.launch {
@@ -316,6 +325,30 @@ class TimerService : Service() {
         val now = System.currentTimeMillis()
         val today = getCurrentDate()
         val previousState = _timerState.value
+
+        // Enforce sanctions (unlocker bans and coin liquidation) on every tick so actions occur immediately at deadline
+        try {
+            SanctionsEnforcer.enforceSanctions(
+                questDao,
+                blockedUnlockerDao,
+                now,
+                penaltyLogger = { log ->
+                    serviceScope.launch { penaltyLogDao.insert(log) }
+                },
+                apiInvoker = { uriStr ->
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriStr)).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        Log.w("TimerService", "Failed to invoke phone block API: $uriStr", e)
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            Log.w("TimerService", "Sanctions enforcement failed", e)
+        }
 
         // Reset overdue penalty markers if not currently in overdue
         if (previousState.mode != TimerMode.OVERTIME) {

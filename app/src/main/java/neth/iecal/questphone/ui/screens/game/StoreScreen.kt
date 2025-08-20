@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -41,6 +42,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelProvider.Factory
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.widget.Toast
 import androidx.lifecycle.viewModelScope
@@ -48,28 +50,42 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import neth.iecal.questphone.R
 import neth.iecal.questphone.data.game.*
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
+import neth.iecal.questphone.data.quest.BlockedUnlockerDao
+import neth.iecal.questphone.data.quest.SanctionsEnforcer
 import neth.iecal.questphone.data.settings.SettingsRepository
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import neth.iecal.questphone.services.ServiceInfo
 import neth.iecal.questphone.services.saveServiceInfo
 import neth.iecal.questphone.ui.navigation.Screen
 
-class StoreViewModelFactory(private val application: Application, private val appUnlockerItemDao: AppUnlockerItemDao) : ViewModelProvider.Factory {
+class StoreViewModelFactory(
+    private val application: Application,
+    private val appUnlockerItemDao: AppUnlockerItemDao,
+    private val blockedUnlockerDao: BlockedUnlockerDao
+) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(StoreViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return StoreViewModel(application, appUnlockerItemDao) as T
+            return StoreViewModel(application, appUnlockerItemDao, blockedUnlockerDao) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
 
-class StoreViewModel(application: Application, private val appUnlockerItemDao: AppUnlockerItemDao) : AndroidViewModel(application) {
+class StoreViewModel(
+    application: Application,
+    private val appUnlockerItemDao: AppUnlockerItemDao,
+    private val blockedUnlockerDao: BlockedUnlockerDao
+) : AndroidViewModel(application) {
     private val settingsRepository = SettingsRepository(application)
     val settings = settingsRepository.settings
     var coins by mutableIntStateOf(User.userInfo.coins)
@@ -98,28 +114,48 @@ class StoreViewModel(application: Application, private val appUnlockerItemDao: A
                 )
             }
 
-            appUnlockerItemDao.getAll().onEach { unlockers ->
-                val dynamicItems = unlockers.map { item ->
-                    val hours = TimeUnit.MINUTES.toHours(item.unlockDurationMinutes.toLong())
-                    val minutes = item.unlockDurationMinutes % 60
-                    val durationString = when {
-                        hours > 0 && minutes > 0 -> "${hours}h ${minutes}m"
-                        hours > 0 -> "${hours}h"
-                        else -> "${minutes}m"
+            // Clean expired blocks at startup
+            withContext(Dispatchers.IO) {
+                val now = System.currentTimeMillis()
+                // Enforce sanctions on missed deadlines before rendering
+                val questDao = QuestDatabaseProvider.getInstance(getApplication()).questDao()
+                SanctionsEnforcer.enforceSanctions(questDao, blockedUnlockerDao, now)
+                blockedUnlockerDao.deleteExpired(now)
+            }
+
+            val unlockersFlow = appUnlockerItemDao.getAll()
+            val blocksFlow = blockedUnlockerDao.getActive(System.currentTimeMillis())
+
+            unlockersFlow
+                .combine(blocksFlow) { unlockers, blocks ->
+                    val blocksById = blocks.associateBy { it.unlocker_id }
+                    val dynamicItems = unlockers.map { item ->
+                        val hours = TimeUnit.MINUTES.toHours(item.unlockDurationMinutes.toLong())
+                        val minutes = item.unlockDurationMinutes % 60
+                        val durationString = when {
+                            hours > 0 && minutes > 0 -> "${hours}h ${minutes}m"
+                            hours > 0 -> "${hours}h"
+                            else -> "${minutes}m"
+                        }
+                        val block = blocksById[item.id]
+                        StoreItem(
+                            id = item.id.toString(),
+                            name = item.appName,
+                            description = "Unlocks for $durationString",
+                            icon = R.drawable.ic_launcher_foreground, // Replace with a real icon
+                            price = item.price,
+                            category = Category.UNLOCKERS,
+                            isFromEnum = false,
+                            onPurchase = { purchaseSelectedItem() },
+                            isBlocked = block != null,
+                            blockedUntil = block?.blocked_until,
+                            blockedSources = block?.sources?.split('|')?.filter { it.isNotBlank() } ?: emptyList()
+                        )
                     }
-                    StoreItem(
-                        id = item.id.toString(),
-                        name = item.appName,
-                        description = "Unlocks for $durationString",
-                        icon = R.drawable.ic_launcher_foreground, // Replace with a real icon
-                        price = item.price,
-                        category = Category.UNLOCKERS,
-                        isFromEnum = false,
-                        onPurchase = { purchaseSelectedItem() }
-                    )
+                    (staticItems + dynamicItems).sortedBy { it.name }
                 }
-                items = (staticItems + dynamicItems).sortedBy { it.name }
-            }.launchIn(viewModelScope)
+                .onEach { merged -> items = merged }
+                .launchIn(viewModelScope)
         }
     }
 
@@ -128,6 +164,7 @@ class StoreViewModel(application: Application, private val appUnlockerItemDao: A
     }
 
     fun selectItem(item: StoreItem, timerState: neth.iecal.questphone.data.timer.TimerState) {
+        if (item.isBlocked) return
         if (item.category == Category.UNLOCKERS) {
             val isBreak = timerState.mode == neth.iecal.questphone.data.timer.TimerMode.BREAK
             val isBreakOvertime = timerState.mode == neth.iecal.questphone.data.timer.TimerMode.OVERTIME && timerState.isBreakOvertime
@@ -222,7 +259,8 @@ fun StoreScreen(
     val viewModel: StoreViewModel = viewModel(
         factory = StoreViewModelFactory(
             context.applicationContext as Application,
-            QuestDatabaseProvider.getInstance(context).appUnlockerItemDao()
+            QuestDatabaseProvider.getInstance(context).appUnlockerItemDao(),
+            QuestDatabaseProvider.getInstance(context).blockedUnlockerDao()
         )
     )
     val settings by viewModel.settings.collectAsState()
@@ -329,11 +367,13 @@ fun StoreItemsList(
 
 @Composable
 fun StoreItemCard(item: StoreItem, onClick: () -> Unit, onDelete: () -> Unit, isDeletionEnabled: Boolean) {
+    var showSources by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clickable(onClick = onClick),
+            .alpha(if (item.isBlocked) 0.4f else 1f)
+            .clickable(enabled = !item.isBlocked, onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -349,6 +389,19 @@ fun StoreItemCard(item: StoreItem, onClick: () -> Unit, onDelete: () -> Unit, is
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = item.name, style = MaterialTheme.typography.titleMedium)
                 Text(text = item.description, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (item.isBlocked) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    val untilText = item.blockedUntil?.let { ts ->
+                        val fmt = SimpleDateFormat("HH:mm dd.MM.yy", Locale.getDefault())
+                        "Disabled until ${fmt.format(Date(ts))}"
+                    } ?: "Disabled"
+                    Text(
+                        text = untilText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.clickable { if (item.blockedSources.isNotEmpty()) showSources = true }
+                    )
+                }
             }
             if (!item.isFromEnum && isDeletionEnabled) {
                 IconButton(onClick = onDelete) {

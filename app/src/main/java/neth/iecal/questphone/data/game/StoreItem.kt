@@ -11,5 +11,8 @@ data class StoreItem(
     val price: Int,
     val category: Category,
     val isFromEnum: Boolean, // True if the item is from the InventoryItem enum
-    val onPurchase: () -> Unit
+    val onPurchase: () -> Unit,
+    val isBlocked: Boolean = false,
+    val blockedUntil: Long? = null,
+    val blockedSources: List<String> = emptyList()
 )

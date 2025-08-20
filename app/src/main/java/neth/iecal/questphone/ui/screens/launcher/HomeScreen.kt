@@ -102,6 +102,7 @@ import neth.iecal.questphone.data.game.checkIfStreakFailed
 import neth.iecal.questphone.data.game.continueStreak
 import neth.iecal.questphone.data.IntegrationId
 import neth.iecal.questphone.data.quest.CommonQuestInfo
+import neth.iecal.questphone.data.quest.QuestPriority
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.data.quest.focus.DeepFocus
 import neth.iecal.questphone.ui.navigation.Screen
@@ -122,6 +123,11 @@ import neth.iecal.questphone.utils.isSetToDefaultLauncher
 import neth.iecal.questphone.utils.openDefaultLauncherSettings
 import kotlinx.serialization.json.Json
 import neth.iecal.questphone.utils.SchedulingUtils
+import neth.iecal.questphone.data.local.AppDatabase
+import neth.iecal.questphone.data.local.PenaltyLog
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private val json = Json { ignoreUnknownKeys = true }
 
@@ -140,6 +146,7 @@ fun HomeScreen(navController: NavController) {
     
     // Reactive coin balance state
     var showPenaltyDialog by remember { mutableStateOf(false) }
+    var penaltyLogs by remember { mutableStateOf<List<PenaltyLog>>(emptyList()) }
 
     if (showPenaltyDialog) {
         AlertDialog(
@@ -159,12 +166,33 @@ fun HomeScreen(navController: NavController) {
             },
             title = { Text("Штрафи під час прострочки") },
             text = {
-                val count = timerState.overduePenaltyCount
+                LaunchedEffect(Unit) {
+                    // Load recent penalty logs when dialog opens
+                    penaltyLogs = AppDatabase.getDatabase(context).penaltyLogDao().getAll()
+                }
+                val df = remember { SimpleDateFormat("HH:mm dd.MM.yyyy", Locale.getDefault()) }
                 Column {
-                    Text(text = "Кількість списань: $count")
-                    if (timerMode != neth.iecal.questphone.data.timer.TimerMode.OVERTIME) {
-                        Spacer(Modifier.size(8.dp))
-                        Text(text = "Наразі прострочки немає.", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    if (penaltyLogs.isEmpty()) {
+                        Text(text = "Лог списань порожній.", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    } else {
+                        LazyColumn(Modifier.heightIn(max = 240.dp)) {
+                            items(penaltyLogs.size) { idx ->
+                                val log = penaltyLogs[idx]
+                                val ts = df.format(Date(log.occurredAt))
+                                val title = when (log.source) {
+                                    "quest_sanction" -> "Санкція: ${log.questTitle ?: "Квест"}"
+                                    else -> "Штраф (прострочка)"
+                                }
+                                Column(Modifier.padding(vertical = 6.dp)) {
+                                    Text(title, style = MaterialTheme.typography.bodyMedium)
+                                    Text(
+                                        "−${log.amount} монет • ${ts}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -670,12 +698,19 @@ fun HomeScreen(navController: NavController) {
                     run {
                         val durationText = formatDuration(baseQuest.quest_duration_minutes)
                         val timeText = if (isAllDayRange(baseQuest.time_range)) "All day" else "${formatTimeMinutes(startMin)} - ${formatTimeMinutes(endMin)}"
-                        val subtitle = "$durationText • $timeText"
+                        val deadlineText = if (baseQuest.deadline_minutes >= 0) " • Deadline ${formatTimeMinutes(baseQuest.deadline_minutes)}" else ""
+                        val subtitle = "$durationText • $timeText$deadlineText"
                         val statusColor = when {
-                            isOver || isOverdue -> Color(0xFFEF4444) // red-500
-                            isActive -> Color(0xFFF59E0B) // yellow-500
-                            isCompleted -> Color(0xFF10B981) // green-500
-                            else -> Color(0xFF10B981)
+                            isOver || isOverdue -> Color(0xFFEF4444) // red-500 for overdue/over
+                            isActive -> Color(0xFFF59E0B) // yellow-500 for active
+                            isCompleted -> Color(0xFF10B981) // green-500 for completed
+                            else -> when (baseQuest.priority) {
+                                QuestPriority.IMPORTANT_URGENT -> Color(0xFFEF4444) // red
+                                QuestPriority.IMPORTANT_NOT_URGENT -> Color(0xFF10B981) // green
+                                QuestPriority.NOT_IMPORTANT_URGENT -> Color(0xFFF5DEB3) // beige
+                                QuestPriority.STABLE -> Color(0xFF3B82F6) // blue
+                                QuestPriority.NOT_IMPORTANT_NOT_URGENT -> Color(0xFFD1D5DB) // light gray
+                            }
                         }
 
                         val onTileClick: () -> Unit = onTileClick@{

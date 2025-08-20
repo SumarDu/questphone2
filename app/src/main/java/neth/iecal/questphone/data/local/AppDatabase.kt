@@ -8,7 +8,7 @@ import neth.iecal.questphone.data.local.AppAlias
 import neth.iecal.questphone.data.local.AppAliasDao
 import neth.iecal.questphone.data.local.PenaltyLog
 
-@Database(entities = [AppAlias::class, QuestEvent::class, PenaltyLog::class], version = 11, exportSchema = false)
+@Database(entities = [AppAlias::class, QuestEvent::class, PenaltyLog::class], version = 12, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
         abstract fun appAliasDao(): AppAliasDao
     abstract fun questEventDao(): QuestEventDao

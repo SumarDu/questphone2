@@ -9,5 +9,8 @@ data class PenaltyLog(
     val occurredAt: Long,           // epoch millis when deduction happened
     val amount: Int,                // how much was deducted
     val balanceBefore: Int,         // balance before deduction
+    val source: String = "overdue_penalty", // "overdue_penalty" or "quest_sanction"
+    val questId: String? = null,    // quest id if source is sanction
+    val questTitle: String? = null, // quest title if source is sanction
     val synced: Boolean = false     // whether synced to Supabase
 )

@@ -15,6 +15,7 @@ import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Delete
 import androidx.room.Entity
+import androidx.room.ColumnInfo
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
@@ -37,6 +38,68 @@ import neth.iecal.questphone.data.quest.focus.DeepFocusSessionLogDao
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.utils.json
 import java.util.UUID
+
+enum class QuestPriority {
+    IMPORTANT_URGENT,          // Red
+    IMPORTANT_NOT_URGENT,      // Green
+    NOT_IMPORTANT_URGENT,      // Beige
+    STABLE,                    // Blue
+    NOT_IMPORTANT_NOT_URGENT   // Light Gray
+}
+
+// Add phone block sanction fields to CommonQuestInfo
+val MIGRATION_27_28 = object : Migration(27, 28) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        fun hasColumn(name: String): Boolean {
+            val cursor = database.query("PRAGMA table_info(CommonQuestInfo)")
+            var found = false
+            cursor.use {
+                val nameIndex = cursor.getColumnIndex("name")
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(nameIndex) == name) { found = true; break }
+                }
+            }
+            return found
+        }
+        if (!hasColumn("sanction_phone_block")) {
+            database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN sanction_phone_block INTEGER NOT NULL DEFAULT 0")
+        }
+        if (!hasColumn("sanction_phone_api")) {
+            database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN sanction_phone_api TEXT NOT NULL DEFAULT ''")
+        }
+        if (!hasColumn("last_phone_block_invoked_at")) {
+            database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN last_phone_block_invoked_at INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+}
+
+// Add sources column to blocked_unlockers for showing which quests imposed the ban
+val MIGRATION_24_25 = object : Migration(24, 25) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE blocked_unlockers ADD COLUMN sources TEXT NOT NULL DEFAULT ''")
+    }
+}
+
+// Add sanctions columns and blocked_unlockers table
+val MIGRATION_23_24 = object : Migration(23, 24) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN sanction_ban_unlocker_ids TEXT NOT NULL DEFAULT ''")
+        database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN sanction_ban_days INTEGER NOT NULL DEFAULT 0")
+        database.execSQL(
+            "CREATE TABLE IF NOT EXISTS blocked_unlockers (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "unlocker_id INTEGER NOT NULL, " +
+                "blocked_until INTEGER NOT NULL, " +
+                "UNIQUE(unlocker_id) ON CONFLICT REPLACE)"
+        )
+    }
+}
+
+val MIGRATION_22_23 = object : Migration(22, 23) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN deadline_minutes INTEGER NOT NULL DEFAULT -1")
+    }
+}
 
 /**
  * Stores information about quests which are common to all integration types
@@ -78,6 +141,27 @@ data class CommonQuestInfo(
     var break_duration_minutes: Int = 0,
     var last_completed_at: Long = 0,
     var quest_started_at: Long = 0,
+    // Minutes since midnight for daily deadline; -1 means no deadline
+    var deadline_minutes: Int = -1,
+    var priority: QuestPriority = QuestPriority.NOT_IMPORTANT_NOT_URGENT,
+    // Sanctions persistence
+    var sanction_ban_unlocker_ids: String = "", // CSV of AppUnlockerItem ids
+    var sanction_ban_days: Int = 0,
+    // Percentage (0..100) of coins to liquidate when deadline is missed
+    @ColumnInfo(defaultValue = "0")
+    var sanction_liquidation_percent: Int = 0,
+    // Last time coins were liquidated for this quest (millis). Used to ensure once-per-day.
+    @ColumnInfo(defaultValue = "0")
+    var last_liquidated_at: Long = 0,
+    // Whether to trigger phone block API after missed deadline
+    @ColumnInfo(defaultValue = "0")
+    var sanction_phone_block: Boolean = false,
+    // API URI to call, e.g., digipaws://api/phone_lock?...  Empty means disabled
+    @ColumnInfo(defaultValue = "")
+    var sanction_phone_api: String = "",
+    // Last time phone block API was invoked (millis). Guard to avoid repeated calls per day
+    @ColumnInfo(defaultValue = "0")
+    var last_phone_block_invoked_at: Long = 0,
     @Transient
     var synced: Boolean = false,
     var last_updated: Long = System.currentTimeMillis(),
@@ -85,6 +169,30 @@ data class CommonQuestInfo(
 
 
 )
+
+
+@Entity(tableName = "blocked_unlockers")
+data class BlockedUnlocker(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val unlocker_id: Int,
+    val blocked_until: Long,
+    val sources: String = "" // quest titles joined by '|'
+)
+
+@Dao
+interface BlockedUnlockerDao {
+    @Query("SELECT * FROM blocked_unlockers WHERE blocked_until > :now")
+    fun getActive(now: Long): Flow<List<BlockedUnlocker>>
+
+    @Query("DELETE FROM blocked_unlockers WHERE blocked_until <= :now")
+    suspend fun deleteExpired(now: Long)
+
+    @Query("SELECT * FROM blocked_unlockers WHERE unlocker_id = :id LIMIT 1")
+    suspend fun getByUnlockerId(id: Int): BlockedUnlocker?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(block: BlockedUnlocker)
+}
 
 
 @Stable
@@ -105,7 +213,8 @@ class QuestInfoState(
     initialBreakDurationMinutes: Int = 0,
     initialLastCompletedAt: Long = 0,
     initialQuestStartedAt: Long = 0,
-    initialSchedulingInfo: SchedulingInfo = SchedulingInfo()
+    initialSchedulingInfo: SchedulingInfo = SchedulingInfo(),
+    initialPriority: QuestPriority = QuestPriority.NOT_IMPORTANT_NOT_URGENT
 ) {
     var id = UUID.randomUUID().toString()
     var title by mutableStateOf(initialTitle)
@@ -125,6 +234,14 @@ class QuestInfoState(
     var breakDurationMinutes by mutableIntStateOf(initialBreakDurationMinutes)
     var lastCompletedAt by mutableLongStateOf(initialLastCompletedAt)
     var questStartedAt by mutableLongStateOf(initialQuestStartedAt)
+    var deadlineMinutes by mutableIntStateOf(-1)
+    var priority by mutableStateOf(initialPriority)
+    // Sanctions (UI-only for now)
+    var sanctionSelectedUnlockerIds by mutableStateOf<Set<Int>>(emptySet())
+    var sanctionBanDays by mutableIntStateOf(0)
+    var sanctionLiquidationPercent by mutableIntStateOf(0)
+    var sanctionPhoneBlock by mutableStateOf(false)
+    var sanctionPhoneApi by mutableStateOf("")
 
     inline fun < reified T : Any> toBaseQuest(questInfo: T? = null) = CommonQuestInfo(
         id = id,
@@ -145,7 +262,14 @@ class QuestInfoState(
         quest_duration_minutes = questDurationMinutes,
         break_duration_minutes = breakDurationMinutes,
         last_completed_at = lastCompletedAt,
-        quest_started_at = questStartedAt
+        quest_started_at = questStartedAt,
+        deadline_minutes = deadlineMinutes,
+        priority = priority,
+        sanction_ban_unlocker_ids = sanctionSelectedUnlockerIds.joinToString(","),
+        sanction_ban_days = sanctionBanDays,
+        sanction_liquidation_percent = sanctionLiquidationPercent,
+        sanction_phone_block = sanctionPhoneBlock,
+        sanction_phone_api = sanctionPhoneApi
     )
     fun fromBaseQuest(commonQuestInfo: CommonQuestInfo){
         id = commonQuestInfo.id
@@ -166,6 +290,17 @@ class QuestInfoState(
         breakDurationMinutes = commonQuestInfo.break_duration_minutes
         lastCompletedAt = commonQuestInfo.last_completed_at
         questStartedAt = commonQuestInfo.quest_started_at
+        deadlineMinutes = commonQuestInfo.deadline_minutes
+        priority = commonQuestInfo.priority
+        // Map sanctions to UI state
+        sanctionSelectedUnlockerIds = commonQuestInfo.sanction_ban_unlocker_ids.split(',')
+            .filter { it.isNotBlank() }
+            .mapNotNull { it.toIntOrNull() }
+            .toSet()
+        sanctionBanDays = commonQuestInfo.sanction_ban_days
+        sanctionLiquidationPercent = commonQuestInfo.sanction_liquidation_percent
+        sanctionPhoneBlock = commonQuestInfo.sanction_phone_block
+        sanctionPhoneApi = commonQuestInfo.sanction_phone_api
     }
 
 }
@@ -196,6 +331,16 @@ object BaseQuestConverter {
             Log.w("QuestConverter", "Unknown integration_id '$name', defaulting to DEEP_FOCUS")
             IntegrationId.DEEP_FOCUS
         }
+    }
+
+    @TypeConverter
+    fun fromPriority(p: QuestPriority): String = p.name
+
+    @TypeConverter
+    fun toPriority(name: String): QuestPriority = try {
+        QuestPriority.valueOf(name)
+    } catch (e: IllegalArgumentException) {
+        QuestPriority.NOT_IMPORTANT_NOT_URGENT
     }
 
     @TypeConverter
@@ -267,12 +412,13 @@ interface QuestDao {
 
 
 
-@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class], version = 21, exportSchema = false)
+@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class, BlockedUnlocker::class], version = 28, exportSchema = false)
 @TypeConverters(BaseQuestConverter::class)
 abstract class QuestDatabase : RoomDatabase() {
     abstract fun appUnlockerItemDao(): AppUnlockerItemDao
     abstract fun questDao(): QuestDao
     abstract fun deepFocusSessionLogDao(): DeepFocusSessionLogDao
+    abstract fun blockedUnlockerDao(): BlockedUnlockerDao
 
 }
 
@@ -306,6 +452,36 @@ val MIGRATION_20_21 = object : Migration(20, 21) {
     }
 }
 
+// Add priority column to CommonQuestInfo
+val MIGRATION_21_22 = object : Migration(21, 22) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN priority TEXT NOT NULL DEFAULT 'NOT_IMPORTANT_NOT_URGENT'")
+    }
+}
+
+// Add sanction_liquidation_percent and last_liquidated_at to CommonQuestInfo
+val MIGRATION_25_26 = object : Migration(25, 26) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        fun hasColumn(name: String): Boolean {
+            val cursor = database.query("PRAGMA table_info(CommonQuestInfo)")
+            var found = false
+            cursor.use {
+                val nameIndex = cursor.getColumnIndex("name")
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(nameIndex) == name) { found = true; break }
+                }
+            }
+            return found
+        }
+        if (!hasColumn("sanction_liquidation_percent")) {
+            database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN sanction_liquidation_percent INTEGER NOT NULL DEFAULT 0")
+        }
+        if (!hasColumn("last_liquidated_at")) {
+            database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN last_liquidated_at INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+}
+
 object QuestDatabaseProvider {
     @Volatile
     private var INSTANCE: QuestDatabase? = null
@@ -316,9 +492,27 @@ object QuestDatabaseProvider {
                 context.applicationContext,
                 QuestDatabase::class.java,
                 "quest_database"
-            ).addMigrations(MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21).fallbackToDestructiveMigration().build()
+            ).addMigrations(MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28).fallbackToDestructiveMigration().build()
             INSTANCE = instance
             instance
+        }
+    }
+}
+
+// No-op migration to bump identity after schema adjustments
+val MIGRATION_26_27 = object : Migration(26, 27) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Ensure last_liquidated_at exists for users who received only sanction_liquidation_percent in v26
+        val cursor = database.query("PRAGMA table_info(CommonQuestInfo)")
+        var hasLast = false
+        cursor.use {
+            val nameIndex = cursor.getColumnIndex("name")
+            while (cursor.moveToNext()) {
+                if (cursor.getString(nameIndex) == "last_liquidated_at") { hasLast = true; break }
+            }
+        }
+        if (!hasLast) {
+            database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN last_liquidated_at INTEGER NOT NULL DEFAULT 0")
         }
     }
 }

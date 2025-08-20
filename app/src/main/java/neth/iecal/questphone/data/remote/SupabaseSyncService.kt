@@ -66,7 +66,10 @@ class SupabaseSyncService(private val context: Context) {
                     id = log.id,
                     occurred_at = log.occurredAt,
                     amount = log.amount,
-                    balance_before = log.balanceBefore
+                    balance_before = log.balanceBefore,
+                    source = log.source,
+                    quest_id = log.questId,
+                    quest_title = log.questTitle
                 )
                 SupabaseClient.client.postgrest.from("penalty_logs").upsert(payload, onConflict = "id")
                 okIds.add(log.id)
