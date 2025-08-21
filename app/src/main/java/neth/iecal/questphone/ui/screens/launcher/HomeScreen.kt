@@ -345,7 +345,12 @@ fun HomeScreen(navController: NavController) {
     val sidebarWidthPx = with(density) { sidebarWidth.toPx() }
     val cornerMarginPx = with(density) { 96.dp.toPx() }
 
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+    // Snackbar host for floating sort change notifications
+    val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) }
+    ) { innerPadding ->
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -637,7 +642,8 @@ fun HomeScreen(navController: NavController) {
 //                    .align(Alignment.CenterHorizontally)
 //            )
 
-
+            // Sorting toggle state for main list (toggled by clicking the progress strip)
+            var sortByPriority by remember { mutableStateOf(false) }
 
             if(questList.isNotEmpty()) {
                 Box(
@@ -646,6 +652,15 @@ fun HomeScreen(navController: NavController) {
                         .height(50.dp)
                         .padding(bottom = 32.dp)
                         .align(Alignment.CenterHorizontally)
+                        .clickable {
+                            sortByPriority = !sortByPriority
+                            // Show floating notification about sorting mode change
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    if (sortByPriority) "Сортування: пріоритет" else "Сортування: час"
+                                )
+                            }
+                        }
                 ) {
                     LinearProgressIndicator(
                         progress = { progress },
@@ -657,14 +672,39 @@ fun HomeScreen(navController: NavController) {
             // Paginated list: 4 quests per page with snap paging
             val tileHeight = 72.dp
             val tileSpacing = 12.dp
-            // Sort quests: non-all-day first by start minutes; all-day at the end
-            val sortedQuests = questList.sortedWith(
-                compareBy(
-                    { if (isAllDayRange(it.time_range)) 1 else 0 },
-                    { toMinutesRange(it.time_range).first }
+            // Sort quests: default by time (non-all-day first), or by priority when toggled via progress strip
+            val sortedQuests = if (sortByPriority) {
+                val byPriority = { q: CommonQuestInfo ->
+                    when (q.priority) {
+                        QuestPriority.IMPORTANT_URGENT -> 0
+                        QuestPriority.IMPORTANT_NOT_URGENT -> 1
+                        QuestPriority.NOT_IMPORTANT_URGENT -> 2
+                        QuestPriority.STABLE -> 3
+                        QuestPriority.NOT_IMPORTANT_NOT_URGENT -> 4
+                    }
+                }
+                questList.sortedWith(
+                    compareBy(
+                        byPriority,
+                        { if (isAllDayRange(it.time_range)) 1 else 0 },
+                        { toMinutesRange(it.time_range).first }
+                    )
                 )
-            )
-            val pageCount = (sortedQuests.size + 3) / 4
+            } else {
+                questList.sortedWith(
+                    compareBy(
+                        { if (isAllDayRange(it.time_range)) 1 else 0 },
+                        { toMinutesRange(it.time_range).first }
+                    )
+                )
+            }
+            // Exclude finished quests from display (unless it's the active quest on break)
+            val displayedQuests = sortedQuests.filter { q ->
+                val completed = completedQuests.contains(q.title)
+                val onBreak = (timerMode == TimerMode.BREAK && timerState.activeQuestId == q.id)
+                !(completed && !onBreak)
+            }
+            val pageCount = (displayedQuests.size + 3) / 4
             if (pageCount > 0) {
                 val pagerState = androidx.compose.foundation.pager.rememberPagerState(
                     initialPage = 0,
@@ -677,13 +717,13 @@ fun HomeScreen(navController: NavController) {
                     userScrollEnabled = pageCount > 1,
                 ) { page ->
                     val start = page * 4
-                    val end = minOf(start + 4, sortedQuests.size)
+                    val end = minOf(start + 4, displayedQuests.size)
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(tileSpacing)
                     ) {
                         for (index in start until end) {
-                            val baseQuest = sortedQuests[index]
+                            val baseQuest = displayedQuests[index]
                     val (startMin, endMin) = toMinutesRange(baseQuest.time_range)
                     val timeRange = "${formatTimeMinutes(startMin)} - ${formatTimeMinutes(endMin)} : "
                     val prefix = if (isAllDayRange(baseQuest.time_range)) "" else timeRange
@@ -753,9 +793,11 @@ fun HomeScreen(navController: NavController) {
                         val deadlineTextOnly = if (baseQuest.deadline_minutes >= 0) formatTimeMinutes(baseQuest.deadline_minutes) else null
 
                         // Background highlight per state
+                        // If break is overdue (timerMode == OVERTIME), do NOT highlight tiles
                         val containerColor = when {
+                            timerMode == TimerMode.OVERTIME -> Color(0xFF1F2937) // default gray-800 (no highlight)
                             isOver || isOverdue -> Color(0x33EF4444) // translucent red for overdue
-                            isActive && timerMode == TimerMode.BREAK -> Color(0x333B82F6) // translucent blue for break
+                            isActive && timerMode == TimerMode.BREAK -> Color(0x3310B981) // translucent green for break
                             isActive -> Color(0x33F59E0B) // translucent yellow for active
                             else -> Color(0xFF1F2937) // default gray-800
                         }
@@ -767,7 +809,8 @@ fun HomeScreen(navController: NavController) {
                         var doneSubtasks = 0
 
                         val sp = context.getSharedPreferences("quest_checkboxes", MODE_PRIVATE)
-                        val savedStatesStr = sp.getString(baseQuest.id, "") ?: ""
+                        val todayKey = "${baseQuest.id}_${getCurrentDate()}"
+                        val savedStatesStr = sp.getString(todayKey, "") ?: ""
                         val savedMap = mutableMapOf<String, Boolean>()
                         if (savedStatesStr.isNotEmpty()) {
                             savedStatesStr.split(",").forEach { entry ->
@@ -785,35 +828,27 @@ fun HomeScreen(navController: NavController) {
                             }
                         }
 
-                        // Slide out a completed quest only after its own break ends
-                        val isQuestOnBreak = (timerMode == TimerMode.BREAK && timerState.activeQuestId == baseQuest.id)
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = !(isCompleted && !isQuestOnBreak),
-                            exit = androidx.compose.animation.slideOutHorizontally { fullWidth -> fullWidth } +
-                                   androidx.compose.animation.fadeOut()
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                QuestTile(
-                                    title = baseQuest.title,
-                                    duration = durationText,
-                                    subtaskProgress = if (totalSubtasks > 0) "${doneSubtasks}/${totalSubtasks}" else null,
-                                    hasCalendarMark = baseQuest.calendar_event_id != null,
-                                    startTime = startText,
-                                    endTime = endText,
-                                    deadlineTime = deadlineTextOnly,
-                                    containerColor = containerColor,
-                                    statusColor = statusColor,
-                                    enabled = enabled,
-                                    onClick = { if (enabled) onTileClick() },
-                                    onPlay = { if (enabled) onTileClick() },
-                                    modifier = Modifier
-                                        .fillMaxWidth(0.94f)
-                                        .height(tileHeight)
-                                )
-                            }
+                            QuestTile(
+                                title = baseQuest.title,
+                                duration = durationText,
+                                subtaskProgress = if (totalSubtasks > 0) "${doneSubtasks}/${totalSubtasks}" else null,
+                                hasCalendarMark = baseQuest.calendar_event_id != null,
+                                startTime = startText,
+                                endTime = endText,
+                                deadlineTime = deadlineTextOnly,
+                                containerColor = containerColor,
+                                statusColor = statusColor,
+                                enabled = enabled,
+                                onClick = { if (enabled) onTileClick() },
+                                onPlay = { if (enabled) onTileClick() },
+                                modifier = Modifier
+                                    .fillMaxWidth(0.94f)
+                                    .height(tileHeight)
+                            )
                         }
                     }
                     }
@@ -906,20 +941,20 @@ fun HomeScreen(navController: NavController) {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                SidebarButton(text = "YDAY") {
-                    navController.navigate(Screen.DayQuests.route + "YDAY")
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                SidebarButton(text = "TODAY") {
-                    navController.navigate(Screen.DayQuests.route + "TODAY")
+                SidebarButton(text = "WKEND") {
+                    navController.navigate(Screen.DayQuests.route + "WKEND")
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 SidebarButton(text = "TMRW") {
                     navController.navigate(Screen.DayQuests.route + "TMRW")
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                SidebarButton(text = "WKEND") {
-                    navController.navigate(Screen.DayQuests.route + "WKEND")
+                SidebarButton(text = "TODAY") {
+                    navController.navigate(Screen.DayQuests.route + "TODAY")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                SidebarButton(text = "YDAY") {
+                    navController.navigate(Screen.DayQuests.route + "YDAY")
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 SidebarButton(icon = Icons.Default.DateRange) {

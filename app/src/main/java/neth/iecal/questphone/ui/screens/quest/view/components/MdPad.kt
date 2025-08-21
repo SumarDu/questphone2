@@ -124,10 +124,11 @@ fun InstructionsWithCheckboxes(
     val context = LocalContext.current
     val checkboxStates = remember { mutableStateMapOf<String, Boolean>() }
     
-    // Load checkbox states from SharedPreferences
+    // Load checkbox states from SharedPreferences (scoped by current date)
     LaunchedEffect(questId) {
         val sp = context.getSharedPreferences("quest_checkboxes", Context.MODE_PRIVATE)
-        val savedStates = sp.getString(questId, "")
+        val todayKey = "${questId}_${getCurrentDate()}"
+        val savedStates = sp.getString(todayKey, "")
         if (savedStates?.isNotEmpty() == true) {
             savedStates.split(",").forEach { entry ->
                 val parts = entry.split(":")
@@ -142,7 +143,8 @@ fun InstructionsWithCheckboxes(
         val sp = context.getSharedPreferences("quest_checkboxes", Context.MODE_PRIVATE)
         val stateString = checkboxStates.entries.joinToString(",") { "${it.key}:${it.value}" }
         sp.edit(commit = true) {
-            putString(questId, stateString)
+            val todayKey = "${questId}_${getCurrentDate()}"
+            putString(todayKey, stateString)
         }
     }
     

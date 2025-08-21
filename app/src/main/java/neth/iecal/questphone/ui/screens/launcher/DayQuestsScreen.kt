@@ -1,13 +1,23 @@
 package neth.iecal.questphone.ui.screens.launcher
 
 import android.content.Context.MODE_PRIVATE
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -21,6 +31,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.DayOfWeek
+import java.time.temporal.TemporalAdjusters
 import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.data.quest.QuestPriority
@@ -33,9 +47,6 @@ import neth.iecal.questphone.utils.isAllDayRange
 import neth.iecal.questphone.utils.formatTimeMinutes
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.utils.toMinutesRange
-import java.time.DayOfWeek
-import java.time.LocalDate
-import java.time.temporal.TemporalAdjusters
 
 private fun formatDuration(totalMinutes: Int): String {
     val h = totalMinutes / 60
@@ -50,6 +61,7 @@ private fun formatDuration(totalMinutes: Int): String {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DayQuestsScreen(navController: NavController, key: String) {
     val context = LocalContext.current
@@ -70,9 +82,12 @@ fun DayQuestsScreen(navController: NavController, key: String) {
         else -> listOf(LocalDate.now())
     }
 
-    val planned = remember(allQuests, dates) {
+    val planned = remember(allQuests, dates, key) {
         allQuests.filter { q ->
-            !q.is_destroyed && dates.any { d -> SchedulingUtils.isQuestAvailableOnDate(q.scheduling_info, d) }
+            !q.is_destroyed &&
+            // Exclude quests created today from Yesterday view
+            (key.uppercase() != "YDAY" || q.created_on != getCurrentDate()) &&
+            dates.any { d -> SchedulingUtils.isQuestAvailableOnDate(q.scheduling_info, d) }
         }
     }
 
@@ -83,104 +98,132 @@ fun DayQuestsScreen(navController: NavController, key: String) {
     val tileHeight = 72.dp
     val tileSpacing = 12.dp
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(tileSpacing)
-    ) {
-        Text(
-            text = when (key.uppercase()) {
-                "YDAY" -> "Yesterday"
-                "TODAY" -> "Today"
-                "TMRW" -> "Tomorrow"
-                "WKEND" -> "Weekend"
-                else -> key
-            },
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(bottom = 8.dp)
+    val titleText = when (key.uppercase()) {
+        "YDAY" -> "Yesterday"
+        "TODAY" -> "Today"
+        "TMRW" -> "Tomorrow"
+        "WKEND" -> "Weekend"
+        else -> key
+    }
+
+    val sortedQuests = planned.sortedWith(
+        compareBy(
+            { if (isAllDayRange(it.time_range)) 1 else 0 },
+            { toMinutesRange(it.time_range).first }
         )
+    )
 
-        val sortedQuests = planned.sortedWith(
-            compareBy(
-                { if (isAllDayRange(it.time_range)) 1 else 0 },
-                { toMinutesRange(it.time_range).first }
-            )
-        )
+    val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+    val todayDate = LocalDate.now().format(dateFormatter)
+    val yesterdayDate = LocalDate.now().minusDays(1).format(dateFormatter)
 
-        sortedQuests.forEach { baseQuest ->
-            val (startMin, endMin) = toMinutesRange(baseQuest.time_range)
+    Scaffold(
+        topBar = { TopAppBar(title = { Text(titleText) }) }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(tileSpacing),
+            contentPadding = PaddingValues(bottom = 24.dp)
+        ) {
+            items(sortedQuests, key = { it.id }) { baseQuest ->
+                val (startMin, endMin) = toMinutesRange(baseQuest.time_range)
+                val isCompleted = completedTitles.contains(baseQuest.title)
 
-            val isCompleted = completedTitles.contains(baseQuest.title)
-            val isActive = timerState.activeQuestId == baseQuest.id && (timerState.mode == TimerMode.QUEST_COUNTDOWN || timerState.mode == TimerMode.BREAK)
+                val statusColor = when (baseQuest.priority) {
+                    QuestPriority.IMPORTANT_URGENT -> Color(0xFFEF4444)
+                    QuestPriority.IMPORTANT_NOT_URGENT -> Color(0xFF10B981)
+                    QuestPriority.NOT_IMPORTANT_URGENT -> Color(0xFFF5DEB3)
+                    QuestPriority.STABLE -> Color(0xFF3B82F6)
+                    QuestPriority.NOT_IMPORTANT_NOT_URGENT -> Color(0xFFD1D5DB)
+                }
 
-            val statusColor = when (baseQuest.priority) {
-                QuestPriority.IMPORTANT_URGENT -> Color(0xFFEF4444)
-                QuestPriority.IMPORTANT_NOT_URGENT -> Color(0xFF10B981)
-                QuestPriority.NOT_IMPORTANT_URGENT -> Color(0xFFF5DEB3)
-                QuestPriority.STABLE -> Color(0xFF3B82F6)
-                QuestPriority.NOT_IMPORTANT_NOT_URGENT -> Color(0xFFD1D5DB)
-            }
+                val enabled = true
 
-            val enabled = true
+                val durationText = formatDuration(baseQuest.quest_duration_minutes)
+                val startText = if (isAllDayRange(baseQuest.time_range)) null else formatTimeMinutes(startMin)
+                val endText = if (isAllDayRange(baseQuest.time_range)) null else formatTimeMinutes(endMin)
+                val deadlineTextOnly = if (baseQuest.deadline_minutes >= 0) formatTimeMinutes(baseQuest.deadline_minutes) else null
 
-            val durationText = formatDuration(baseQuest.quest_duration_minutes)
-            val startText = if (isAllDayRange(baseQuest.time_range)) null else formatTimeMinutes(startMin)
-            val endText = if (isAllDayRange(baseQuest.time_range)) null else formatTimeMinutes(endMin)
-            val deadlineTextOnly = if (baseQuest.deadline_minutes >= 0) formatTimeMinutes(baseQuest.deadline_minutes) else null
+                val containerColor = Color(0xFF1F2937)
 
-            val containerColor = Color(0xFF1F2937)
+                // Subtasks progress
+                val instructionsText = baseQuest.instructions ?: ""
+                val lines = instructionsText.split("\n")
+                var totalSubtasks = 0
+                var doneSubtasks = 0
 
-            // Subtasks progress
-            val instructionsText = baseQuest.instructions ?: ""
-            val lines = instructionsText.split("\n")
-            var totalSubtasks = 0
-            var doneSubtasks = 0
-
-            val sp = context.getSharedPreferences("quest_checkboxes", MODE_PRIVATE)
-            val savedStatesStr = sp.getString(baseQuest.id, "") ?: ""
-            val savedMap = mutableMapOf<String, Boolean>()
-            if (savedStatesStr.isNotEmpty()) {
-                savedStatesStr.split(",").forEach { entry ->
-                    val parts = entry.split(":")
-                    if (parts.size == 2) {
-                        savedMap[parts[0]] = parts[1].toBoolean()
+                val sp = context.getSharedPreferences("quest_checkboxes", MODE_PRIVATE)
+                val checkDateKey = if (key.uppercase() == "YDAY") yesterdayDate else todayDate
+                val stateKey = "${baseQuest.id}_${checkDateKey}"
+                val savedStatesStr = sp.getString(stateKey, "") ?: ""
+                val savedMap = mutableMapOf<String, Boolean>()
+                if (savedStatesStr.isNotEmpty()) {
+                    savedStatesStr.split(",").forEach { entry ->
+                        val parts = entry.split(":")
+                        if (parts.size == 2) {
+                            savedMap[parts[0]] = parts[1].toBoolean()
+                        }
                     }
                 }
-            }
-            lines.forEachIndexed { idx, rawLine ->
-                if (rawLine.trim().startsWith("@")) {
-                    totalSubtasks++
-                    if (savedMap["checkbox_$idx"] == true) doneSubtasks++
+                lines.forEachIndexed { idx, rawLine ->
+                    if (rawLine.trim().startsWith("@")) {
+                        totalSubtasks++
+                        if (savedMap["checkbox_$idx"] == true) doneSubtasks++
+                    }
                 }
-            }
 
-            // Animated removal similar to HomeScreen rules for today; for YDAY/TMRW/WKEND keep visible even if completed
-            val showAnimated = if (key.uppercase() == "TODAY") !isCompleted else true
+                // Markers: TODAY => DONE if completed today; YDAY => DONE if completed yesterday else IGNORED
+                val marker: String? = when (key.uppercase()) {
+                    "TODAY" -> if (baseQuest.last_completed_on == todayDate) "DONE" else null
+                    "YDAY" -> if (baseQuest.last_completed_on == yesterdayDate) "DONE" else "IGNORED"
+                    else -> null
+                }
 
-            if (showAnimated) {
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    QuestTile(
-                        title = baseQuest.title,
-                        duration = durationText,
-                        subtaskProgress = if (totalSubtasks > 0) "${doneSubtasks}/${totalSubtasks}" else null,
-                        hasCalendarMark = baseQuest.calendar_event_id != null,
-                        startTime = startText,
-                        endTime = endText,
-                        deadlineTime = deadlineTextOnly,
-                        containerColor = containerColor,
-                        statusColor = statusColor,
-                        enabled = enabled,
-                        onClick = { viewQuest(baseQuest, navController) },
-                        onPlay = { viewQuest(baseQuest, navController) },
-                        modifier = Modifier
-                            .fillMaxWidth(0.94f)
-                            .height(tileHeight)
-                    )
+                val subtaskChip = if (totalSubtasks > 0) "${doneSubtasks}/${totalSubtasks}" else null
+                // Marker color mapping for center label
+                val markerColor = when (marker) {
+                    "DONE" -> Color(0xFF10B981) // green
+                    "IGNORED" -> Color(0xFFF59E0B) // amber
+                    else -> Color.Transparent
+                }
+
+                // Always show items for all filters; we rely on marker to indicate completion/ignored
+                val showItem = true
+
+                if (showItem) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        QuestTile(
+                            title = baseQuest.title,
+                            duration = durationText,
+                            subtaskProgress = subtaskChip,
+                            hasCalendarMark = baseQuest.calendar_event_id != null,
+                            startTime = startText,
+                            endTime = endText,
+                            deadlineTime = deadlineTextOnly,
+                            containerColor = containerColor,
+                            statusColor = statusColor,
+                            enabled = enabled,
+                            onClick = { viewQuest(baseQuest, navController) },
+                            onPlay = { viewQuest(baseQuest, navController) },
+                            modifier = Modifier
+                                .fillMaxWidth(0.94f)
+                                .height(tileHeight)
+                        )
+                        if (marker != null) {
+                            Text(
+                                text = marker,
+                                color = markerColor,
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        }
+                    }
                 }
             }
         }
