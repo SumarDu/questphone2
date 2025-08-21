@@ -696,21 +696,13 @@ fun HomeScreen(navController: NavController) {
                         baseQuest.last_completed_on != getCurrentDate() && 
                         System.currentTimeMillis() > (baseQuest.quest_started_at + TimeUnit.MINUTES.toMillis(baseQuest.quest_duration_minutes.toLong()))
                     run {
-                        val durationText = formatDuration(baseQuest.quest_duration_minutes)
-                        val timeText = if (isAllDayRange(baseQuest.time_range)) "All day" else "${formatTimeMinutes(startMin)} - ${formatTimeMinutes(endMin)}"
-                        val deadlineText = if (baseQuest.deadline_minutes >= 0) " • Deadline ${formatTimeMinutes(baseQuest.deadline_minutes)}" else ""
-                        val subtitle = "$durationText • $timeText$deadlineText"
-                        val statusColor = when {
-                            isOver || isOverdue -> Color(0xFFEF4444) // red-500 for overdue/over
-                            isActive -> Color(0xFFF59E0B) // yellow-500 for active
-                            isCompleted -> Color(0xFF10B981) // green-500 for completed
-                            else -> when (baseQuest.priority) {
-                                QuestPriority.IMPORTANT_URGENT -> Color(0xFFEF4444) // red
-                                QuestPriority.IMPORTANT_NOT_URGENT -> Color(0xFF10B981) // green
-                                QuestPriority.NOT_IMPORTANT_URGENT -> Color(0xFFF5DEB3) // beige
-                                QuestPriority.STABLE -> Color(0xFF3B82F6) // blue
-                                QuestPriority.NOT_IMPORTANT_NOT_URGENT -> Color(0xFFD1D5DB) // light gray
-                            }
+                        // Priority strip color should reflect only priority, not state
+                        val statusColor = when (baseQuest.priority) {
+                            QuestPriority.IMPORTANT_URGENT -> Color(0xFFEF4444) // red
+                            QuestPriority.IMPORTANT_NOT_URGENT -> Color(0xFF10B981) // green
+                            QuestPriority.NOT_IMPORTANT_URGENT -> Color(0xFFF5DEB3) // beige
+                            QuestPriority.STABLE -> Color(0xFF3B82F6) // blue
+                            QuestPriority.NOT_IMPORTANT_NOT_URGENT -> Color(0xFFD1D5DB) // light gray
                         }
 
                         val onTileClick: () -> Unit = onTileClick@{
@@ -754,21 +746,74 @@ fun HomeScreen(navController: NavController) {
                                       timerMode != TimerMode.UNLOCK &&
                                       !(timerState.isDeepFocusLocking && baseQuest.id != timerState.activeQuestId)
 
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.Center
+                        // --- Compute values for QuestTile ---
+                        val durationText = formatDuration(baseQuest.quest_duration_minutes)
+                        val startText = if (isAllDayRange(baseQuest.time_range)) null else formatTimeMinutes(startMin)
+                        val endText = if (isAllDayRange(baseQuest.time_range)) null else formatTimeMinutes(endMin)
+                        val deadlineTextOnly = if (baseQuest.deadline_minutes >= 0) formatTimeMinutes(baseQuest.deadline_minutes) else null
+
+                        // Background highlight per state
+                        val containerColor = when {
+                            isOver || isOverdue -> Color(0x33EF4444) // translucent red for overdue
+                            isActive && timerMode == TimerMode.BREAK -> Color(0x333B82F6) // translucent blue for break
+                            isActive -> Color(0x33F59E0B) // translucent yellow for active
+                            else -> Color(0xFF1F2937) // default gray-800
+                        }
+
+                        // Subtask progress based on instructions with '@' and saved checkbox states
+                        val instructionsText = baseQuest.instructions ?: ""
+                        val lines = instructionsText.split("\n")
+                        var totalSubtasks = 0
+                        var doneSubtasks = 0
+
+                        val sp = context.getSharedPreferences("quest_checkboxes", MODE_PRIVATE)
+                        val savedStatesStr = sp.getString(baseQuest.id, "") ?: ""
+                        val savedMap = mutableMapOf<String, Boolean>()
+                        if (savedStatesStr.isNotEmpty()) {
+                            savedStatesStr.split(",").forEach { entry ->
+                                val parts = entry.split(":")
+                                if (parts.size == 2) {
+                                    savedMap[parts[0]] = parts[1].toBoolean()
+                                }
+                            }
+                        }
+
+                        lines.forEachIndexed { idx, rawLine ->
+                            if (rawLine.trim().startsWith("@")) {
+                                totalSubtasks++
+                                if (savedMap["checkbox_$idx"] == true) doneSubtasks++
+                            }
+                        }
+
+                        // Slide out a completed quest only after its own break ends
+                        val isQuestOnBreak = (timerMode == TimerMode.BREAK && timerState.activeQuestId == baseQuest.id)
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = !(isCompleted && !isQuestOnBreak),
+                            exit = androidx.compose.animation.slideOutHorizontally { fullWidth -> fullWidth } +
+                                   androidx.compose.animation.fadeOut()
                         ) {
-                            QuestTile(
-                                title = baseQuest.title,
-                                subtitle = subtitle,
-                                statusColor = statusColor,
-                                enabled = enabled,
-                                onClick = { if (enabled) onTileClick() },
-                                onPlay = { if (enabled) onTileClick() },
-                                modifier = Modifier
-                                    .fillMaxWidth(0.94f)
-                                    .height(tileHeight)
-                            )
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                QuestTile(
+                                    title = baseQuest.title,
+                                    duration = durationText,
+                                    subtaskProgress = if (totalSubtasks > 0) "${doneSubtasks}/${totalSubtasks}" else null,
+                                    hasCalendarMark = baseQuest.calendar_event_id != null,
+                                    startTime = startText,
+                                    endTime = endText,
+                                    deadlineTime = deadlineTextOnly,
+                                    containerColor = containerColor,
+                                    statusColor = statusColor,
+                                    enabled = enabled,
+                                    onClick = { if (enabled) onTileClick() },
+                                    onPlay = { if (enabled) onTileClick() },
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.94f)
+                                        .height(tileHeight)
+                                )
+                            }
                         }
                     }
                     }
@@ -861,12 +906,20 @@ fun HomeScreen(navController: NavController) {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                SidebarButton(text = "TMRW") {
-                    // TODO: Navigate to tomorrow's quests
+                SidebarButton(text = "YDAY") {
+                    navController.navigate(Screen.DayQuests.route + "YDAY")
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                SidebarButton(text = "YDAY") {
-                    // TODO: Navigate to yesterday's quests
+                SidebarButton(text = "TODAY") {
+                    navController.navigate(Screen.DayQuests.route + "TODAY")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                SidebarButton(text = "TMRW") {
+                    navController.navigate(Screen.DayQuests.route + "TMRW")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                SidebarButton(text = "WKEND") {
+                    navController.navigate(Screen.DayQuests.route + "WKEND")
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 SidebarButton(icon = Icons.Default.DateRange) {
@@ -1108,9 +1161,15 @@ fun HomeScreen(navController: NavController) {
 }
 
 @Composable
-private fun QuestTile(
+fun QuestTile(
     title: String,
-    subtitle: String,
+    duration: String,
+    subtaskProgress: String?,
+    hasCalendarMark: Boolean,
+    startTime: String?,
+    endTime: String?,
+    deadlineTime: String?,
+    containerColor: Color = Color(0xFF1F2937),
     statusColor: Color,
     enabled: Boolean,
     onClick: () -> Unit,
@@ -1122,44 +1181,99 @@ private fun QuestTile(
             .clip(RoundedCornerShape(16.dp))
             .clickable(enabled = enabled, onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1F2937) // gray-800
+            containerColor = containerColor // highlight or default
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                // Left colored bar
                 Box(
                     modifier = Modifier
                         .width(6.dp)
-                        .height(40.dp)
+                        .height(44.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(statusColor)
                 )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
+                Spacer(modifier = Modifier.width(12.dp))
+                // Title + chips
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF9CA3AF) // gray-400
-                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Duration chip
+                        Box(
+                            modifier = Modifier
+                                .border(1.dp, Color(0xFF374151), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = duration,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF9CA3AF)
+                            )
+                        }
+                        // Subtask progress chip
+                        if (subtaskProgress != null) {
+                            Box(
+                                modifier = Modifier
+                                    .border(1.dp, Color(0xFF374151), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = subtaskProgress,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFF9CA3AF)
+                                )
+                            }
+                        }
+                        // Calendar marker
+                        if (hasCalendarMark) {
+                            Icon(
+                                imageVector = Icons.Filled.DateRange,
+                                contentDescription = null,
+                                tint = Color(0xFF9CA3AF),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
                 }
             }
-            IconButton(onClick = onPlay, enabled = enabled) {
-                Icon(
-                    imageVector = Icons.Outlined.PlayCircle,
-                    contentDescription = "Play",
-                    tint = Color(0xFF9CA3AF)
-                )
+            // Right times column
+            Column(horizontalAlignment = Alignment.End) {
+                if (startTime != null) {
+                    Text(
+                        text = startTime,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF9CA3AF)
+                    )
+                }
+                if (endTime != null) {
+                    Text(
+                        text = endTime,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF9CA3AF)
+                    )
+                }
+                if (deadlineTime != null) {
+                    Text(
+                        text = deadlineTime,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFEF4444)
+                    )
+                }
             }
         }
     }

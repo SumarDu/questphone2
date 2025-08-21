@@ -196,6 +196,14 @@ class MainActivity : ComponentActivity() {
                         composable(Screen.Stats.route) {
                             StatsScreen(navController)
                         }
+
+                        composable(
+                            route = "${Screen.DayQuests.route}{key}",
+                            arguments = listOf(navArgument("key") { type = NavType.StringType })
+                        ) { backStackEntry ->
+                            val key = backStackEntry.arguments?.getString("key") ?: "TODAY"
+                            neth.iecal.questphone.ui.screens.launcher.DayQuestsScreen(navController, key)
+                        }
                     }
                 }
             }
