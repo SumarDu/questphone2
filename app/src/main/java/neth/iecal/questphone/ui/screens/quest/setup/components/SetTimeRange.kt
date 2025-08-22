@@ -23,33 +23,98 @@ import neth.iecal.questphone.utils.toMinutesRange
 
 @Composable
 fun SetTimeRange(initialTimeRange: QuestInfoState) {
-    var showDialog by remember { mutableStateOf(false) }
     // initialize from existing state (supports legacy hours)
     val (initStart, initEnd) = toMinutesRange(initialTimeRange.initialTimeRange)
     var startMinutes by remember { mutableStateOf(initStart) }
     var endMinutes by remember { mutableStateOf(initEnd) }
+    var deadlineMinutes by remember { mutableStateOf(initialTimeRange.deadlineMinutes) }
 
-    val allDay = startMinutes == 0 && endMinutes == 1440
+    var showStartPicker by remember { mutableStateOf(false) }
+    var showEndPicker by remember { mutableStateOf(false) }
+    var showDeadlinePicker by remember { mutableStateOf(false) }
 
-    Button(onClick = { showDialog = true }) {
-        Text(
-            "Perform Between: " + if (allDay) "Full Day" else "(${formatTimeMinutes(startMinutes)} - ${formatTimeMinutes(endMinutes)})"
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Start time selector
+            OutlinedButton(
+                onClick = { showStartPicker = true },
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text("Start time", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(2.dp))
+                    Text(formatTimeMinutes(startMinutes), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            // End time selector
+            OutlinedButton(
+                onClick = { showEndPicker = true },
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text("End time", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(2.dp))
+                    Text(formatTimeMinutes(endMinutes), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+            // Deadline selector
+            OutlinedButton(
+                onClick = { showDeadlinePicker = true },
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text("Deadline", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(2.dp))
+                    val d = deadlineMinutes
+                    val label = if (d <= 0) "—" else formatTimeMinutes(d)
+                    Text(label, style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        }
+    }
+
+    if (showStartPicker) {
+        SingleTimePickerDialog(
+            title = "Select Start Time",
+            initialMinutes = startMinutes,
+            onDismiss = { showStartPicker = false },
+            onConfirm = { minutes ->
+                startMinutes = minutes.coerceIn(0, 1435)
+                if (endMinutes <= startMinutes) endMinutes = (startMinutes + 5).coerceAtMost(1440)
+                initialTimeRange.initialTimeRange = listOf(startMinutes, endMinutes)
+                showStartPicker = false
+            }
         )
     }
 
-    if (showDialog) {
-        TimeRangeDialog(
-            initialStartMinutes = startMinutes,
-            initialEndMinutes = endMinutes,
-            onDismiss = { showDialog = false },
-            onConfirm = { newStart, newEnd ->
-                val s = newStart.coerceIn(0, 1435)
-                val e = newEnd.coerceIn(0, 1440)
-                val fixedEnd = if (e <= s) (s + 5).coerceAtMost(1440) else e
-                startMinutes = s
-                endMinutes = fixedEnd
-                showDialog = false
+    if (showEndPicker) {
+        SingleTimePickerDialog(
+            title = "Select End Time",
+            initialMinutes = endMinutes,
+            onDismiss = { showEndPicker = false },
+            onConfirm = { minutes ->
+                val m = minutes.coerceIn(0, 1440)
+                endMinutes = if (m <= startMinutes) (startMinutes + 5).coerceAtMost(1440) else m
                 initialTimeRange.initialTimeRange = listOf(startMinutes, endMinutes)
+                showEndPicker = false
+            }
+        )
+    }
+
+    if (showDeadlinePicker) {
+        DeadlineTimePickerDialog(
+            initialMinutes = deadlineMinutes.coerceAtLeast(0),
+            onClear = {
+                deadlineMinutes = 0
+                initialTimeRange.deadlineMinutes = 0
+                showDeadlinePicker = false
+            },
+            onDismiss = { showDeadlinePicker = false },
+            onConfirm = { minutes ->
+                val m = minutes.coerceIn(0, 1439)
+                deadlineMinutes = m
+                initialTimeRange.deadlineMinutes = m
+                showDeadlinePicker = false
             }
         )
     }
@@ -186,6 +251,72 @@ fun TimeRangeDialog(
                         }
                     }
                 }
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 6.dp
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DeadlineTimePickerDialog(
+    initialMinutes: Int,
+    onClear: () -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    val init = initialMinutes.coerceIn(0, 1439)
+    val state = rememberTimePickerState(
+        initialHour = init / 60,
+        initialMinute = init % 60,
+        is24Hour = false
+    )
+    fun roundTo5(min: Int): Int = ((min + 2) / 5) * 5 % 60
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onClear) { Text("Clear") }
+                TextButton(onClick = { onConfirm(state.hour * 60 + roundTo5(state.minute)) }) { Text("OK") }
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("Select Deadline", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+                TimePicker(state = state)
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 6.dp
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SingleTimePickerDialog(
+    title: String,
+    initialMinutes: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    val initHour = (initialMinutes.coerceAtLeast(0).coerceAtMost(1439)) / 60
+    val initMinute = (initialMinutes % 60)
+    val state = rememberTimePickerState(initialHour = initHour, initialMinute = initMinute, is24Hour = false)
+    fun roundTo5(min: Int): Int = ((min + 2) / 5) * 5 % 60
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { onConfirm(state.hour * 60 + roundTo5(state.minute)) }) { Text("OK") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+                TimePicker(state = state)
             }
         },
         containerColor = MaterialTheme.colorScheme.surfaceContainer,

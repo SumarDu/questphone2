@@ -20,6 +20,16 @@ sealed class Screen(val route: String) {
     data object Settings : Screen("settings/")
     object GestureSettings : Screen("settings/gestures")
 
+    // New settings sub-screens
+    data object SettingsCheckpoints : Screen("settings/checkpoints/")
+    data object SettingsProtection : Screen("settings/protection/")
+    data object SettingsOverduePenalties : Screen("settings/overdue_penalties/")
+    data object SettingsUnplannedBreakReasons : Screen("settings/unplanned_break_reasons/")
+    data object SettingsUnplannedQuestFilter : Screen("settings/unplanned_quest_filter/")
+    data object SettingsCalendarSync : Screen("settings/calendar_sync/")
+    data object SettingsAiTools : Screen("settings/ai_tools/")
+    data object SettingsBackupsDev : Screen("settings/backups_dev/")
+
     data object QuestStats : Screen("quest_stats/")
     data object Stats : Screen("stats/")
     data object CreateAppUnlocker : Screen("create_app_unlocker/")

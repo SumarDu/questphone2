@@ -115,49 +115,9 @@ fun SetSwiftMark(editQuestId:String? = null,navController: NavHostController) {
                     )
                     SetBaseQuest(questInfoState)
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("AI Photo Proof", style = MaterialTheme.typography.bodyLarge)
-                        Spacer(modifier = Modifier.weight(1f))
-                        Switch(
-                            checked = questInfoState.aiPhotoProof,
-                            onCheckedChange = { questInfoState.aiPhotoProof = it }
-                        )
-                    }
+                    // AI Photo Proof is handled in SetBaseQuest under Reward
 
-                    AnimatedVisibility(visible = questInfoState.aiPhotoProof) {
-                        OutlinedTextField(
-                            value = questInfoState.aiPhotoProofDescription,
-                            onValueChange = { questInfoState.aiPhotoProofDescription = it },
-                            label = { Text("AI Photo Proof Description") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp)
-                        )
-                    }
-
-                    // Quest and Break Duration
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = questInfoState.questDurationMinutes.toString(),
-                            onValueChange = { questInfoState.questDurationMinutes = it.toIntOrNull() ?: 0 },
-                            label = { Text("Quest (min)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = questInfoState.breakDurationMinutes.toString(),
-                            onValueChange = { questInfoState.breakDurationMinutes = it.toIntOrNull() ?: 0 },
-                            label = { Text("Break (min)") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    // Quest and Break Duration are handled in SetBaseQuest
 
                     val isSchedulingValid by remember(questInfoState.schedulingInfo) {
                         derivedStateOf {

@@ -77,6 +77,11 @@ fun SettingsScreen(navController: NavController) {
         factory = SettingsViewModelFactory(context.applicationContext as Application)
     )
 
+    // Temporary redirect to the new modular General Settings screen to avoid duplicated UI
+    LaunchedEffect(Unit) {
+        navController.navigate(neth.iecal.questphone.ui.navigation.Screen.Settings.route)
+    }
+
     @Composable
     fun UninstallProtectionSwitch() {
         val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager

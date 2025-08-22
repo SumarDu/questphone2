@@ -44,7 +44,15 @@ import neth.iecal.questphone.ui.screens.game.CreateAppUnlockerScreen
 import neth.iecal.questphone.ui.screens.quest.setup.SetIntegration
 
 import neth.iecal.questphone.ui.screens.settings.GestureSettingsScreen
-import neth.iecal.questphone.ui.screens.settings.SettingsScreen
+import neth.iecal.questphone.ui.screens.settings.GeneralSettingsScreen
+import neth.iecal.questphone.ui.screens.settings.SettingsCheckpointsScreen
+import neth.iecal.questphone.ui.screens.settings.SettingsProtectionScreen
+import neth.iecal.questphone.ui.screens.settings.SettingsOverduePenaltiesScreen
+import neth.iecal.questphone.ui.screens.settings.SettingsUnplannedBreakReasonsScreen
+import neth.iecal.questphone.ui.screens.settings.SettingsUnplannedQuestFilterScreen
+import neth.iecal.questphone.ui.screens.settings.SettingsCalendarSyncScreen
+import neth.iecal.questphone.ui.screens.settings.SettingsAiToolsScreen
+import neth.iecal.questphone.ui.screens.settings.SettingsBackupsDevScreen
 import neth.iecal.questphone.ui.screens.quest.stats.specific.BaseQuestStatsView
 import neth.iecal.questphone.ui.theme.LauncherTheme
 import neth.iecal.questphone.utils.isOnline
@@ -124,7 +132,31 @@ class MainActivity : ComponentActivity() {
                     ) {
 
                         composable(Screen.Settings.route) {
-                            SettingsScreen(navController)
+                            GeneralSettingsScreen(navController)
+                        }
+                        composable(Screen.SettingsCheckpoints.route) {
+                            SettingsCheckpointsScreen(navController)
+                        }
+                        composable(Screen.SettingsProtection.route) {
+                            SettingsProtectionScreen(navController)
+                        }
+                        composable(Screen.SettingsOverduePenalties.route) {
+                            SettingsOverduePenaltiesScreen(navController)
+                        }
+                        composable(Screen.SettingsUnplannedBreakReasons.route) {
+                            SettingsUnplannedBreakReasonsScreen(navController)
+                        }
+                        composable(Screen.SettingsUnplannedQuestFilter.route) {
+                            SettingsUnplannedQuestFilterScreen(navController)
+                        }
+                        composable(Screen.SettingsCalendarSync.route) {
+                            SettingsCalendarSyncScreen(navController)
+                        }
+                        composable(Screen.SettingsAiTools.route) {
+                            SettingsAiToolsScreen(navController)
+                        }
+                        composable(Screen.SettingsBackupsDev.route) {
+                            SettingsBackupsDevScreen(navController)
                         }
                         composable(Screen.GestureSettings.route) {
                             GestureSettingsScreen()

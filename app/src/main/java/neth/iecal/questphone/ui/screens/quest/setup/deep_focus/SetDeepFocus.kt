@@ -45,12 +45,12 @@ import neth.iecal.questphone.data.quest.focus.DeepFocus
 import neth.iecal.questphone.data.quest.focus.FocusTimeConfig
 import neth.iecal.questphone.ui.screens.quest.setup.ReviewDialog
 import neth.iecal.questphone.ui.screens.quest.setup.components.SetBaseQuest
-import neth.iecal.questphone.ui.screens.quest.setup.components.SetFocusTimeUI
-import neth.iecal.questphone.ui.screens.quest.setup.components.SetBreakTimeUI
+import neth.iecal.questphone.ui.screens.quest.setup.components.convertToMinutes
 import neth.iecal.questphone.utils.QuestHelper
 import neth.iecal.questphone.utils.json
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import neth.iecal.questphone.data.settings.SettingsRepository
 import neth.iecal.questphone.utils.reloadApps
 
@@ -65,11 +65,25 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
     val showDialog = remember { mutableStateOf(false) }
     var selectedApps = remember { mutableStateListOf<String>() }
     val questInfoState = remember { QuestInfoState(initialIntegrationId = IntegrationId.DEEP_FOCUS) }
-    val focusTimeConfig = remember { mutableStateOf(FocusTimeConfig()) }
+    // Initialize with zeros so UI shows placeholders (e.g., Session (min) placeholder "1") until user types
+    val focusTimeConfig = remember {
+        mutableStateOf(
+            FocusTimeConfig(
+                initialTime = "0",
+                finalTime = "0",
+                incrementTime = "0",
+                initialUnit = "m",
+                finalUnit = "m",
+                incrementUnit = "m"
+            )
+        )
+    }
         val breakDuration = remember { mutableStateOf(0L) }
-    val minWorkSessions = remember { mutableStateOf(1) }
-    val maxWorkSessions = remember { mutableStateOf(5) }
+    // Start at 0 so placeholder defaults are shown and disappear on typing
+    val minWorkSessions = remember { mutableStateOf(0) }
+    val maxWorkSessions = remember { mutableStateOf(0) }
     val longBreakDuration = remember { mutableStateOf(0L) }
+    // Start at 0 so placeholder default is shown (10)
     val rewardPerExtraSession = remember { mutableStateOf(0) }
     val longBreakAfterSessions = remember { mutableStateOf(0) }
 
@@ -110,16 +124,40 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
         )
     }
     if (isReviewDialogVisible.value) {
+        // Normalize defaults for fields left empty (0) before saving
+        // Focus times (minutes)
+        val effInitialMin = convertToMinutes(focusTimeConfig.value.initialTime, focusTimeConfig.value.initialUnit).let { if (it <= 0) 1 else it }
+        val effIncrementMin = convertToMinutes(focusTimeConfig.value.incrementTime, focusTimeConfig.value.incrementUnit).let { if (it <= 0) 1 else it }
+        val effFinalMin = convertToMinutes(focusTimeConfig.value.finalTime, focusTimeConfig.value.finalUnit).let { if (it <= 0) 10 else it }
+
+        val normalizedConfig = focusTimeConfig.value.copy(
+            initialTime = effInitialMin.toString(), initialUnit = "m",
+            incrementTime = effIncrementMin.toString(), incrementUnit = "m",
+            finalTime = effFinalMin.toString(), finalUnit = "m",
+        )
+
+        // Work sessions and breaks
+        val effMinSessions = if (minWorkSessions.value <= 0) 2 else minWorkSessions.value
+        val effMaxSessions = if (maxWorkSessions.value <= 0) 4 else maxWorkSessions.value
+        val effBreakMin = ((breakDuration.value / 60000L).toInt()).let { if (it <= 0) 1 else it }
+        val effLongBreakMin = ((longBreakDuration.value / 60000L).toInt()).let { if (it <= 0) 10 else it }
+        val effLongAfter = if (longBreakAfterSessions.value <= 0) 2 else longBreakAfterSessions.value
+
+        // Rewards
+        if (questInfoState.rewardMin <= 0) questInfoState.rewardMin = 5
+        if (questInfoState.rewardMax <= 0) questInfoState.rewardMax = questInfoState.rewardMin
+        val effExtraReward = if (rewardPerExtraSession.value <= 0) 10 else rewardPerExtraSession.value
+
         val deepFocus = DeepFocus(
-            focusTimeConfig = focusTimeConfig.value,
+            focusTimeConfig = normalizedConfig,
             unrestrictedApps = selectedApps.toList(),
-            breakDurationInMillis = breakDuration.value,
-            minWorkSessions = minWorkSessions.value,
-            maxWorkSessions = maxWorkSessions.value,
-            longBreakDurationInMillis = longBreakDuration.value,
-            reward_per_extra_session = rewardPerExtraSession.value,
-            long_break_after_sessions = longBreakAfterSessions.value,
-            nextFocusDurationInMillis = focusTimeConfig.value.initialTimeInMs
+            breakDurationInMillis = effBreakMin * 60000L,
+            minWorkSessions = effMinSessions,
+            maxWorkSessions = effMaxSessions,
+            longBreakDurationInMillis = effLongBreakMin * 60000L,
+            reward_per_extra_session = effExtraReward,
+            long_break_after_sessions = effLongAfter,
+            nextFocusDurationInMillis = effInitialMin * 60000L
         )
         val baseQuest =
             questInfoState.toBaseQuest<DeepFocus>(deepFocus)
@@ -166,43 +204,181 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
                         text = "Deep Focus ",
                         style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                     )
-                    SetBaseQuest(questInfoState)
+                    // Base quest UI with DeepFocus specifics:
+                    // - Hide default Duration/Break section (we'll render custom one below)
+                    // - Provide trailing content for Reward (Extra reward in the same row)
+                    // Local UI-only state for random extra reward split
+                    var extraRewardMin by remember { mutableStateOf(0) }
+                    var extraRewardMax by remember { mutableStateOf(0) }
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("AI Photo Proof", style = MaterialTheme.typography.bodyLarge)
-                        Spacer(modifier = Modifier.weight(1f))
-                        Switch(
-                            checked = questInfoState.aiPhotoProof,
-                            onCheckedChange = { questInfoState.aiPhotoProof = it }
-                        )
-                    }
+                    SetBaseQuest(
+                        questInfoState = questInfoState,
+                        isTimeRangeSupported = true,
+                        showDurationBreakSection = false,
+                        rewardExtraContent = { isRandom ->
+                            if (isRandom) {
+                                // Min/Max Extra Reward in one row
+                                Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                                    OutlinedTextField(
+                                        value = if (extraRewardMin <= 0) "" else extraRewardMin.toString(),
+                                        onValueChange = { v -> extraRewardMin = v.filter { it.isDigit() }.take(5).toIntOrNull() ?: 0 },
+                                        label = { Text("Min extra reward", style = MaterialTheme.typography.bodySmall) },
+                                        placeholder = { Text("1", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Spacer(Modifier.width(12.dp))
+                                    OutlinedTextField(
+                                        value = if (extraRewardMax <= 0) "" else extraRewardMax.toString(),
+                                        onValueChange = { v -> extraRewardMax = v.filter { it.isDigit() }.take(5).toIntOrNull() ?: 0 },
+                                        label = { Text("Max extra reward", style = MaterialTheme.typography.bodySmall) },
+                                        placeholder = { Text("10", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            } else {
+                                // Single Extra reward input occupying its own row
+                                OutlinedTextField(
+                                    value = if (rewardPerExtraSession.value <= 0) "" else rewardPerExtraSession.value.toString(),
+                                    onValueChange = { rewardPerExtraSession.value = it.toIntOrNull() ?: 0 },
+                                    label = { Text("Extra reward", style = MaterialTheme.typography.bodySmall) },
+                                    placeholder = { Text("10", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 12.dp)
+                                )
+                            }
+                        },
+                        afterTimeContent = {
+                            // Custom Duration/Break section adapted for DeepFocus
+                            Text("Duration and break", style = MaterialTheme.typography.titleMedium)
+                            androidx.compose.material3.Card(
+                                modifier = Modifier.padding(top = 6.dp),
+                                colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                                    // Session (min) — maps to initial focus time, force minutes unit
+                                    val initialMinutes = convertToMinutes(focusTimeConfig.value.initialTime, focusTimeConfig.value.initialUnit)
+                                    OutlinedTextField(
+                                        value = if (initialMinutes <= 0) "" else initialMinutes.toString(),
+                                        onValueChange = { v ->
+                                            val m = v.filter { it.isDigit() }.take(4).toIntOrNull() ?: 0
+                                            focusTimeConfig.value = focusTimeConfig.value.copy(initialTime = m.toString(), initialUnit = "m")
+                                        },
+                                        label = { Text("Session (min)", style = MaterialTheme.typography.bodySmall) },
+                                        placeholder = { Text("1", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
 
-                    AnimatedVisibility(visible = questInfoState.aiPhotoProof) {
-                        OutlinedTextField(
-                            value = questInfoState.aiPhotoProofDescription,
-                            onValueChange = { questInfoState.aiPhotoProofDescription = it },
-                            label = { Text("AI Photo Proof Description") },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp)
-                        )
-                    }
+                                    var showAdvanced by remember { mutableStateOf(false) }
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+                                        Text("Advanced focus growth", style = MaterialTheme.typography.bodyMedium)
+                                        Spacer(Modifier.width(8.dp))
+                                        Switch(checked = showAdvanced, onCheckedChange = { showAdvanced = it })
+                                    }
 
-                    // QR proof toggle
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("QR Proof", style = MaterialTheme.typography.bodyLarge)
-                        Spacer(modifier = Modifier.weight(1f))
-                        Switch(
-                            checked = questInfoState.qrProof,
-                            onCheckedChange = { questInfoState.qrProof = it }
-                        )
-                    }
+                                    AnimatedVisibility(visible = showAdvanced) {
+                                        Column(modifier = Modifier.fillMaxWidth()) {
+                                            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                                                val incr = convertToMinutes(focusTimeConfig.value.incrementTime, focusTimeConfig.value.incrementUnit)
+                                                OutlinedTextField(
+                                                    value = if (incr <= 0) "" else incr.toString(),
+                                                    onValueChange = { v ->
+                                                        val m = v.filter { it.isDigit() }.take(4).toIntOrNull() ?: 0
+                                                        focusTimeConfig.value = focusTimeConfig.value.copy(incrementTime = m.toString(), incrementUnit = "m")
+                                                    },
+                                                    label = { Text("increment Daily by", style = MaterialTheme.typography.bodySmall) },
+                                                    placeholder = { Text("1", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Spacer(Modifier.width(12.dp))
+                                                val goal = convertToMinutes(focusTimeConfig.value.finalTime, focusTimeConfig.value.finalUnit)
+                                                OutlinedTextField(
+                                                    value = if (goal <= 0) "" else goal.toString(),
+                                                    onValueChange = { v ->
+                                                        val m = v.filter { it.isDigit() }.take(4).toIntOrNull() ?: 0
+                                                        focusTimeConfig.value = focusTimeConfig.value.copy(finalTime = m.toString(), finalUnit = "m")
+                                                    },
+                                                    label = { Text("Goal Focus Time", style = MaterialTheme.typography.bodySmall) },
+                                                    placeholder = { Text("10", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Min/Max Work Sessions in one row
+                                    Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                                        OutlinedTextField(
+                                            value = if (minWorkSessions.value <= 0) "" else minWorkSessions.value.toString(),
+                                            onValueChange = { minWorkSessions.value = it.filter { c -> c.isDigit() }.take(3).toIntOrNull() ?: 0 },
+                                            label = { Text("Min Work Sessions", style = MaterialTheme.typography.bodySmall) },
+                                            placeholder = { Text("2", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Spacer(Modifier.width(12.dp))
+                                        OutlinedTextField(
+                                            value = if (maxWorkSessions.value <= 0) "" else maxWorkSessions.value.toString(),
+                                            onValueChange = { maxWorkSessions.value = it.filter { c -> c.isDigit() }.take(3).toIntOrNull() ?: 0 },
+                                            label = { Text("Max Work Sessions", style = MaterialTheme.typography.bodySmall) },
+                                            placeholder = { Text("4", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+
+                                    // Break, Long Break, Long after in one row
+                                    Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                                        val breakMin = (breakDuration.value / 60000L).toInt()
+                                        OutlinedTextField(
+                                            value = if (breakMin <= 0) "" else breakMin.toString(),
+                                            onValueChange = { v ->
+                                                val m = v.filter { it.isDigit() }.take(4).toIntOrNull() ?: 0
+                                                breakDuration.value = (m * 60000L)
+                                            },
+                                            label = { Text("Break", style = MaterialTheme.typography.bodySmall) },
+                                            placeholder = { Text("1", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                                            singleLine = true,
+                                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Spacer(Modifier.width(12.dp))
+                                        val longBreakMin = (longBreakDuration.value / 60000L).toInt()
+                                        OutlinedTextField(
+                                            value = if (longBreakMin <= 0) "" else longBreakMin.toString(),
+                                            onValueChange = { v ->
+                                                val m = v.filter { it.isDigit() }.take(4).toIntOrNull() ?: 0
+                                                longBreakDuration.value = (m * 60000L)
+                                            },
+                                            label = { Text("Long Break", style = MaterialTheme.typography.bodySmall) },
+                                            placeholder = { Text("10", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                                            singleLine = true,
+                                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Spacer(Modifier.width(12.dp))
+                                        OutlinedTextField(
+                                            value = if (longBreakAfterSessions.value <= 0) "" else longBreakAfterSessions.value.toString(),
+                                            onValueChange = { longBreakAfterSessions.value = it.filter { c -> c.isDigit() }.take(3).toIntOrNull() ?: 0 },
+                                            label = { Text("Long after", style = MaterialTheme.typography.bodySmall) },
+                                            placeholder = { Text("2", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                                            singleLine = true,
+                                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    )
+
+                    // AI Photo Proof and QR Proof are handled in SetBaseQuest under Reward
 
                     OutlinedButton(
                         onClick = { showDialog.value = true },
@@ -213,45 +389,6 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
                             style = MaterialTheme.typography.labelMedium
                         )
                     }
-
-                    SetFocusTimeUI(focusTimeConfig)
-
-                    SetBreakTimeUI(breakDuration)
-
-                    OutlinedTextField(
-                        value = minWorkSessions.value.toString(),
-                        onValueChange = { minWorkSessions.value = it.toIntOrNull() ?: 1 },
-                        label = { Text("Min Work Sessions") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = maxWorkSessions.value.toString(),
-                        onValueChange = { maxWorkSessions.value = it.toIntOrNull() ?: 5 },
-                        label = { Text("Max Work Sessions") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = (longBreakDuration.value / 60000).toString(),
-                        onValueChange = { longBreakDuration.value = (it.toLongOrNull() ?: 0L) * 60000 },
-                        label = { Text("Long Break Duration (minutes)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = rewardPerExtraSession.value.toString(),
-                        onValueChange = { rewardPerExtraSession.value = it.toIntOrNull() ?: 0 },
-                        label = { Text("Reward per Extra Session") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    OutlinedTextField(
-                        value = longBreakAfterSessions.value.toString(),
-                        onValueChange = { longBreakAfterSessions.value = it.toIntOrNull() ?: 0 },
-                        label = { Text("Long Break After Sessions") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
 
                     Button(
                         onClick = {
