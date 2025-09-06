@@ -1,5 +1,11 @@
 package neth.iecal.questphone.ui.screens.settings
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filter
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -31,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.clickable
@@ -38,6 +45,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.OutlinedTextField
@@ -53,10 +61,12 @@ import neth.iecal.questphone.ui.screens.onboard.SelectAppsModes
 import neth.iecal.questphone.data.quest.CalendarInfo
 import neth.iecal.questphone.services.CalendarSyncService
 import neth.iecal.questphone.utils.CalendarSyncScheduler
+import neth.iecal.questphone.data.timer.TimerService
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import java.util.Date
 import java.util.Calendar
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -632,6 +642,37 @@ fun SettingsBackupsDevScreen(navController: NavController) {
         factory = SettingsViewModelFactory(context.applicationContext as Application)
     )
     val settings by settingsViewModel.settings.collectAsState()
+    val scope = rememberCoroutineScope()
+    val timerState by neth.iecal.questphone.data.timer.TimerService.timerState.collectAsState()
+    var showDevWarn by remember { mutableStateOf(false) }
+
+    // File pickers for export and import
+    val exportLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) {
+            scope.launch {
+                try {
+                    val content = neth.iecal.questphone.data.backup.BackupManager.buildBackup(context)
+                    neth.iecal.questphone.data.backup.BackupManager.writeToUri(context, uri, content)
+                    Toast.makeText(context, "Backup exported", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            scope.launch {
+                try {
+                    val content = neth.iecal.questphone.data.backup.BackupManager.readFromUri(context, uri)
+                    neth.iecal.questphone.data.backup.BackupManager.restoreFromJson(context, content)
+                    Toast.makeText(context, "Backup imported", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Import failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     Scaffold(topBar = {
         TopAppBar(
@@ -651,6 +692,101 @@ fun SettingsBackupsDevScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !settings.isSettingsLocked
             ) { Text("Configure Gestures") }
+
+            Spacer(Modifier.height(16.dp))
+            Text("Backups", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+            Row(Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = {
+                        val name = neth.iecal.questphone.data.backup.BackupManager.suggestedFileName()
+                        exportLauncher.launch(name)
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Export Backup") }
+                Spacer(Modifier.width(12.dp))
+                Button(
+                    onClick = {
+                        importLauncher.launch(arrayOf("application/json"))
+                    },
+                    modifier = Modifier.weight(1f),
+                    enabled = !settings.isSettingsLocked
+                ) { Text("Import Backup") }
+            }
+
+            Spacer(Modifier.height(24.dp))
+            Text("Developer", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+            Button(
+                onClick = {
+                    scope.launch {
+                        try {
+                            // Gate by timer state: allow only IDLE (INACTIVE) or Break Overdue
+                            val okToProceed =
+                                (timerState.mode == neth.iecal.questphone.data.timer.TimerMode.INACTIVE) ||
+                                (timerState.mode == neth.iecal.questphone.data.timer.TimerMode.OVERTIME)
+                            if (!okToProceed) {
+                                showDevWarn = true
+                                return@launch
+                            }
+                            // 1) Create backup to app private files
+                            val content = neth.iecal.questphone.data.backup.BackupManager.buildBackup(context)
+                            val fileName = neth.iecal.questphone.data.backup.BackupManager.suggestedFileName()
+                            val path = neth.iecal.questphone.data.backup.BackupManager.writeToAppFiles(context, fileName, content)
+                            val f = java.io.File(path)
+                            val ok = f.exists() && f.length() > 0L
+                            // Also try to save a user-visible copy to Downloads
+                            val publicUri = neth.iecal.questphone.data.backup.BackupManager.writeToDownloads(context, fileName, content)
+
+                            // 2) Force timer to IDLE before creating checkpoint
+                            val idleIntent = android.content.Intent(context, TimerService::class.java).apply {
+                                action = TimerService.ACTION_FORCE_IDLE
+                            }
+                            context.startService(idleIntent)
+                            // Wait until service reports IDLE (INACTIVE) to ensure strict order
+                            withTimeoutOrNull(3000) {
+                                neth.iecal.questphone.data.timer.TimerService.timerState
+                                    .filter { it.mode == neth.iecal.questphone.data.timer.TimerMode.INACTIVE }
+                                    .first()
+                            }
+
+                            // 3) Create a checkpoint to signal developer mode
+                            val checkpointName = "dev_m_start"
+                            val comment: String? = null
+                            settingsViewModel.createCheckpoint(checkpointName, comment)
+
+                            // 4) Set persistent flag to show blocking screen on Home
+                            context.getSharedPreferences("dev_mode", android.content.Context.MODE_PRIVATE)
+                                .edit().putBoolean("pending_reinstall", true).apply()
+
+                            val toastMsg = buildString {
+                                append("Developer mode engaged. ")
+                                if (ok) append("Saved: $path. ") else append("Internal save failed. ")
+                                if (publicUri != null) append("Also in Downloads: $publicUri") else append("Downloads save failed.")
+                            }
+                            Toast.makeText(context, toastMsg, Toast.LENGTH_LONG).show()
+
+                            // 5) Go to Home and lock UI with prompt
+                            navController.navigate(neth.iecal.questphone.ui.navigation.Screen.HomeScreen.route) {
+                                popUpTo(neth.iecal.questphone.ui.navigation.Screen.SettingsBackupsDev.route) { inclusive = true }
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Failed to enter developer mode: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !settings.isSettingsLocked
+            ) { Text("Enter Developer Mode") }
+
+            if (showDevWarn) {
+                AlertDialog(
+                    onDismissRequest = { showDevWarn = false },
+                    title = { Text("Cannot Enter Developer Mode") },
+                    text = { Text("You can only enter developer mode when the timer is IDLE or Break is Overdue. Please stop the current quest/break and try again.") },
+                    confirmButton = {
+                        TextButton(onClick = { showDevWarn = false }) { Text("OK") }
+                    }
+                )
+            }
         }
     }
 }

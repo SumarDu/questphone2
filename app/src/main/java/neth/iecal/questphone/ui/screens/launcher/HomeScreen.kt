@@ -128,6 +128,11 @@ import neth.iecal.questphone.data.local.PenaltyLog
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.widget.Toast
+import neth.iecal.questphone.data.remote.DevModeManager
+import neth.iecal.questphone.data.remote.SupabaseClient
+import neth.iecal.questphone.data.remote.SupabaseSyncService
+import androidx.compose.material3.OutlinedTextField
 
 private val json = Json { ignoreUnknownKeys = true }
 
@@ -143,6 +148,19 @@ fun HomeScreen(navController: NavController) {
     val timerText by timerViewModel.timerText.collectAsState()
     val timerMode by timerViewModel.timerMode.collectAsState()
     val timerState by TimerService.timerState.collectAsState()
+
+    // Initialize Supabase client with current mode
+    LaunchedEffect(Unit) {
+        try { SupabaseClient.init(context) } catch (_: Exception) {}
+    }
+
+    // Developer mode blocking flag
+    val devSp = remember { context.getSharedPreferences("dev_mode", MODE_PRIVATE) }
+    val pendingReinstall = remember { mutableStateOf(devSp.getBoolean("pending_reinstall", false)) }
+    val devActive = remember { mutableStateOf(DevModeManager.isActive(context)) }
+    var showModeDialog by remember { mutableStateOf(!DevModeManager.hasSelected(context)) }
+    var showEndCommentDialog by remember { mutableStateOf(false) }
+    var endCommentText by remember { mutableStateOf("") }
     
     // Reactive coin balance state
     var showPenaltyDialog by remember { mutableStateOf(false) }
@@ -198,6 +216,70 @@ fun HomeScreen(navController: NavController) {
             }
         )
     }
+
+    // First-run mode selector
+    if (showModeDialog) {
+        AlertDialog(
+            onDismissRequest = { /* force a choice */ },
+            title = { Text("Select Mode") },
+            text = { Text("Choose which backend to use. Developer Mode sends data to a separate dev Supabase project and shows a DEV banner.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    DevModeManager.setActive(context, true)
+                    devActive.value = true
+                    SupabaseClient.init(context)
+                    Toast.makeText(context, "Developer Mode enabled", Toast.LENGTH_SHORT).show()
+                    showModeDialog = false
+                }) { Text("Developer Mode") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    // Force the end-comment dialog before switching to Normal Mode
+                    showModeDialog = false
+                    endCommentText = ""
+                    showEndCommentDialog = true
+                }) { Text("Normal Mode") }
+            }
+        )
+    }
+
+    // Forced end-comment dialog shown when selecting Normal Mode
+    if (showEndCommentDialog) {
+        AlertDialog(
+            onDismissRequest = { /* forced dialog; do not allow dismiss without action */ },
+            title = { Text("cp: dev_m_end comment") },
+            text = {
+                Column {
+                    Text(text = "Enter a comment for the dev mode end checkpoint.")
+                    Spacer(Modifier.size(8.dp))
+                    OutlinedTextField(
+                        value = endCommentText,
+                        onValueChange = { endCommentText = it },
+                        singleLine = false,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // Switch to Normal Mode and run cleanup with the provided comment
+                        DevModeManager.setActive(context, false)
+                        devActive.value = false
+                        SupabaseClient.init(context)
+                        scope.launch {
+                            runCatching {
+                                SupabaseSyncService(context).checkAndCleanupDevModeArtifacts(endCommentText.ifBlank { null })
+                            }
+                        }
+                        Toast.makeText(context, "Normal Mode selected", Toast.LENGTH_SHORT).show()
+                        showEndCommentDialog = false
+                    },
+                    enabled = endCommentText.isNotBlank()
+                ) { Text("Save") }
+            }
+        )
+    }
     var coinBalance by remember { mutableStateOf(User.userInfo.coins) }
     
     // Update coin balance when timer state changes (to catch penalty deductions)
@@ -221,6 +303,29 @@ fun HomeScreen(navController: NavController) {
                 finishedQuestForReopening = dao.getQuestById(questId)
             }
         }
+    }
+
+    // Blocking dialog if developer mode requires reinstall
+    if (pendingReinstall.value) {
+        AlertDialog(
+            onDismissRequest = { /* non-dismissible */ },
+            title = { Text("Developer Mode Required") },
+            text = {
+                Text(
+                    "Please reinstall the app and switch to Developer Mode. A backup has been created. After reinstall, import it if needed."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    // Keep the flag; exit app so user can reinstall
+                    val activity = (context as? android.app.Activity)
+                    activity?.finishAffinity()
+                }) {
+                    Text("Exit")
+                }
+            },
+            dismissButton = {}
+        )
     }
 
     // Helper function to check if a quest is finished and can reopen dialog
@@ -578,6 +683,19 @@ fun HomeScreen(navController: NavController) {
                 style = MaterialTheme.typography.bodyLarge,
             )
 
+            // Developer mode badge
+            if (devActive.value) {
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    text = "DEV",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFD32F2F))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.weight(1f)) // Pushes the Icon to the right
 

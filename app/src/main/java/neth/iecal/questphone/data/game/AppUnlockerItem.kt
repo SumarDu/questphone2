@@ -32,4 +32,12 @@ interface AppUnlockerItemDao {
 
     @Query("DELETE FROM app_unlocker_items WHERE id = :id")
     suspend fun deleteById(id: Int)
+
+    // Convenience for backups: fetch all once (non-Flow)
+    @Query("SELECT * FROM app_unlocker_items")
+    suspend fun getAllOnce(): List<AppUnlockerItem>
+
+    // Convenience for backups: clear all entries before restore
+    @Query("DELETE FROM app_unlocker_items")
+    suspend fun clearAll()
 }

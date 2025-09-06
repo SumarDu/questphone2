@@ -14,8 +14,16 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class SupabaseSyncService(private val context: Context) {
+    init {
+        // Ensure Supabase client is initialized with correct mode
+        SupabaseClient.init(context)
+    }
 
     suspend fun syncSingleQuestEvent(event: neth.iecal.questphone.data.local.QuestEvent) {
+        if (!SupabaseClient.isAvailable()) {
+            Log.w("SupabaseSyncService", "Supabase client unavailable (possibly DEV without credentials); skipping single event sync")
+            return
+        }
         if (!isOnline()) {
             Log.w("SupabaseSyncService", "Device offline, skipping single quest event sync: ${'$'}{event.id}")
             return
@@ -30,7 +38,7 @@ class SupabaseSyncService(private val context: Context) {
                 reward_coins = event.rewardCoins,
                 pre_reward_coins = event.preRewardCoins
             )
-            SupabaseClient.client.postgrest.from("quest_events").upsert(eventToSync, onConflict = "id")
+            SupabaseClient.client().postgrest.from("quest_events").upsert(eventToSync, onConflict = "id")
             
             // Mark as synced in local database
             val updatedEvent = event.copy(synced = true)
@@ -48,6 +56,10 @@ class SupabaseSyncService(private val context: Context) {
     private val penaltyLogDao: PenaltyLogDao = AppDatabase.getDatabase(context).penaltyLogDao()
 
     suspend fun syncPenaltyLogs(): Int {
+        if (!SupabaseClient.isAvailable()) {
+            Log.w("SupabaseSyncService", "Supabase client unavailable (possibly DEV without credentials); skipping penalty logs sync")
+            return -1
+        }
         if (!isOnline()) {
             Log.w("SupabaseSyncService", "Device offline, skipping penalty logs sync")
             return -1
@@ -71,7 +83,7 @@ class SupabaseSyncService(private val context: Context) {
                     quest_id = log.questId,
                     quest_title = log.questTitle
                 )
-                SupabaseClient.client.postgrest.from("penalty_logs").upsert(payload, onConflict = "id")
+                SupabaseClient.client().postgrest.from("penalty_logs").upsert(payload, onConflict = "id")
                 okIds.add(log.id)
             } catch (e: Exception) {
                 Log.e("SupabaseSyncService", "Failed to sync penalty log id=${'$'}{log.id}", e)
@@ -90,6 +102,10 @@ class SupabaseSyncService(private val context: Context) {
     }
 
     suspend fun syncQuestEvents(): Int {
+        if (!SupabaseClient.isAvailable()) {
+            Log.w("SupabaseSyncService", "Supabase client unavailable (possibly DEV without credentials); skipping batch quest events sync")
+            return -1
+        }
         if (!isOnline()) {
             Log.w("SupabaseSyncService", "Device offline, skipping batch quest events sync")
             return -1
@@ -115,7 +131,7 @@ class SupabaseSyncService(private val context: Context) {
                     reward_coins = event.rewardCoins,
                     pre_reward_coins = event.preRewardCoins
                 )
-                SupabaseClient.client.postgrest.from("quest_events").upsert(eventToSync, onConflict = "id")
+                SupabaseClient.client().postgrest.from("quest_events").upsert(eventToSync, onConflict = "id")
                 successfullySyncedEventIds.add(event.id)
             } catch (e: Exception) {
                 Log.e("SupabaseSyncService", "Failed to sync quest event with id ${event.id}, will retry later.", e)
@@ -137,15 +153,70 @@ class SupabaseSyncService(private val context: Context) {
     }
 
     suspend fun syncDeepFocusLog(log: DeepFocusSessionLog) {
+        if (!SupabaseClient.isAvailable()) {
+            Log.w("SupabaseSyncService", "Supabase client unavailable (possibly DEV without credentials); skipping deep focus log sync")
+            return
+        }
         if (!isOnline()) {
             Log.w("SupabaseSyncService", "Device offline, skipping deep focus log sync: id=${'$'}{log.id}")
             return
         }
         try {
-            SupabaseClient.client.postgrest.from("deep_focus_session_logs").upsert(log, onConflict = "client_uuid")
+            SupabaseClient.client().postgrest.from("deep_focus_session_logs").upsert(log, onConflict = "client_uuid")
             Log.d("SupabaseSyncService", "Successfully synced deep focus log: ${log.id}")
         } catch (e: Exception) {
             Log.e("SupabaseSyncService", "Error syncing deep focus log id=${'$'}{log.id}", e)
+        }
+    }
+
+    /**
+     * If the last two quest_events contain a "cp: dev_m_start" checkpoint and the other
+     * event has a NULL end_time, delete that following event and create a "cp: dev_m_end" checkpoint.
+     * This is invoked when user switches to Normal Mode to cleanup DEV mode artifacts.
+     */
+    suspend fun checkAndCleanupDevModeArtifacts(endComment: String? = null) {
+        if (!SupabaseClient.isAvailable()) {
+            Log.w("SupabaseSyncService", "Supabase unavailable; skip dev cleanup")
+            return
+        }
+        if (!isOnline()) {
+            Log.w("SupabaseSyncService", "Offline; skip dev cleanup")
+            return
+        }
+        try {
+            val rows = SupabaseClient.client().postgrest
+                .from("quest_events")
+                .select()
+                .decodeList<QuestEventSupabase>()
+                .sortedByDescending { it.start_time }
+                .take(2)
+
+            if (rows.size < 2) return
+            val a = rows[0]
+            val b = rows[1]
+            val hasStart = (a.event_name == "cp: dev_m_start") || (b.event_name == "cp: dev_m_start")
+            if (!hasStart) return
+            // Identify the one that follows after the start checkpoint with NULL end_time
+            // If sorted DESC, the more recent row is rows[0]. If start is rows[1], then rows[0] follows it; else no-op.
+            val candidate = when {
+                b.event_name == "cp: dev_m_start" -> a
+                a.event_name == "cp: dev_m_start" -> b
+                else -> null
+            }
+            if (candidate != null && candidate.end_time == null && !candidate.event_name.startsWith("cp:")) {
+                val idToDelete = candidate.id
+                if (!idToDelete.isNullOrBlank()) {
+                    runCatching {
+                        SupabaseClient.client().postgrest
+                            .from("quest_events")
+                            .delete { filter { eq("id", idToDelete) } }
+                    }.onFailure { Log.w("SupabaseSyncService", "Failed to delete following event id=$idToDelete", it) }
+                }
+            }
+            // Create end checkpoint locally and sync, with user-provided comment
+            createCheckpoint("dev_m_end", endComment)
+        } catch (e: Exception) {
+            Log.w("SupabaseSyncService", "Dev mode cleanup failed", e)
         }
     }
 

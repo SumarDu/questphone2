@@ -253,6 +253,10 @@ class TimerService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
+            ACTION_FORCE_IDLE -> {
+                _timerState.value = TimerState(TimerMode.INACTIVE)
+                return START_STICKY
+            }
             ACTION_COMPLETE_QUEST -> {
                 completeQuest()
                 return START_STICKY
@@ -1254,6 +1258,7 @@ class TimerService : Service() {
         const val ACTION_END_BREAK_EARLY = "neth.iecal.questphone.action.END_BREAK_EARLY"
         const val ACTION_START_UNLOCK_TIMER = "neth.iecal.questphone.action.START_UNLOCK_TIMER"
         const val ACTION_SUBMIT_UNPLANNED_BREAK_REASON = "neth.iecal.questphone.action.SUBMIT_UNPLANNED_BREAK_REASON"
+        const val ACTION_FORCE_IDLE = "neth.iecal.questphone.action.FORCE_IDLE"
 
         const val EXTRA_UNLOCK_DURATION = "unlock_duration_minutes"
         const val EXTRA_PACKAGE_NAME = "package_name"

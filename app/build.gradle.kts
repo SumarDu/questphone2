@@ -32,6 +32,17 @@ android {
         // Supabase keys
         buildConfigField("String", "SUPABASE_URL", "\"${localProperties.getProperty("supabase.url")}\"")
         buildConfigField("String", "SUPABASE_KEY", "\"${localProperties.getProperty("supabase.key")}\"")
+        // Dev Supabase keys (fallback to prod if not provided)
+        buildConfigField(
+            "String",
+            "SUPABASE_URL_DEV",
+            "\"${localProperties.getProperty("supabase.dev.url", "")}\""
+        )
+        buildConfigField(
+            "String",
+            "SUPABASE_KEY_DEV",
+            "\"${localProperties.getProperty("supabase.dev.key", "")}\""
+        )
 
     }
 
