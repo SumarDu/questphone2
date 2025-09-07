@@ -17,6 +17,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.media.AudioAttributes
+import android.net.Uri
 import androidx.core.app.NotificationCompat
 import neth.iecal.questphone.R
 import neth.iecal.questphone.receivers.UnlockWarningReceiver
@@ -65,6 +67,13 @@ object SchedulingUtils {
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = context.getString(R.string.unlock_warning_channel_description)
+                // Set default sound from res/raw
+                val attrs = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+                val uri = Uri.parse("android.resource://" + context.packageName + "/" + R.raw.quest_expired)
+                setSound(uri, attrs)
             }
             
             val notificationManager = context.getSystemService(NotificationManager::class.java)

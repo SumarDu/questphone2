@@ -125,10 +125,10 @@ fun AppList(navController: NavController) {
                             User.useCoins(10)
                             val intent = Intent(INTENT_ACTION_UNLOCK_APP).apply {
                                 putExtra("package", selectedPackage.value)
-                        }
+                            }
                             startForegroundService(context, intent)
                             showCoinDialog.value = false
-                        launchApp(context, selectedPackage.value)
+                            launchApp(context, selectedPackage.value)
                         }
                     },
                     appName = try {
@@ -218,10 +218,9 @@ private fun AppListWithScrollbar(
                                 )
                             }
                             items(
-                                count = group.apps.size,
-                                key = { index -> "${group.letter}_${group.apps[index].packageName}" }
-                            ) { index ->
-                                val app = group.apps[index]
+                                items = group.apps,
+                                key = { app -> "${group.letter}_${app.packageName}" }
+                            ) { app ->
                                 AppItem(
                                     name = app.name,
                                     packageName = app.packageName,

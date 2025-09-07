@@ -12,11 +12,33 @@ import neth.iecal.questphone.data.local.PenaltyLog
 import neth.iecal.questphone.data.quest.focus.DeepFocusSessionLog
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class SupabaseSyncService(private val context: Context) {
     init {
         // Ensure Supabase client is initialized with correct mode
         SupabaseClient.init(context)
+    }
+
+    /**
+     * Returns true if among the last two quest_events there is a "cp: dev_m_start".
+     * If Supabase is unavailable or offline, returns false.
+     */
+    suspend fun hasDevModeStartInLastTwo(): Boolean {
+        if (!SupabaseClient.isAvailable()) return false
+        if (!isOnline()) return false
+        return try {
+            val rows = SupabaseClient.client().postgrest
+                .from("quest_events")
+                .select()
+                .decodeList<QuestEventSupabase>()
+                .sortedByDescending { it.start_time }
+                .take(2)
+            rows.any { it.event_name == "cp: dev_m_start" }
+        } catch (e: Exception) {
+            false
+        }
     }
 
     suspend fun syncSingleQuestEvent(event: neth.iecal.questphone.data.local.QuestEvent) {
@@ -29,20 +51,22 @@ class SupabaseSyncService(private val context: Context) {
             return
         }
         try {
-            val eventToSync = QuestEventSupabase(
-                id = event.id,
-                event_name = event.eventName,
-                start_time = event.startTime,
-                end_time = if (event.endTime > 0) event.endTime else null,
-                comments = event.comments,
-                reward_coins = event.rewardCoins,
-                pre_reward_coins = event.preRewardCoins
-            )
-            SupabaseClient.client().postgrest.from("quest_events").upsert(eventToSync, onConflict = "id")
-            
-            // Mark as synced in local database
-            val updatedEvent = event.copy(synced = true)
-            questEventDao.updateEvent(updatedEvent)
+            val updatedEvent = withContext(Dispatchers.IO) {
+                val eventToSync = QuestEventSupabase(
+                    id = event.id,
+                    event_name = event.eventName,
+                    start_time = event.startTime,
+                    end_time = if (event.endTime > 0) event.endTime else null,
+                    comments = event.comments,
+                    reward_coins = event.rewardCoins,
+                    pre_reward_coins = event.preRewardCoins
+                )
+                SupabaseClient.client().postgrest.from("quest_events").upsert(eventToSync, onConflict = "id")
+                // Mark as synced in local database
+                val updated = event.copy(synced = true)
+                questEventDao.updateEvent(updated)
+                updated
+            }
             
             Log.d("SupabaseSyncService", "Successfully synced single quest event: ${event.id}")
         } catch (e: Exception) {
@@ -51,9 +75,8 @@ class SupabaseSyncService(private val context: Context) {
         }
     }
 
-
-    private val questEventDao: QuestEventDao = AppDatabase.getDatabase(context).questEventDao()
-    private val penaltyLogDao: PenaltyLogDao = AppDatabase.getDatabase(context).penaltyLogDao()
+    private val questEventDao: QuestEventDao by lazy(LazyThreadSafetyMode.NONE) { AppDatabase.getDatabase(context).questEventDao() }
+    private val penaltyLogDao: PenaltyLogDao by lazy(LazyThreadSafetyMode.NONE) { AppDatabase.getDatabase(context).penaltyLogDao() }
 
     suspend fun syncPenaltyLogs(): Int {
         if (!SupabaseClient.isAvailable()) {
@@ -64,7 +87,7 @@ class SupabaseSyncService(private val context: Context) {
             Log.w("SupabaseSyncService", "Device offline, skipping penalty logs sync")
             return -1
         }
-        val unsynced = penaltyLogDao.getUnsynced()
+        val unsynced = withContext(Dispatchers.IO) { penaltyLogDao.getUnsynced() }
         if (unsynced.isEmpty()) {
             Log.d("SupabaseSyncService", "No penalty logs to sync.")
             return 0
@@ -74,16 +97,18 @@ class SupabaseSyncService(private val context: Context) {
         var hasFailures = false
         for (log in unsynced) {
             try {
-                val payload = PenaltyLogSupabase(
-                    id = log.id,
-                    occurred_at = log.occurredAt,
-                    amount = log.amount,
-                    balance_before = log.balanceBefore,
-                    source = log.source,
-                    quest_id = log.questId,
-                    quest_title = log.questTitle
-                )
-                SupabaseClient.client().postgrest.from("penalty_logs").upsert(payload, onConflict = "id")
+                withContext(Dispatchers.IO) {
+                    val payload = PenaltyLogSupabase(
+                        id = log.id,
+                        occurred_at = log.occurredAt,
+                        amount = log.amount,
+                        balance_before = log.balanceBefore,
+                        source = log.source,
+                        quest_id = log.questId,
+                        quest_title = log.questTitle
+                    )
+                    SupabaseClient.client().postgrest.from("penalty_logs").upsert(payload, onConflict = "id")
+                }
                 okIds.add(log.id)
             } catch (e: Exception) {
                 Log.e("SupabaseSyncService", "Failed to sync penalty log id=${'$'}{log.id}", e)
@@ -92,7 +117,7 @@ class SupabaseSyncService(private val context: Context) {
         }
         if (okIds.isNotEmpty()) {
             try {
-                penaltyLogDao.markAsSynced(okIds)
+                withContext(Dispatchers.IO) { penaltyLogDao.markAsSynced(okIds) }
             } catch (e: Exception) {
                 Log.e("SupabaseSyncService", "Failed to mark penalty logs as synced.", e)
                 hasFailures = true
@@ -110,7 +135,7 @@ class SupabaseSyncService(private val context: Context) {
             Log.w("SupabaseSyncService", "Device offline, skipping batch quest events sync")
             return -1
         }
-        val unsyncedEvents = questEventDao.getUnsyncedEvents()
+        val unsyncedEvents = withContext(Dispatchers.IO) { questEventDao.getUnsyncedEvents() }
         if (unsyncedEvents.isEmpty()) {
             Log.d("SupabaseSyncService", "No quest events to sync.")
             return 0
@@ -122,16 +147,18 @@ class SupabaseSyncService(private val context: Context) {
 
         for (event in unsyncedEvents) {
             try {
-                val eventToSync = QuestEventSupabase(
-                    id = event.id,
-                    event_name = event.eventName,
-                    start_time = event.startTime,
-                    end_time = if (event.endTime > 0) event.endTime else null,
-                    comments = event.comments,
-                    reward_coins = event.rewardCoins,
-                    pre_reward_coins = event.preRewardCoins
-                )
-                SupabaseClient.client().postgrest.from("quest_events").upsert(eventToSync, onConflict = "id")
+                withContext(Dispatchers.IO) {
+                    val eventToSync = QuestEventSupabase(
+                        id = event.id,
+                        event_name = event.eventName,
+                        start_time = event.startTime,
+                        end_time = if (event.endTime > 0) event.endTime else null,
+                        comments = event.comments,
+                        reward_coins = event.rewardCoins,
+                        pre_reward_coins = event.preRewardCoins
+                    )
+                    SupabaseClient.client().postgrest.from("quest_events").upsert(eventToSync, onConflict = "id")
+                }
                 successfullySyncedEventIds.add(event.id)
             } catch (e: Exception) {
                 Log.e("SupabaseSyncService", "Failed to sync quest event with id ${event.id}, will retry later.", e)
@@ -141,7 +168,7 @@ class SupabaseSyncService(private val context: Context) {
 
         if (successfullySyncedEventIds.isNotEmpty()) {
             try {
-                questEventDao.markAsSynced(successfullySyncedEventIds)
+                withContext(Dispatchers.IO) { questEventDao.markAsSynced(successfullySyncedEventIds) }
                 Log.d("SupabaseSyncService", "Successfully marked ${successfullySyncedEventIds.size} quest events as synced.")
             } catch (e: Exception) {
                 Log.e("SupabaseSyncService", "Failed to mark quest events as synced.", e)
@@ -162,7 +189,9 @@ class SupabaseSyncService(private val context: Context) {
             return
         }
         try {
-            SupabaseClient.client().postgrest.from("deep_focus_session_logs").upsert(log, onConflict = "client_uuid")
+            withContext(Dispatchers.IO) {
+                SupabaseClient.client().postgrest.from("deep_focus_session_logs").upsert(log, onConflict = "client_uuid")
+            }
             Log.d("SupabaseSyncService", "Successfully synced deep focus log: ${log.id}")
         } catch (e: Exception) {
             Log.e("SupabaseSyncService", "Error syncing deep focus log id=${'$'}{log.id}", e)
@@ -184,33 +213,35 @@ class SupabaseSyncService(private val context: Context) {
             return
         }
         try {
-            val rows = SupabaseClient.client().postgrest
-                .from("quest_events")
-                .select()
-                .decodeList<QuestEventSupabase>()
-                .sortedByDescending { it.start_time }
-                .take(2)
+            withContext(Dispatchers.IO) {
+                val rows = SupabaseClient.client().postgrest
+                    .from("quest_events")
+                    .select()
+                    .decodeList<QuestEventSupabase>()
+                    .sortedByDescending { it.start_time }
+                    .take(2)
 
-            if (rows.size < 2) return
-            val a = rows[0]
-            val b = rows[1]
-            val hasStart = (a.event_name == "cp: dev_m_start") || (b.event_name == "cp: dev_m_start")
-            if (!hasStart) return
-            // Identify the one that follows after the start checkpoint with NULL end_time
-            // If sorted DESC, the more recent row is rows[0]. If start is rows[1], then rows[0] follows it; else no-op.
-            val candidate = when {
-                b.event_name == "cp: dev_m_start" -> a
-                a.event_name == "cp: dev_m_start" -> b
-                else -> null
-            }
-            if (candidate != null && candidate.end_time == null && !candidate.event_name.startsWith("cp:")) {
-                val idToDelete = candidate.id
-                if (!idToDelete.isNullOrBlank()) {
-                    runCatching {
-                        SupabaseClient.client().postgrest
-                            .from("quest_events")
-                            .delete { filter { eq("id", idToDelete) } }
-                    }.onFailure { Log.w("SupabaseSyncService", "Failed to delete following event id=$idToDelete", it) }
+                if (rows.size < 2) return@withContext
+                val a = rows[0]
+                val b = rows[1]
+                val hasStart = (a.event_name == "cp: dev_m_start") || (b.event_name == "cp: dev_m_start")
+                if (!hasStart) return@withContext
+                // Identify the one that follows after the start checkpoint with NULL end_time
+                // If sorted DESC, the more recent row is rows[0]. If start is rows[1], then rows[0] follows it; else no-op.
+                val candidate = when {
+                    b.event_name == "cp: dev_m_start" -> a
+                    a.event_name == "cp: dev_m_start" -> b
+                    else -> null
+                }
+                if (candidate != null && candidate.end_time == null && !candidate.event_name.startsWith("cp:")) {
+                    val idToDelete = candidate.id
+                    if (!idToDelete.isNullOrBlank()) {
+                        runCatching {
+                            SupabaseClient.client().postgrest
+                                .from("quest_events")
+                                .delete { filter { eq("id", idToDelete) } }
+                        }.onFailure { Log.w("SupabaseSyncService", "Failed to delete following event id=${'$'}idToDelete", it) }
+                    }
                 }
             }
             // Create end checkpoint locally and sync, with user-provided comment
@@ -242,13 +273,14 @@ class SupabaseSyncService(private val context: Context) {
             val checkpointEndTime = now + 1000 // 1 second duration
             
             // Check if there's an active event that needs to be suspended
-            val latestEvent = questEventDao.getLatestEvent()
+            val latestEvent = withContext(Dispatchers.IO) { questEventDao.getLatestEvent() }
             var suspendedEventName: String? = null
             
             if (latestEvent != null && latestEvent.endTime == 0L) {
                 // Close the active event at checkpoint start time
                 val closedEvent = latestEvent.copy(endTime = now)
-                questEventDao.updateEvent(closedEvent.copy(synced = false))
+                withContext(Dispatchers.IO) { questEventDao.updateEvent(closedEvent.copy(synced = false)) }
+                // network + DB handled off-main inside syncSingleQuestEvent
                 syncSingleQuestEvent(closedEvent)
                 suspendedEventName = latestEvent.eventName
             }
@@ -261,7 +293,7 @@ class SupabaseSyncService(private val context: Context) {
                 comments = comments
             )
             
-            questEventDao.insertEvent(checkpointEvent)
+            withContext(Dispatchers.IO) { questEventDao.insertEvent(checkpointEvent) }
             syncSingleQuestEvent(checkpointEvent)
             
             // ВАЖЛИВО: Створюємо відновлену подію з startTime = endTime чекпоїнта
@@ -273,7 +305,7 @@ class SupabaseSyncService(private val context: Context) {
                     comments = null
                 )
                 
-                questEventDao.insertEvent(resumedEvent)
+                withContext(Dispatchers.IO) { questEventDao.insertEvent(resumedEvent) }
                 syncSingleQuestEvent(resumedEvent)
             }
             

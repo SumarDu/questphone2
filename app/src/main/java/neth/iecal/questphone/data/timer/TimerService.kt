@@ -123,20 +123,58 @@ class TimerService : Service() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            val attrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
 
             // Channel for regular, time-sensitive alerts
             val timerChannel = NotificationChannel("timer_channel", "Timer Alerts", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "Notifications for quest/break ending, etc."
                 enableVibration(true)
+                val uri = Uri.parse("android.resource://" + packageName + "/" + neth.iecal.questphone.R.raw.quest_expired)
+                setSound(uri, attrs)
             }
             notificationManager.createNotificationChannel(timerChannel)
 
-            // Channel for overdue alerts
-            val overdueChannel = NotificationChannel("overdue_channel", "Overdue Alerts", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "Notifications for when quests or breaks go overdue."
+            // Channel for quest overdue alerts
+            val questOverdueChannel = NotificationChannel(
+                "quest_overdue_channel",
+                "Quest Overdue Alerts",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications when a quest goes overdue."
                 enableVibration(true)
+                val uri = Uri.parse("android.resource://" + packageName + "/" + neth.iecal.questphone.R.raw.overdue_quest)
+                setSound(uri, attrs)
             }
-            notificationManager.createNotificationChannel(overdueChannel)
+            notificationManager.createNotificationChannel(questOverdueChannel)
+
+            // Channel for break overdue alerts
+            val breakOverdueChannel = NotificationChannel(
+                "break_overdue_channel",
+                "Break Overdue Alerts",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications when a break goes overdue."
+                enableVibration(true)
+                val uri = Uri.parse("android.resource://" + packageName + "/" + neth.iecal.questphone.R.raw.overdue_break)
+                setSound(uri, attrs)
+            }
+            notificationManager.createNotificationChannel(breakOverdueChannel)
+
+            // Channel for break related (e.g., break ending)
+            val breakChannel = NotificationChannel(
+                "break_channel",
+                "Break Alerts",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications about breaks (e.g., break ending)."
+                enableVibration(true)
+                val uri = Uri.parse("android.resource://" + packageName + "/" + neth.iecal.questphone.R.raw.break_expiried)
+                setSound(uri, attrs)
+            }
+            notificationManager.createNotificationChannel(breakChannel)
 
             // Channel for the silent, ongoing unlock progress
             val unlockChannel = NotificationChannel("unlock_channel", "Unlock Progress", NotificationManager.IMPORTANCE_LOW).apply {
@@ -1018,7 +1056,9 @@ class TimerService : Service() {
     private fun sendNotification(title: String, message: String, type: NotificationType, progress: Int = 0, maxProgress: Int = 0) {
         val channelId = when (type) {
             NotificationType.UNLOCK_PROGRESS -> "unlock_channel"
-            NotificationType.QUEST_OVERDUE, NotificationType.BREAK_OVERDUE, NotificationType.UNPLANNED_BREAK -> "overdue_channel"
+            NotificationType.QUEST_OVERDUE -> "quest_overdue_channel"
+            NotificationType.BREAK_OVERDUE -> "break_overdue_channel"
+            NotificationType.BREAK_ENDING -> "break_channel"
             else -> "timer_channel"
         }
 

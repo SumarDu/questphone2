@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -82,6 +83,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import neth.iecal.questphone.data.preferences.GestureSettingsRepository
 import kotlin.math.abs
 import androidx.compose.ui.res.painterResource
@@ -185,8 +188,10 @@ fun HomeScreen(navController: NavController) {
             title = { Text("Штрафи під час прострочки") },
             text = {
                 LaunchedEffect(Unit) {
-                    // Load recent penalty logs when dialog opens
-                    penaltyLogs = AppDatabase.getDatabase(context).penaltyLogDao().getAll()
+                    // Load recent penalty logs when dialog opens (off main thread)
+                    penaltyLogs = withContext(Dispatchers.IO) {
+                        AppDatabase.getDatabase(context).penaltyLogDao().getAll()
+                    }
                 }
                 val df = remember { SimpleDateFormat("HH:mm dd.MM.yyyy", Locale.getDefault()) }
                 Column {
@@ -194,8 +199,10 @@ fun HomeScreen(navController: NavController) {
                         Text(text = "Лог списань порожній.", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                     } else {
                         LazyColumn(Modifier.heightIn(max = 240.dp)) {
-                            items(penaltyLogs.size) { idx ->
-                                val log = penaltyLogs[idx]
+                            items(
+                                penaltyLogs,
+                                key = { it.id }
+                            ) { log ->
                                 val ts = df.format(Date(log.occurredAt))
                                 val title = when (log.source) {
                                     "quest_sanction" -> "Санкція: ${log.questTitle ?: "Квест"}"
@@ -204,7 +211,7 @@ fun HomeScreen(navController: NavController) {
                                 Column(Modifier.padding(vertical = 6.dp)) {
                                     Text(title, style = MaterialTheme.typography.bodyMedium)
                                     Text(
-                                        "−${log.amount} монет • ${ts}",
+                                        text = "−${log.amount} монет • ${ts}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -234,10 +241,22 @@ fun HomeScreen(navController: NavController) {
             },
             dismissButton = {
                 TextButton(onClick = {
-                    // Force the end-comment dialog before switching to Normal Mode
-                    showModeDialog = false
-                    endCommentText = ""
-                    showEndCommentDialog = true
+                    // Switch to Normal Mode first, then check Supabase for cp: dev_m_start
+                    scope.launch {
+                        DevModeManager.setActive(context, false)
+                        devActive.value = false
+                        SupabaseClient.init(context)
+                        val needEnd = runCatching {
+                            SupabaseSyncService(context).hasDevModeStartInLastTwo()
+                        }.getOrDefault(false)
+                        if (needEnd) {
+                            endCommentText = ""
+                            showEndCommentDialog = true
+                        } else {
+                            Toast.makeText(context, "Normal Mode selected", Toast.LENGTH_SHORT).show()
+                        }
+                        showModeDialog = false
+                    }
                 }) { Text("Normal Mode") }
             }
         )
@@ -384,6 +403,16 @@ fun HomeScreen(navController: NavController) {
 
     BackHandler {  }
 
+    // Launch app intent without blocking UI thread
+    fun launchPackage(pkg: String) {
+        scope.launch {
+            val intent = withContext(Dispatchers.IO) { context.packageManager.getLaunchIntentForPackage(pkg) }
+            intent?.let {
+                try { context.startActivity(it) } catch (_: Exception) {}
+            }
+        }
+    }
+
 
     fun streakFailResultHandler(streakCheckReturn: StreakCheckReturn?){
         if(streakCheckReturn!=null){
@@ -473,10 +502,8 @@ fun HomeScreen(navController: NavController) {
                     detectTapGestures(
                         onLongPress = {
                             longPressApp?.let { pkg ->
-                                context.packageManager.getLaunchIntentForPackage(pkg)?.let { intent ->
-                                    context.startActivity(intent)
-                                    VibrationHelper.vibrate(30)
-                                }
+                                launchPackage(pkg)
+                                VibrationHelper.vibrate(30)
                             }
                         },
                         onDoubleTap = { pos: Offset ->
@@ -486,10 +513,8 @@ fun HomeScreen(navController: NavController) {
                                 when {
                                     pos.x < cornerMarginPx -> {
                                         doubleTapBottomLeftApp?.let { pkg ->
-                                            context.packageManager.getLaunchIntentForPackage(pkg)?.let { intent ->
-                                                context.startActivity(intent)
-                                                VibrationHelper.vibrate(30)
-                                            }
+                                            launchPackage(pkg)
+                                            VibrationHelper.vibrate(30)
                                         }
                                     }
                                     pos.x > w - cornerMarginPx -> {
@@ -498,10 +523,8 @@ fun HomeScreen(navController: NavController) {
                                             VibrationHelper.vibrate(15)
                                         } else {
                                             doubleTapBottomRightApp?.let { pkg ->
-                                                context.packageManager.getLaunchIntentForPackage(pkg)?.let { intent ->
-                                                    context.startActivity(intent)
-                                                    VibrationHelper.vibrate(30)
-                                                }
+                                                launchPackage(pkg)
+                                                VibrationHelper.vibrate(30)
                                             }
                                         }
                                     }
@@ -538,19 +561,11 @@ fun HomeScreen(navController: NavController) {
                             val avgDy = (ev.changes.map { it.positionChange().y }.average()).toFloat()
                             twoFingerDragY += avgDy
                             if (twoFingerDragY < -swipeThreshold) {
-                                scope.launch {
-                                    twoFingerSwipeUpApp?.let { pkg ->
-                                        context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
-                                    }
-                                }
+                                twoFingerSwipeUpApp?.let { pkg -> launchPackage(pkg) }
                                 VibrationHelper.vibrate(30)
                                 break
                             } else if (twoFingerDragY > swipeThreshold) {
-                                scope.launch {
-                                    twoFingerSwipeDownApp?.let { pkg ->
-                                        context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
-                                    }
-                                }
+                                twoFingerSwipeDownApp?.let { pkg -> launchPackage(pkg) }
                                 VibrationHelper.vibrate(30)
                                 break
                             }
@@ -558,19 +573,11 @@ fun HomeScreen(navController: NavController) {
 
                         if (abs(dragX) > abs(dragY)) { // Horizontal swipe
                             if (dragX > swipeThreshold) { // Swipe Right
-                                scope.launch {
-                                    swipeRightApp?.let { pkg ->
-                                        context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
-                                    }
-                                }
+                                swipeRightApp?.let { pkg -> launchPackage(pkg) }
                                 VibrationHelper.vibrate(30)
                                 break
                             } else if (dragX < -swipeThreshold) { // Swipe Left
-                                scope.launch {
-                                    swipeLeftApp?.let { pkg ->
-                                        context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
-                                    }
-                                }
+                                swipeLeftApp?.let { pkg -> launchPackage(pkg) }
                                 VibrationHelper.vibrate(30)
                                 break
                             }
@@ -578,37 +585,21 @@ fun HomeScreen(navController: NavController) {
                             // Edge vertical swipes take precedence to avoid conflicts with generic swipes
                             if (isLeftEdge) {
                                 if (dragY < -edgeSwipeThreshold) { // Left Edge Swipe Up
-                                    scope.launch {
-                                        edgeLeftSwipeUpApp?.let { pkg ->
-                                            context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
-                                        }
-                                    }
+                                    edgeLeftSwipeUpApp?.let { pkg -> launchPackage(pkg) }
                                     VibrationHelper.vibrate(30)
                                     break
                                 } else if (dragY > edgeSwipeThreshold) { // Left Edge Swipe Down
-                                    scope.launch {
-                                        edgeLeftSwipeDownApp?.let { pkg ->
-                                            context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
-                                        }
-                                    }
+                                    edgeLeftSwipeDownApp?.let { pkg -> launchPackage(pkg) }
                                     VibrationHelper.vibrate(30)
                                     break
                                 }
                             } else if (isRightEdge) {
                                 if (dragY < -edgeSwipeThreshold) { // Right Edge Swipe Up
-                                    scope.launch {
-                                        edgeRightSwipeUpApp?.let { pkg ->
-                                            context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
-                                        }
-                                    }
+                                    edgeRightSwipeUpApp?.let { pkg -> launchPackage(pkg) }
                                     VibrationHelper.vibrate(30)
                                     break
                                 } else if (dragY > edgeSwipeThreshold) { // Right Edge Swipe Down
-                                    scope.launch {
-                                        edgeRightSwipeDownApp?.let { pkg ->
-                                            context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
-                                        }
-                                    }
+                                    edgeRightSwipeDownApp?.let { pkg -> launchPackage(pkg) }
                                     VibrationHelper.vibrate(30)
                                     break
                                 }
@@ -616,22 +607,16 @@ fun HomeScreen(navController: NavController) {
 
                             // Generic vertical swipes (non-edge)
                             if (dragY < -swipeThreshold) { // Swipe Up
-                                scope.launch {
-                                    val pkg = swipeUpApp
-                                    if (pkg != null) {
-                                        context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
-                                    } else {
-                                        navController.navigate(Screen.AppList.route)
-                                    }
+                                val pkg = swipeUpApp
+                                if (pkg != null) {
+                                    launchPackage(pkg)
+                                } else {
+                                    navController.navigate(Screen.AppList.route)
                                 }
                                 VibrationHelper.vibrate(30)
                                 break
                             } else if (dragY > swipeThreshold) { // Swipe Down
-                                scope.launch {
-                                    swipeDownApp?.let { pkg ->
-                                        context.packageManager.getLaunchIntentForPackage(pkg)?.let { context.startActivity(it) }
-                                    }
-                                }
+                                swipeDownApp?.let { pkg -> launchPackage(pkg) }
                                 VibrationHelper.vibrate(30)
                                 break
                             }
@@ -1174,17 +1159,16 @@ fun HomeScreen(navController: NavController) {
                                 .weight(1f)
                                 .padding(horizontal = 4.dp)
                                 .clickable {
-                                    context.packageManager.getLaunchIntentForPackage(pkg)?.let { intent ->
-                                        context.startActivity(intent)
-                                        VibrationHelper.vibrate(20)
-                                        showBottomApplet = false
-                                    }
+                                    launchPackage(pkg)
+                                    VibrationHelper.vibrate(20)
+                                    showBottomApplet = false
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            icon?.let {
+                            val iconBitmap = remember(icon) { icon?.toBitmap()?.asImageBitmap() }
+                            iconBitmap?.let {
                                 Image(
-                                    bitmap = it.toBitmap().asImageBitmap(),
+                                    bitmap = it,
                                     contentDescription = null,
                                     modifier = Modifier.size(56.dp)
                                 )
