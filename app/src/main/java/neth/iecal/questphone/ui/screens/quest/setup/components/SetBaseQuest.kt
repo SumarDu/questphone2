@@ -172,9 +172,7 @@ fun SetBaseQuest(
         Text(text = "Title already exists", color = MaterialTheme.colorScheme.error)
     }
 
-    if(questInfoState.selectedDays.contains(getCurrentDay()) && User.userInfo.getCreatedOnString() != getCurrentDate()){
-        Text("To prevent abuse, you can't perform this quest today. You'll be able to do it starting from the next time it occurs.")
-    }
+    // Removed anti-abuse restriction message and check to allow performing quests today.
     EnhancedScheduling(questInfoState)
 
 

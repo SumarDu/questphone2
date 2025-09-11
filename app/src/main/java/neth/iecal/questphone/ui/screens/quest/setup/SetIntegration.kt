@@ -57,24 +57,7 @@ fun SetIntegration(navController: NavHostController) {
                 .padding(paddingValues)
 
         ) {
-            if (showLoginRequiredDialog.value) {
-                AlertDialog(
-                    onDismissRequest = { showLoginRequiredDialog.value = false },
-                    title = {
-                        Text(text = "Login Required For this quest")
-                    },
-                    text = {
-                        Text("This quest can only be performed by signed up users to prevent abuse. Please Logout and try again!")
-                    },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            showLoginRequiredDialog.value = false
-                        }) {
-                            Text("Okay")
-                        }
-                    }
-                )
-            }
+            // Removed anti-abuse/login-required dialog; all integrations are accessible.
 
             Column(
                 modifier = Modifier
@@ -113,11 +96,7 @@ fun SetIntegration(navController: NavHostController) {
                                     .height(100.dp)
                                     .combinedClickable(
                                         onClick = {
-                                            if(!item.isLoginRequired){
-                                                navController.navigate("${item.name}/ntg")
-                                            }else{
-                                                showLoginRequiredDialog.value = true
-                                            }
+                                            navController.navigate("${item.name}/ntg")
                                         },
                                         onLongClick = {
                                             VibrationHelper.vibrate(100)
