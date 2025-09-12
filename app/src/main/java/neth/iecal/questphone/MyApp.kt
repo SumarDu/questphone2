@@ -19,6 +19,7 @@ import neth.iecal.questphone.utils.isOnline
 import neth.iecal.questphone.utils.triggerQuestSync
 import neth.iecal.questphone.utils.triggerStatsSync
 import neth.iecal.questphone.utils.CalendarSyncInitializer
+import neth.iecal.questphone.utils.DailyResetScheduler
 import neth.iecal.questphone.workers.SyncWorker
 import java.util.concurrent.TimeUnit
 
@@ -50,6 +51,9 @@ class MyApp : Application() {
 
         // Initialize calendar sync scheduling
         CalendarSyncInitializer.initialize(applicationContext)
+
+        // Schedule daily reset (coins reset and streak evaluation)
+        DailyResetScheduler.schedule(applicationContext)
 
         // Ensure periodic background sync when connected
         enqueuePeriodicQuestSync()

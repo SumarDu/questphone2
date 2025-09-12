@@ -38,4 +38,8 @@ interface QuestEventDao {
     
     @Query("UPDATE quest_events SET synced = 1 WHERE id IN (:eventIds)")
     suspend fun markAsSynced(eventIds: List<String>)
+
+    // Count of completed quest events (rewardCoins not null) within a time range
+    @Query("SELECT COUNT(*) FROM quest_events WHERE rewardCoins IS NOT NULL AND endTime BETWEEN :start AND :end")
+    suspend fun countCompletedEventsBetween(start: Long, end: Long): Int
 }
