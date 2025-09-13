@@ -272,18 +272,10 @@ fun DeepFocusQuestView(
             sessionStartTime
         }
         
-        // Increment session count and update next focus duration
+        // Increment session count (keep focus duration constant per design; no incremental increase)
         val newCompletedWorkSessions = deepFocus.completedWorkSessions + 1
         deepFocus = deepFocus.copy(
-            completedWorkSessions = newCompletedWorkSessions,
-            nextFocusDurationInMillis = if (deepFocus.nextFocusDurationInMillis < deepFocus.focusTimeConfig.finalTimeInMs) {
-                minOf(
-                    deepFocus.nextFocusDurationInMillis + deepFocus.focusTimeConfig.incrementTimeInMs,
-                    deepFocus.focusTimeConfig.finalTimeInMs
-                )
-            } else {
-                deepFocus.nextFocusDurationInMillis
-            }
+            completedWorkSessions = newCompletedWorkSessions
         )
         sessionNumberForReview.value = newCompletedWorkSessions
         // Show review dialog immediately only for regular sessions (before minimum)
@@ -639,16 +631,17 @@ fun DeepFocusQuestView(
                             }
                             val sessionsAfterComplete = deepFocus.completedWorkSessions
                             // Grant reward depending on session stage
-                            val rewardAmount = if (sessionsAfterComplete == deepFocus.minWorkSessions) {
-                                calculateQuestReward(commonQuestInfo)
-                            } else {
-                                deepFocus.reward_per_extra_session
-                            }
+                            val isRegularFinal = sessionsAfterComplete == deepFocus.minWorkSessions
+                            val rewardAmount = if (isRegularFinal) calculateQuestReward(commonQuestInfo) else deepFocus.reward_per_extra_session
+                            // Set diamonds based on session type
+                            commonQuestInfo.diamond_reward = if (isRegularFinal) deepFocus.diamond_reward_regular else deepFocus.diamond_reward_extra
                             // If QR or AI Photo Proof enabled, gate the rest of the flow behind successful proof
                             if (commonQuestInfo.qr_proof || commonQuestInfo.ai_photo_proof) {
                                 pendingPostProofAction.value = {
                                     scope.launch {
-                                        checkForRewards(commonQuestInfo, rewardAmount)
+                                        // Set diamonds based on session type
+                            commonQuestInfo.diamond_reward = if (isRegularFinal) deepFocus.diamond_reward_regular else deepFocus.diamond_reward_extra
+                            checkForRewards(commonQuestInfo, rewardAmount)
                                         val statsDao = StatsDatabaseProvider.getInstance(context).statsDao()
                                         statsDao.upsertStats(
                                             StatsInfo(

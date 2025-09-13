@@ -89,6 +89,7 @@ class StoreViewModel(
     private val settingsRepository = SettingsRepository(application)
     val settings = settingsRepository.settings
     var coins by mutableIntStateOf(User.userInfo.coins)
+    var diamonds by mutableIntStateOf(User.userInfo.diamonds)
     var selectedCategory by mutableStateOf(Category.UNLOCKERS)
     var items by mutableStateOf<List<StoreItem>>(emptyList())
     var selectedItem by mutableStateOf<StoreItem?>(null)
@@ -101,23 +102,9 @@ class StoreViewModel(
 
     private fun loadItems() {
         viewModelScope.launch {
-            val staticItems = InventoryItem.entries.map { item ->
-                StoreItem(
-                    id = item.name,
-                    name = item.simpleName,
-                    description = item.description,
-                    icon = item.icon,
-                    price = item.price,
-                    category = item.category,
-                    isFromEnum = true,
-                    onPurchase = { purchaseSelectedItem() }
-                )
-            }
-
             // Clean expired blocks at startup
             withContext(Dispatchers.IO) {
                 val now = System.currentTimeMillis()
-                // Enforce sanctions on missed deadlines before rendering
                 val questDao = QuestDatabaseProvider.getInstance(getApplication()).questDao()
                 SanctionsEnforcer.enforceSanctions(questDao, blockedUnlockerDao, now)
                 blockedUnlockerDao.deleteExpired(now)
@@ -126,8 +113,27 @@ class StoreViewModel(
             val unlockersFlow = appUnlockerItemDao.getAll()
             val blocksFlow = blockedUnlockerDao.getActive(System.currentTimeMillis())
 
-            unlockersFlow
-                .combine(blocksFlow) { unlockers, blocks ->
+            // Combine settings + unlockers + blocks so price updates when settings change
+            settings
+                .combine(unlockersFlow) { s, unlockers -> s to unlockers }
+                .combine(blocksFlow) { sAndUnlockers, blocks ->
+                    Triple(sAndUnlockers.first, sAndUnlockers.second, blocks)
+                }
+                .onEach { (s, unlockers, blocks) ->
+                    val staticItems = InventoryItem.entries.map { item ->
+                        val priceOverride = if (item == InventoryItem.DIAMOND_EXCHANGE) s.diamondExchangeDiamonds else item.price
+                        StoreItem(
+                            id = item.name,
+                            name = item.simpleName,
+                            description = item.description,
+                            icon = item.icon,
+                            price = priceOverride,
+                            category = item.category,
+                            isFromEnum = true,
+                            onPurchase = { purchaseSelectedItem() }
+                        )
+                    }
+
                     val blocksById = blocks.associateBy { it.unlocker_id }
                     val dynamicItems = unlockers.map { item ->
                         val hours = TimeUnit.MINUTES.toHours(item.unlockDurationMinutes.toLong())
@@ -152,9 +158,9 @@ class StoreViewModel(
                             blockedSources = block?.sources?.split('|')?.filter { it.isNotBlank() } ?: emptyList()
                         )
                     }
-                    (staticItems + dynamicItems).sortedBy { it.name }
+
+                    items = (staticItems + dynamicItems).sortedBy { it.name }
                 }
-                .onEach { merged -> items = merged }
                 .launchIn(viewModelScope)
         }
     }
@@ -186,14 +192,32 @@ class StoreViewModel(
     fun purchaseSelectedItem() {
         viewModelScope.launch {
             val itemToPurchase = selectedItem ?: return@launch
-            if (coins >= itemToPurchase.price) {
+            val isDiamondExchange = itemToPurchase.id == InventoryItem.DIAMOND_EXCHANGE.name
+            val settingsSnapshot = settings.first()
+            val rateDiamonds = settingsSnapshot.diamondExchangeDiamonds.coerceAtLeast(1)
+            val rateCoins = settingsSnapshot.diamondExchangeCoins.coerceAtLeast(0)
+            val canAfford = if (isDiamondExchange) diamonds >= itemToPurchase.price else coins >= itemToPurchase.price
+            if (canAfford) {
                 val prePurchaseCoins = coins
-                User.useCoins(itemToPurchase.price)
-                coins = User.userInfo.coins // Manually update coins
+                if (isDiamondExchange) {
+                    // Exchange using configurable rate: per [rateDiamonds -> rateCoins]
+                    val spent = if (User.useDiamonds(itemToPurchase.price)) itemToPurchase.price else 0
+                    if (spent > 0) {
+                        val gainedCoins = (rateCoins * spent) / rateDiamonds
+                        User.addCoins(gainedCoins)
+                        coins = User.userInfo.coins
+                        diamonds = User.userInfo.diamonds
+                    }
+                } else {
+                    User.useCoins(itemToPurchase.price)
+                    coins = User.userInfo.coins // Manually update coins
+                }
 
                 if (itemToPurchase.isFromEnum) {
                     val inventoryItem = InventoryItem.valueOf(itemToPurchase.id)
-                    User.addItemsToInventory(hashMapOf(inventoryItem to 1))
+                    if (!isDiamondExchange) {
+                        User.addItemsToInventory(hashMapOf(inventoryItem to 1))
+                    }
                 } else {
                     // Handle app unlocker purchase logic
                     val unlockerId = itemToPurchase.id.toIntOrNull()
@@ -281,6 +305,14 @@ fun StoreScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = "${viewModel.coins}", style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Image(
+                            painter = painterResource(R.drawable.diamond_icon),
+                            contentDescription = "Diamonds",
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "${viewModel.diamonds}", style = MaterialTheme.typography.titleMedium)
                     }
                 }
             )
@@ -326,7 +358,14 @@ fun StoreScreen(
                 item = viewModel.selectedItem!!,
                 onDismiss = { viewModel.deselectItem() },
                 onPurchase = { viewModel.purchaseSelectedItem() },
-                canAfford = viewModel.coins >= (viewModel.selectedItem?.price ?: 0)
+                canAfford = run {
+                    val sel = viewModel.selectedItem
+                    if (sel != null && sel.id == InventoryItem.DIAMOND_EXCHANGE.name) {
+                        viewModel.diamonds >= sel.price
+                    } else {
+                        viewModel.coins >= (sel?.price ?: 0)
+                    }
+                }
             )
         }
 
@@ -410,8 +449,9 @@ fun StoreItemCard(item: StoreItem, onClick: () -> Unit, onDelete: () -> Unit, is
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(text = "${item.price}", style = MaterialTheme.typography.titleMedium)
+            val isDiamond = item.id == InventoryItem.DIAMOND_EXCHANGE.name
             Image(
-                painter = painterResource(R.drawable.coin_icon),
+                painter = painterResource(if (isDiamond) R.drawable.diamond_icon else R.drawable.coin_icon),
                 contentDescription = null,
                 modifier = Modifier.size(24.dp).padding(start = 4.dp)
             )
@@ -440,14 +480,23 @@ fun PurchaseDialog(item: StoreItem, onDismiss: () -> Unit, onPurchase: () -> Uni
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                Text(
-                    text = "Cost: ${item.price} coins",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (canAfford) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
-                )
+                val isDiamond = item.id == InventoryItem.DIAMOND_EXCHANGE.name
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Cost: ${item.price} ${if (isDiamond) "diamonds" else "coins"}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (canAfford) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Image(
+                        painter = painterResource(if (isDiamond) R.drawable.diamond_icon else R.drawable.coin_icon),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
                 if (!canAfford) {
                     Text(
-                        text = "Not enough coins!",
+                        text = if (isDiamond) "Not enough diamonds!" else "Not enough coins!",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )

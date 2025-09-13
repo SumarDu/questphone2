@@ -151,6 +151,19 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             repository.updateOverduePenaltyCoins(coins)
         }
     }
+
+    // Diamond exchange settings
+    fun setDiamondExchangeDiamonds(diamonds: Int) {
+        viewModelScope.launch {
+            repository.updateDiamondExchangeDiamonds(diamonds)
+        }
+    }
+
+    fun setDiamondExchangeCoins(coins: Int) {
+        viewModelScope.launch {
+            repository.updateDiamondExchangeCoins(coins)
+        }
+    }
 }
 
 class SettingsViewModelFactory(private val application: Application) : ViewModelProvider.Factory {

@@ -300,10 +300,12 @@ fun HomeScreen(navController: NavController) {
         )
     }
     var coinBalance by remember { mutableStateOf(User.userInfo.coins) }
+    var diamondBalance by remember { mutableStateOf(User.userInfo.diamonds) }
     
     // Update coin balance when timer state changes (to catch penalty deductions)
     LaunchedEffect(timerState) {
         coinBalance = User.userInfo.coins
+        diamondBalance = User.userInfo.diamonds
     }
     var showStartConfirmation by remember { mutableStateOf(false) }
     var selectedQuestForConfirmation by remember { mutableStateOf<CommonQuestInfo?>(null) }
@@ -433,13 +435,10 @@ fun HomeScreen(navController: NavController) {
             initial.value = false // Ignore the first emission (initial = emptyList())
         } else {
             val today = LocalDate.now()
-            val isUserCreatedToday = getCurrentDate() == formatInstantToDate(User.userInfo.created_on)
 
-            Log.d("IsUserCreatedToday", isUserCreatedToday.toString())
             val list = questListUnfiltered.filter {
                 !it.is_destroyed &&
-                        SchedulingUtils.isQuestAvailableOnDate(it.scheduling_info, today) &&
-                        (it.calendar_event_id != null || isUserCreatedToday || it.created_on != getCurrentDate())
+                        SchedulingUtils.isQuestAvailableOnDate(it.scheduling_info, today)
             }.toMutableList()
             questList.clear()
             questList.addAll(list)
@@ -650,6 +649,20 @@ fun HomeScreen(navController: NavController) {
                 } else {
                     MaterialTheme.colorScheme.onSurface
                 }
+            )
+            Spacer(Modifier.size(8.dp))
+
+            // Diamonds display
+            Image(
+                painter = painterResource(R.drawable.diamond_icon),
+                contentDescription = "Diamonds",
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(20.dp)
+            )
+            Text(
+                text = "$diamondBalance",
+                style = MaterialTheme.typography.bodyLarge,
             )
             Spacer(Modifier.size(8.dp))
 

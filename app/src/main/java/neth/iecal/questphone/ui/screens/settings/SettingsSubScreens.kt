@@ -239,7 +239,7 @@ fun SettingsOverduePenaltiesScreen(navController: NavController) {
 
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text("Overdue Penalties") },
+            title = { Text("Penalties & Reward") },
             navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") } }
         )
     }) { padding ->
@@ -294,6 +294,57 @@ fun SettingsOverduePenaltiesScreen(navController: NavController) {
                     .fillMaxWidth()
                     .padding(top = 8.dp)
             )
+
+            Divider(modifier = Modifier.padding(vertical = 16.dp))
+
+            // Diamond exchange rate section
+            Text(
+                text = "Diamond Exchange",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Text(
+                text = "Set exchange rate of diamonds to coins.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                var diamondsInput by rememberSaveable(settings.diamondExchangeDiamonds) { mutableStateOf(settings.diamondExchangeDiamonds.toString()) }
+                var coinsInput by rememberSaveable(settings.diamondExchangeCoins) { mutableStateOf(settings.diamondExchangeCoins.toString()) }
+
+                OutlinedTextField(
+                    value = diamondsInput,
+                    onValueChange = { raw ->
+                        val digits = raw.filter { it.isDigit() }
+                        diamondsInput = digits
+                        val d = digits.toIntOrNull()?.coerceAtLeast(1) ?: 1
+                        if (d != settings.diamondExchangeDiamonds) {
+                            settingsViewModel.setDiamondExchangeDiamonds(d)
+                        }
+                    },
+                    label = { Text("Diamonds") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.width(120.dp)
+                )
+                Text("  →  ", modifier = Modifier.padding(horizontal = 8.dp))
+                OutlinedTextField(
+                    value = coinsInput,
+                    onValueChange = { raw ->
+                        val digits = raw.filter { it.isDigit() }
+                        coinsInput = digits
+                        val c = digits.toIntOrNull()?.coerceAtLeast(0) ?: 0
+                        if (c != settings.diamondExchangeCoins) {
+                            settingsViewModel.setDiamondExchangeCoins(c)
+                        }
+                    },
+                    label = { Text("Coins") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.width(140.dp)
+                )
+            }
         }
     }
 }

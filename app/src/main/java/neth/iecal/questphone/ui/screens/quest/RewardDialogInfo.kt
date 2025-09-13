@@ -45,6 +45,7 @@ import neth.iecal.questphone.data.game.User
 import neth.iecal.questphone.data.game.addCoins
 import neth.iecal.questphone.data.game.addLevelUpRewards
 import neth.iecal.questphone.data.game.addXp
+import neth.iecal.questphone.data.game.addDiamonds
 import neth.iecal.questphone.data.game.xpFromStreak
 import neth.iecal.questphone.data.game.xpToRewardForQuest
 import neth.iecal.questphone.data.quest.CommonQuestInfo
@@ -60,7 +61,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-enum class DialogState { COINS, LEVEL_UP, STREAK_UP, STREAK_FAILED, NONE }
+enum class DialogState { COINS, LEVEL_UP, STREAK_UP, STREAK_FAILED, DIAMOND_CONFIRM, NONE }
 
 /**
  * This values in here must be set to true in order to show the dialog [RewardDialogMaker] which is triggered
@@ -78,6 +79,8 @@ object RewardDialogInfo{
     var rewardAmount by mutableStateOf(0)
     // Guard to avoid duplicate coin additions/logging for the same reward trigger
     var hasProcessedCurrentReward by mutableStateOf(false)
+    // Pending diamond reward to be potentially granted upon confirmation
+    var pendingDiamondReward by mutableStateOf(0)
     // Global idempotency: track last processed session count per quest
     // This persists across navigation/recomposition so we don't re-trigger rewards on re-entry
     val lastProcessedSessionForQuest = androidx.compose.runtime.mutableStateMapOf<String, Int>()
@@ -211,6 +214,41 @@ suspend fun logQuestCompletionWithCoins(
     }
 }
 
+@Composable
+fun DiamondConfirmDialog(amount: Int, onConfirm: () -> Unit, onCancel: () -> Unit) {
+    Dialog(onDismissRequest = onCancel) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Image(
+                painter = painterResource(R.drawable.diamond_icon),
+                contentDescription = "Diamonds",
+                modifier = Modifier.size(50.dp)
+            )
+            Spacer(modifier = Modifier.size(12.dp))
+            Text(
+                text = "Is this quest fully completed?",
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Text(
+                text = "Confirm to receive $amount ${if (amount == 1) "diamond" else "diamonds"}.",
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.size(16.dp))
+            Row {
+                Button(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
+                Spacer(Modifier.size(12.dp))
+                Button(onClick = onConfirm, modifier = Modifier.weight(1f)) { Text("Confirm") }
+            }
+        }
+    }
+}
+
 /**
  * Calculates what to reward user as well as trigger the reward dialog to be shown to the user
  */
@@ -263,6 +301,10 @@ fun RewardDialogMaker(  ) {
             // Capture pre-reward coin balance before adding coins
             val preRewardCoins = User.userInfo.coins
             User.addCoins(coinsEarned)
+            // Queue diamonds for confirmation instead of awarding immediately
+            if (isTriggeredViaQuestCompletion && questInfo != null && questInfo.diamond_reward > 0) {
+                RewardDialogInfo.pendingDiamondReward = questInfo.diamond_reward
+            }
             // Mark as processed to prevent duplicate additions if recomposed
             RewardDialogInfo.hasProcessedCurrentReward = true
             
@@ -317,18 +359,40 @@ fun RewardDialogMaker(  ) {
             DialogState.STREAK_FAILED ->
             {
                 StreakFailedDialog() {
+                    RewardDialogInfo.currentDialog = DialogState.DIAMOND_CONFIRM
+                }
+            }
+            DialogState.DIAMOND_CONFIRM -> {
+                val amount = RewardDialogInfo.pendingDiamondReward
+                if (amount > 0) {
+                    DiamondConfirmDialog(
+                        amount = amount,
+                        onConfirm = {
+                            User.addDiamonds(amount)
+                            RewardDialogInfo.pendingDiamondReward = 0
+                            RewardDialogInfo.currentDialog = DialogState.NONE
+                        },
+                        onCancel = {
+                            RewardDialogInfo.pendingDiamondReward = 0
+                            RewardDialogInfo.currentDialog = DialogState.NONE
+                        }
+                    )
+                } else {
                     RewardDialogInfo.currentDialog = DialogState.NONE
                 }
             }
             DialogState.NONE -> {
-                RewardDialogInfo.apply {
-                    isRewardDialogVisible = false
-                    currentCommonQuestInfo = null
-                    streakData = null
+                // If there is a pending diamond reward from a quest completion, ask for confirmation first
+                if (isTriggeredViaQuestCompletion && RewardDialogInfo.pendingDiamondReward > 0) {
+                    RewardDialogInfo.currentDialog = DialogState.DIAMOND_CONFIRM
+                } else {
+                    RewardDialogInfo.apply {
+                        isRewardDialogVisible = false
+                        currentCommonQuestInfo = null
+                        streakData = null
+                    }
                 }
-
             }
-
         }
     }
 }

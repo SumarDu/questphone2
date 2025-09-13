@@ -170,9 +170,9 @@ fun SettingsScreen(navController: NavController) {
 
             Divider(modifier = Modifier.padding(vertical = 16.dp))
 
-            // Overdue Penalties
+            // Penalties & Reward
             Text(
-                "Overdue Penalties",
+                "Penalties & Reward",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = 8.dp)
             )

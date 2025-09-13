@@ -28,7 +28,10 @@ data class SettingsData(
     // Overdue penalty configuration
     val overduePenaltyEnabled: Boolean = false,
     val overduePenaltyWindowMinutes: Int = 5, // apply penalty every N minutes in overdue
-    val overduePenaltyCoins: Int = 1 // coins to deduct per window
+    val overduePenaltyCoins: Int = 1, // coins to deduct per window
+    // Diamond exchange configuration: D diamonds -> C coins
+    val diamondExchangeDiamonds: Int = 1,
+    val diamondExchangeCoins: Int = 10
 )
 
 class SettingsRepository(private val context: Context) {
@@ -161,6 +164,19 @@ class SettingsRepository(private val context: Context) {
     suspend fun updateOverduePenaltyCoins(coins: Int) {
         val safeCoins = coins.coerceAtLeast(0)
         val newSettings = _settings.value.copy(overduePenaltyCoins = safeCoins)
+        saveSettings(newSettings)
+    }
+
+    // Diamond exchange updaters
+    suspend fun updateDiamondExchangeDiamonds(diamonds: Int) {
+        val d = diamonds.coerceAtLeast(1)
+        val newSettings = _settings.value.copy(diamondExchangeDiamonds = d)
+        saveSettings(newSettings)
+    }
+
+    suspend fun updateDiamondExchangeCoins(coins: Int) {
+        val c = coins.coerceAtLeast(0)
+        val newSettings = _settings.value.copy(diamondExchangeCoins = c)
         saveSettings(newSettings)
     }
 }

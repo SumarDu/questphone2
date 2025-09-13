@@ -81,12 +81,8 @@ fun QuestDialog(
         val dao = QuestDatabaseProvider.getInstance(context).questDao()
         dao.getAllQuests().collectLatest { unfiltered ->
             val todayDay = getCurrentDay()
-            val isUserCreatedToday =
-                getCurrentDate() == formatInstantToDate(User.userInfo.created_on)
-
             val filtered = unfiltered.filter {
-                !it.is_destroyed && it.selected_days.contains(todayDay) &&
-                        (isUserCreatedToday || it.created_on != getCurrentDate())
+                !it.is_destroyed && it.selected_days.contains(todayDay)
             }
 
             questList.clear()

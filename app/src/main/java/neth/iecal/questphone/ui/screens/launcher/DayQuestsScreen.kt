@@ -85,8 +85,6 @@ fun DayQuestsScreen(navController: NavController, key: String) {
     val planned = remember(allQuests, dates, key) {
         allQuests.filter { q ->
             !q.is_destroyed &&
-            // Exclude quests created today from Yesterday view
-            (key.uppercase() != "YDAY" || q.created_on != getCurrentDate()) &&
             dates.any { d -> SchedulingUtils.isQuestAvailableOnDate(q.scheduling_info, d) }
         }
     }

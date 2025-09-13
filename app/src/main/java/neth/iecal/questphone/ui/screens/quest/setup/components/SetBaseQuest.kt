@@ -141,7 +141,8 @@ fun SetBaseQuest(
     isTimeRangeSupported: Boolean = true,
     showDurationBreakSection: Boolean = true,
     rewardExtraContent: (@Composable (Boolean) -> Unit)? = null,
-    afterTimeContent: (@Composable () -> Unit)? = null
+    afterTimeContent: (@Composable () -> Unit)? = null,
+    diamondContent: (@Composable () -> Unit)? = null
 ) {
 
     val allQuestTitles = mutableSetOf<String>()
@@ -297,7 +298,7 @@ fun SetBaseQuest(
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
             // Reward section should be before sanctions
-            RewardSetter(questInfoState, extraContent = rewardExtraContent)
+            RewardSetter(questInfoState, extraContent = rewardExtraContent, diamondContent = diamondContent)
 
             // AI Photo Proof (under Reward)
             Row(
@@ -609,8 +610,13 @@ private fun PercentDropdown(
 }
 
 @Composable
-fun RewardSetter(questInfoState: QuestInfoState, extraContent: (@Composable (Boolean) -> Unit)? = null) {
+fun RewardSetter(
+    questInfoState: QuestInfoState,
+    extraContent: (@Composable (Boolean) -> Unit)? = null,
+    diamondContent: (@Composable () -> Unit)? = null
+) {
     var isRandom by remember { mutableStateOf(questInfoState.rewardMin != questInfoState.rewardMax) }
+    var isDiamondEnabled by remember { mutableStateOf(questInfoState.diamondReward > 0) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -666,6 +672,37 @@ fun RewardSetter(questInfoState: QuestInfoState, extraContent: (@Composable (Boo
             )
             // Extra content below main reward input
             extraContent?.invoke(false)
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+        if (diamondContent != null) {
+            diamondContent()
+        } else {
+            // Default diamond section (single field)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Diamond Reward", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.width(8.dp))
+                Switch(
+                    checked = isDiamondEnabled,
+                    onCheckedChange = {
+                        isDiamondEnabled = it
+                        if (!it) questInfoState.diamondReward = 0
+                    }
+                )
+            }
+            if (isDiamondEnabled) {
+                OutlinedTextField(
+                    value = if (questInfoState.diamondReward <= 0) "" else questInfoState.diamondReward.toString(),
+                    onValueChange = { value ->
+                        val digits = value.filter { it.isDigit() }.take(4)
+                        questInfoState.diamondReward = digits.toIntOrNull() ?: 0
+                    },
+                    label = { Text("Diamond reward", style = MaterialTheme.typography.bodySmall) },
+                    placeholder = { Text("0", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }

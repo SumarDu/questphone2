@@ -12,6 +12,7 @@ import neth.iecal.questphone.data.game.saveUserInfo
 import neth.iecal.questphone.utils.DailyResetScheduler
 import neth.iecal.questphone.utils.getCurrentDate
 import java.time.LocalDate
+import java.time.DayOfWeek
 import java.time.ZoneId
 
 class DailyResetWorker(
@@ -55,6 +56,12 @@ class DailyResetWorker(
             // Reset coin balance at the end of each day
             if (User.userInfo.coins != 0) {
                 User.userInfo.coins = 0
+                User.saveUserInfo()
+            }
+
+            // Weekly reset: reset diamonds at the start of each week (Monday)
+            if (today.dayOfWeek == DayOfWeek.MONDAY && User.userInfo.diamonds != 0) {
+                User.userInfo.diamonds = 0
                 User.saveUserInfo()
             }
 

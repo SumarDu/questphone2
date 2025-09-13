@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -86,6 +87,10 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
     // Start at 0 so placeholder default is shown (10)
     val rewardPerExtraSession = remember { mutableStateOf(0) }
     val longBreakAfterSessions = remember { mutableStateOf(0) }
+    // Diamond rewards UI state (shared across UI and ReviewDialog save block)
+    var isDiamondEnabled by remember { mutableStateOf(false) }
+    var diamondRegular by remember { mutableStateOf(0) }
+    var diamondExtra by remember { mutableStateOf(0) }
 
     val scrollState = rememberScrollState()
     val sp = QuestHelper(context)
@@ -156,6 +161,9 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
             maxWorkSessions = effMaxSessions,
             longBreakDurationInMillis = effLongBreakMin * 60000L,
             reward_per_extra_session = effExtraReward,
+            // Persist diamond rewards
+            diamond_reward_regular = if (isDiamondEnabled) diamondRegular else 0,
+            diamond_reward_extra = if (isDiamondEnabled) diamondExtra else 0,
             long_break_after_sessions = effLongAfter,
             nextFocusDurationInMillis = effInitialMin * 60000L
         )
@@ -249,6 +257,50 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
                                         .fillMaxWidth()
                                         .padding(top = 12.dp)
                                 )
+                            }
+                        },
+                        diamondContent = {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Diamond Reward", style = MaterialTheme.typography.bodyMedium)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Switch(
+                                    checked = isDiamondEnabled,
+                                    onCheckedChange = {
+                                        isDiamondEnabled = it
+                                        if (!it) {
+                                            diamondRegular = 0
+                                            diamondExtra = 0
+                                        }
+                                    }
+                                )
+                            }
+                            if (isDiamondEnabled) {
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedTextField(
+                                        value = if (diamondRegular <= 0) "" else diamondRegular.toString(),
+                                        onValueChange = { v ->
+                                            val d = v.filter { it.isDigit() }.take(4).toIntOrNull() ?: 0
+                                            diamondRegular = d
+                                        },
+                                        label = { Text("Diamonds (regular)", style = MaterialTheme.typography.bodySmall) },
+                                        placeholder = { Text("0", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    OutlinedTextField(
+                                        value = if (diamondExtra <= 0) "" else diamondExtra.toString(),
+                                        onValueChange = { v ->
+                                            val d = v.filter { it.isDigit() }.take(4).toIntOrNull() ?: 0
+                                            diamondExtra = d
+                                        },
+                                        label = { Text("Diamonds (extra)", style = MaterialTheme.typography.bodySmall) },
+                                        placeholder = { Text("0", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
                         },
                         afterTimeContent = {

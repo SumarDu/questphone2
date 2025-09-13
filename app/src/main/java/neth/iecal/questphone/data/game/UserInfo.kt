@@ -28,6 +28,8 @@ data class UserInfo(
     var has_profile: Boolean = false,
     var xp : Int= 0,
     var coins: Int = 0,
+    // Diamonds are a persistent premium currency (do not reset daily)
+    var diamonds: Int = 0,
     var level : Int = 1,
     val inventory: HashMap<InventoryItem, Int> = hashMapOf(Pair(InventoryItem.STREAK_FREEZER,2)),
     val achievements: List<Achievements> = listOf(Achievements.THE_EARLY_FEW),
@@ -167,4 +169,19 @@ fun User.useCoins(coins: Int){
 fun User.addCoins(coins:Int){
     userInfo.coins+=coins
     saveUserInfo()
+}
+
+// Persistent diamonds management
+fun User.addDiamonds(amount: Int){
+    if (amount <= 0) return
+    userInfo.diamonds += amount
+    saveUserInfo()
+}
+
+fun User.useDiamonds(amount: Int): Boolean {
+    if (amount <= 0) return false
+    if (userInfo.diamonds < amount) return false
+    userInfo.diamonds -= amount
+    saveUserInfo()
+    return true
 }

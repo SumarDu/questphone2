@@ -26,6 +26,9 @@ enum class InventoryItem(val simpleName: String, val description: String, val ic
     STREAK_FREEZER("Streak Freezer", description = "Automatically freezes your streak in case you fail to complete all quests on a day", icon = R.drawable.streak_freezer, category = Category.BOOSTERS, price = 20),
 
     XP_BOOSTER ("XP Booster", description = "Get 2x more xp for the next 5 hours.", isDirectlyUsableFromInventory = true,onUse = ::onUseXpBooster, icon = R.drawable.xp_booster, category = Category.BOOSTERS, price = 10),
+
+    // Special store-only item: exchange diamonds to coins. Price is measured in DIAMONDS.
+    DIAMOND_EXCHANGE("Diamond Exchange", description = "Exchange diamonds for coins.", icon = R.drawable.diamond_icon, category = Category.BOOSTERS, price = 1),
 }
 
 fun onUseXpBooster(){

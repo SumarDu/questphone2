@@ -47,6 +47,23 @@ enum class QuestPriority {
     NOT_IMPORTANT_NOT_URGENT   // Light Gray
 }
 
+// Add diamond_reward column to CommonQuestInfo
+val MIGRATION_28_29 = object : Migration(28, 29) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        val cursor = database.query("PRAGMA table_info(CommonQuestInfo)")
+        var hasDiamond = false
+        cursor.use {
+            val nameIndex = cursor.getColumnIndex("name")
+            while (cursor.moveToNext()) {
+                if (cursor.getString(nameIndex) == "diamond_reward") { hasDiamond = true; break }
+            }
+        }
+        if (!hasDiamond) {
+            database.execSQL("ALTER TABLE CommonQuestInfo ADD COLUMN diamond_reward INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+}
+
 // Add phone block sanction fields to CommonQuestInfo
 val MIGRATION_27_28 = object : Migration(27, 28) {
     override fun migrate(database: SupportSQLiteDatabase) {
@@ -122,6 +139,9 @@ data class CommonQuestInfo(
     var title: String = "",
     val reward_min: Int = 5,
     val reward_max: Int = 5,
+    // Optional diamond reward granted on completion
+    @ColumnInfo(defaultValue = "0")
+    var diamond_reward: Int = 0,
     var integration_id : IntegrationId = IntegrationId.DEEP_FOCUS,
     var selected_days: Set<DayOfWeek> = emptySet(),
     var scheduling_info: SchedulingInfo = SchedulingInfo(),
@@ -201,6 +221,7 @@ class QuestInfoState(
     initialInstructions: String = "",
     initialRewardMin: Int = 5,
     initialRewardMax: Int = 5,
+    initialDiamondReward: Int = 0,
     initialIntegrationId: IntegrationId = IntegrationId.DEEP_FOCUS,
     initialSelectedDays: Set<DayOfWeek> = emptySet(),
     initialAutoDestruct: String = "9999-12-31",
@@ -220,6 +241,7 @@ class QuestInfoState(
     var title by mutableStateOf(initialTitle)
     var rewardMin by mutableIntStateOf(initialRewardMin)
     var rewardMax by mutableIntStateOf(initialRewardMax)
+    var diamondReward by mutableIntStateOf(initialDiamondReward)
     var integrationId by mutableStateOf(initialIntegrationId)
     var selectedDays by mutableStateOf(initialSelectedDays)
     var schedulingInfo by mutableStateOf(initialSchedulingInfo)
@@ -248,6 +270,7 @@ class QuestInfoState(
         title = title,
         reward_min = rewardMin,
         reward_max = rewardMax,
+        diamond_reward = diamondReward,
         integration_id = integrationId,
         selected_days = selectedDays,
         scheduling_info = schedulingInfo,
@@ -276,6 +299,7 @@ class QuestInfoState(
         title = commonQuestInfo.title
         rewardMin = commonQuestInfo.reward_min
         rewardMax = commonQuestInfo.reward_max
+        diamondReward = commonQuestInfo.diamond_reward
         integrationId = commonQuestInfo.integration_id
         selectedDays = commonQuestInfo.selected_days
         schedulingInfo = commonQuestInfo.scheduling_info
@@ -412,7 +436,7 @@ interface QuestDao {
 
 
 
-@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class, BlockedUnlocker::class], version = 28, exportSchema = false)
+@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class, BlockedUnlocker::class], version = 29, exportSchema = false)
 @TypeConverters(BaseQuestConverter::class)
 abstract class QuestDatabase : RoomDatabase() {
     abstract fun appUnlockerItemDao(): AppUnlockerItemDao
@@ -492,7 +516,7 @@ object QuestDatabaseProvider {
                 context.applicationContext,
                 QuestDatabase::class.java,
                 "quest_database"
-            ).addMigrations(MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28).fallbackToDestructiveMigration().build()
+            ).addMigrations(MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29).fallbackToDestructiveMigration().build()
             INSTANCE = instance
             instance
         }

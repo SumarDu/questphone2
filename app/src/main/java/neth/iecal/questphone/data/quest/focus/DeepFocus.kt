@@ -24,6 +24,9 @@ data class DeepFocus(
     var maxWorkSessions: Int = 5,
     var longBreakDurationInMillis: Long = 0L,
     var reward_per_extra_session: Int = 0,
+    // Diamonds: separate rewards for regular and extra sessions
+    var diamond_reward_regular: Int = 0,
+    var diamond_reward_extra: Int = 0,
     var long_break_after_sessions: Int = 0,
     @ExcludeFromReviewDialog
     var completedWorkSessions: Int = 0
