@@ -64,8 +64,15 @@ data class AppUnlockerItemDTO(
 }
 
 @Serializable
+data class BlockedUnlockerDTO(
+    val unlockerId: Int,
+    val blockedUntil: Long,
+    val sources: String = ""
+)
+
+@Serializable
 data class BackupData(
-    val version: Int = 2,
+    val version: Int = 3,
     val createdAt: Long = System.currentTimeMillis(),
     // raw JSON strings for components that are not @Serializable in-place
     val settingsJson: String? = null,
@@ -73,6 +80,7 @@ data class BackupData(
     val distractions: List<String> = emptyList(),
     val quests: List<CommonQuestInfo> = emptyList(),
     val appUnlockers: List<AppUnlockerItemDTO> = emptyList(),
+    val blockedUnlockers: List<BlockedUnlockerDTO> = emptyList(),
     val timers: List<TimerStateDTO> = emptyList(),
     val gestureSettings: GestureSettingsDTO? = null
 )
@@ -128,10 +136,11 @@ object BackupManager {
         val dSp = appContext.getSharedPreferences("distractions", Context.MODE_PRIVATE)
         val distractions = dSp.getStringSet("distracting_apps", emptySet())?.toList() ?: emptyList()
 
-        // Quests and Unlockers
+        // Quests, Unlockers, and Blocked Unlockers
         val db = QuestDatabaseProvider.getInstance(appContext)
         val quests = db.questDao().getAllQuestsSuspend()
         val unlockers = db.appUnlockerItemDao().getAllOnce()
+        val blockedUnlockers = db.blockedUnlockerDao().getActive(System.currentTimeMillis()).first()
 
         // Timer state (cooldowns in ServiceInfo.unlockedApps) -> remainingMs snapshot
         val timers = run {
@@ -177,6 +186,7 @@ object BackupManager {
             distractions = distractions,
             quests = quests,
             appUnlockers = unlockers.map { AppUnlockerItemDTO.fromEntity(it) },
+            blockedUnlockers = blockedUnlockers.map { BlockedUnlockerDTO(it.unlocker_id, it.blocked_until, it.sources) },
             timers = timers,
             gestureSettings = gestures
         )
@@ -231,6 +241,18 @@ object BackupManager {
         // Requires clearAll() DAO method; if absent, this call will be a no-op at compile time until method is added.
         runCatching { unlockerDao.clearAll() }.onFailure { /* ignore if not available */ }
         data.appUnlockers.forEach { dto -> unlockerDao.insert(AppUnlockerItemDTO.toEntity(dto)) }
+
+        // Restore blocked unlockables
+        val blockedUnlockerDao = db.blockedUnlockerDao()
+        data.blockedUnlockers.forEach { dto ->
+            blockedUnlockerDao.upsert(
+                neth.iecal.questphone.data.quest.BlockedUnlocker(
+                    unlocker_id = dto.unlockerId,
+                    blocked_until = dto.blockedUntil,
+                    sources = dto.sources
+                )
+            )
+        }
 
         // Restore gesture settings
         data.gestureSettings?.let { g ->
