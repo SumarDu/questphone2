@@ -213,6 +213,11 @@
                 android:resource="@xml/quest_list_widget" />
         </receiver>
 
+        <!-- Alarm receiver for unlock ending warning -->
+        <receiver
+            android:name=".receivers.UnlockWarningReceiver"
+            android:exported="false" />
+
     </application>
 
 </manifest>
