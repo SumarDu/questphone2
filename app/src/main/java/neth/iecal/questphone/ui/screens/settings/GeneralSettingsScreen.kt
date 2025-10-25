@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.HourglassDisabled
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
@@ -123,6 +124,12 @@ fun GeneralSettingsScreen(navController: NavController) {
                         title = "Backups & Development",
                         subtitle = "Manage data and developer options",
                         onClick = { navController.navigate(Screen.SettingsBackupsDev.route) }
+                    ),
+                    SettingItemData(
+                        icon = { Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = Color(0xFF8E8E93)) },
+                        title = "Other",
+                        subtitle = "Additional settings and options",
+                        onClick = { navController.navigate(Screen.SettingsOther.route) }
                     )
                 )
             )

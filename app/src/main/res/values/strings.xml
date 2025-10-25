@@ -12,4 +12,10 @@
     <string name="unlock_warning_channel_description">Notifications about app unlock status</string>
     <string name="unlock_warning_title">Unlock Ending Soon</string>
     <string name="unlock_warning_message">Your app unlock will expire in 1 minute</string>
+    
+    <!-- Timer Widget -->
+    <string name="timer_widget_description">Quest Timer Widget</string>
+    
+    <!-- Quest List Widget -->
+    <string name="quest_list_widget_description">Today\'s Quest List Widget</string>
 </resources>

@@ -702,6 +702,12 @@ fun RewardSetter(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                PercentDropdown(
+                    label = "Drop Chance",
+                    percent = questInfoState.diamondDropChance,
+                    onSelect = { questInfoState.diamondDropChance = it }
+                )
             }
         }
     }

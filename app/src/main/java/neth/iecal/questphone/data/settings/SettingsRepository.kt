@@ -31,7 +31,9 @@ data class SettingsData(
     val overduePenaltyCoins: Int = 1, // coins to deduct per window
     // Diamond exchange configuration: D diamonds -> C coins
     val diamondExchangeDiamonds: Int = 1,
-    val diamondExchangeCoins: Int = 10
+    val diamondExchangeCoins: Int = 10,
+    // Other settings
+    val tokensEnabled: Boolean = false
 )
 
 class SettingsRepository(private val context: Context) {
@@ -177,6 +179,12 @@ class SettingsRepository(private val context: Context) {
     suspend fun updateDiamondExchangeCoins(coins: Int) {
         val c = coins.coerceAtLeast(0)
         val newSettings = _settings.value.copy(diamondExchangeCoins = c)
+        saveSettings(newSettings)
+    }
+
+    // Other settings updaters
+    suspend fun updateTokensEnabled(enabled: Boolean) {
+        val newSettings = _settings.value.copy(tokensEnabled = enabled)
         saveSettings(newSettings)
     }
 }

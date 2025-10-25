@@ -64,6 +64,14 @@ val MIGRATION_28_29 = object : Migration(28, 29) {
     }
 }
 
+// Add purchase time restriction columns to app_unlocker_items
+val MIGRATION_29_30 = object : Migration(29, 30) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("ALTER TABLE app_unlocker_items ADD COLUMN purchaseStartTimeMinutes INTEGER")
+        database.execSQL("ALTER TABLE app_unlocker_items ADD COLUMN purchaseEndTimeMinutes INTEGER")
+    }
+}
+
 // Add phone block sanction fields to CommonQuestInfo
 val MIGRATION_27_28 = object : Migration(27, 28) {
     override fun migrate(database: SupportSQLiteDatabase) {
@@ -142,6 +150,9 @@ data class CommonQuestInfo(
     // Optional diamond reward granted on completion
     @ColumnInfo(defaultValue = "0")
     var diamond_reward: Int = 0,
+    // Percentage chance (0-100) for diamond to drop. 100 = always, 0 = never
+    @ColumnInfo(defaultValue = "100")
+    var diamond_drop_chance: Int = 100,
     var integration_id : IntegrationId = IntegrationId.DEEP_FOCUS,
     var selected_days: Set<DayOfWeek> = emptySet(),
     var scheduling_info: SchedulingInfo = SchedulingInfo(),
@@ -222,6 +233,7 @@ class QuestInfoState(
     initialRewardMin: Int = 5,
     initialRewardMax: Int = 5,
     initialDiamondReward: Int = 0,
+    initialDiamondDropChance: Int = 100,
     initialIntegrationId: IntegrationId = IntegrationId.DEEP_FOCUS,
     initialSelectedDays: Set<DayOfWeek> = emptySet(),
     initialAutoDestruct: String = "9999-12-31",
@@ -242,6 +254,7 @@ class QuestInfoState(
     var rewardMin by mutableIntStateOf(initialRewardMin)
     var rewardMax by mutableIntStateOf(initialRewardMax)
     var diamondReward by mutableIntStateOf(initialDiamondReward)
+    var diamondDropChance by mutableIntStateOf(initialDiamondDropChance)
     var integrationId by mutableStateOf(initialIntegrationId)
     var selectedDays by mutableStateOf(initialSelectedDays)
     var schedulingInfo by mutableStateOf(initialSchedulingInfo)
@@ -271,6 +284,7 @@ class QuestInfoState(
         reward_min = rewardMin,
         reward_max = rewardMax,
         diamond_reward = diamondReward,
+        diamond_drop_chance = diamondDropChance,
         integration_id = integrationId,
         selected_days = selectedDays,
         scheduling_info = schedulingInfo,
@@ -300,6 +314,7 @@ class QuestInfoState(
         rewardMin = commonQuestInfo.reward_min
         rewardMax = commonQuestInfo.reward_max
         diamondReward = commonQuestInfo.diamond_reward
+        diamondDropChance = commonQuestInfo.diamond_drop_chance
         integrationId = commonQuestInfo.integration_id
         selectedDays = commonQuestInfo.selected_days
         schedulingInfo = commonQuestInfo.scheduling_info
@@ -436,7 +451,7 @@ interface QuestDao {
 
 
 
-@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class, BlockedUnlocker::class], version = 29, exportSchema = false)
+@Database(entities = [CommonQuestInfo::class, AppUnlockerItem::class, DeepFocusSessionLog::class, BlockedUnlocker::class], version = 30, exportSchema = false)
 @TypeConverters(BaseQuestConverter::class)
 abstract class QuestDatabase : RoomDatabase() {
     abstract fun appUnlockerItemDao(): AppUnlockerItemDao
@@ -516,7 +531,7 @@ object QuestDatabaseProvider {
                 context.applicationContext,
                 QuestDatabase::class.java,
                 "quest_database"
-            ).addMigrations(MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29).fallbackToDestructiveMigration().build()
+            ).addMigrations(MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30).fallbackToDestructiveMigration().build()
             INSTANCE = instance
             instance
         }

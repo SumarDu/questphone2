@@ -327,6 +327,7 @@ fun SettingsOverduePenaltiesScreen(navController: NavController) {
                     },
                     label = { Text("Diamonds") },
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                    enabled = !settings.isSettingsLocked,
                     modifier = Modifier.width(120.dp)
                 )
                 Text("  →  ", modifier = Modifier.padding(horizontal = 8.dp))
@@ -342,6 +343,7 @@ fun SettingsOverduePenaltiesScreen(navController: NavController) {
                     },
                     label = { Text("Coins") },
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                    enabled = !settings.isSettingsLocked,
                     modifier = Modifier.width(140.dp)
                 )
             }
@@ -549,7 +551,7 @@ fun SettingsCalendarSyncScreen(navController: NavController) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { showTimePicker = true }
+                    .let { base -> if (!settings.isSettingsLocked) base.clickable { showTimePicker = true } else base }
                     .padding(vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -564,14 +566,15 @@ fun SettingsCalendarSyncScreen(navController: NavController) {
 
             Button(
                 onClick = { settingsViewModel.updateAutoSyncTime(null) },
-                enabled = settings.autoSyncTimeMinutes != null
+                enabled = !settings.isSettingsLocked && settings.autoSyncTimeMinutes != null
             ) { Text("Disable Auto-sync") }
 
             Button(
                 onClick = {
                     CalendarSyncScheduler.triggerImmediateSync(context)
                 },
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(top = 8.dp),
+                enabled = !settings.isSettingsLocked
             ) { Text("Test Sync Now") }
 
             if (showCalendarDialog) {

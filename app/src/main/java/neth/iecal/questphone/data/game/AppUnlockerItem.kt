@@ -16,7 +16,9 @@ data class AppUnlockerItem(
     val appName: String,
     val packageName: String,
     val price: Int,
-    val unlockDurationMinutes: Int
+    val unlockDurationMinutes: Int,
+    val purchaseStartTimeMinutes: Int? = null, // Minutes from midnight (0-1439), null means always available
+    val purchaseEndTimeMinutes: Int? = null     // Minutes from midnight (0-1440), null means always available
 )
 
 @Dao

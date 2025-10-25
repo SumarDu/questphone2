@@ -14,5 +14,8 @@ data class StoreItem(
     val onPurchase: () -> Unit,
     val isBlocked: Boolean = false,
     val blockedUntil: Long? = null,
-    val blockedSources: List<String> = emptyList()
+    val blockedSources: List<String> = emptyList(),
+    val purchaseStartTimeMinutes: Int? = null,
+    val purchaseEndTimeMinutes: Int? = null,
+    val isOutsidePurchaseTime: Boolean = false
 )

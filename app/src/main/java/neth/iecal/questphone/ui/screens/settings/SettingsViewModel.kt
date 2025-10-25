@@ -164,6 +164,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             repository.updateDiamondExchangeCoins(coins)
         }
     }
+
+    // Other settings
+    fun updateTokensEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            repository.updateTokensEnabled(enabled)
+        }
+    }
 }
 
 class SettingsViewModelFactory(private val application: Application) : ViewModelProvider.Factory {

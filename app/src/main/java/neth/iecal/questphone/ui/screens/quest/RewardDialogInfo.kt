@@ -216,7 +216,8 @@ suspend fun logQuestCompletionWithCoins(
 
 @Composable
 fun DiamondConfirmDialog(amount: Int, onConfirm: () -> Unit, onCancel: () -> Unit) {
-    Dialog(onDismissRequest = onCancel) {
+    // Non-dismissible: force explicit choice
+    Dialog(onDismissRequest = { /* no-op to prevent dismiss */ }) {
         Column(
             modifier = Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -302,8 +303,13 @@ fun RewardDialogMaker(  ) {
             val preRewardCoins = User.userInfo.coins
             User.addCoins(coinsEarned)
             // Queue diamonds for confirmation instead of awarding immediately
+            // Apply drop chance roll: generate random 0-99, compare with drop chance percentage
             if (isTriggeredViaQuestCompletion && questInfo != null && questInfo.diamond_reward > 0) {
-                RewardDialogInfo.pendingDiamondReward = questInfo.diamond_reward
+                val dropChance = questInfo.diamond_drop_chance.coerceIn(0, 100)
+                val roll = (0 until 100).random()
+                if (roll < dropChance) {
+                    RewardDialogInfo.pendingDiamondReward = questInfo.diamond_reward
+                }
             }
             // Mark as processed to prevent duplicate additions if recomposed
             RewardDialogInfo.hasProcessedCurrentReward = true

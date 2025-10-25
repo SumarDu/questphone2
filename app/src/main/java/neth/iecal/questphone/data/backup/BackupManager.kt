@@ -38,21 +38,27 @@ data class AppUnlockerItemDTO(
     val appName: String,
     val packageName: String,
     val price: Int,
-    val unlockDurationMinutes: Int
+    val unlockDurationMinutes: Int,
+    val purchaseStartTimeMinutes: Int? = null,
+    val purchaseEndTimeMinutes: Int? = null
 ) {
     companion object {
         fun fromEntity(e: AppUnlockerItem) = AppUnlockerItemDTO(
             appName = e.appName,
             packageName = e.packageName,
             price = e.price,
-            unlockDurationMinutes = e.unlockDurationMinutes
+            unlockDurationMinutes = e.unlockDurationMinutes,
+            purchaseStartTimeMinutes = e.purchaseStartTimeMinutes,
+            purchaseEndTimeMinutes = e.purchaseEndTimeMinutes
         )
         fun toEntity(d: AppUnlockerItemDTO) = AppUnlockerItem(
             id = 0, // let Room autogenerate to avoid ID collisions across devices
             appName = d.appName,
             packageName = d.packageName,
             price = d.price,
-            unlockDurationMinutes = d.unlockDurationMinutes
+            unlockDurationMinutes = d.unlockDurationMinutes,
+            purchaseStartTimeMinutes = d.purchaseStartTimeMinutes,
+            purchaseEndTimeMinutes = d.purchaseEndTimeMinutes
         )
     }
 }

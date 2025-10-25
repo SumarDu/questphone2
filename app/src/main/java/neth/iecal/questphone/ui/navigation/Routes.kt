@@ -29,6 +29,7 @@ sealed class Screen(val route: String) {
     data object SettingsCalendarSync : Screen("settings/calendar_sync/")
     data object SettingsAiTools : Screen("settings/ai_tools/")
     data object SettingsBackupsDev : Screen("settings/backups_dev/")
+    data object SettingsOther : Screen("settings/other/")
 
     data object QuestStats : Screen("quest_stats/")
     data object Stats : Screen("stats/")

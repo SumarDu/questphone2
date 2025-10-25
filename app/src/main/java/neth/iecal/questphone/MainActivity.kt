@@ -53,6 +53,7 @@ import neth.iecal.questphone.ui.screens.settings.SettingsUnplannedQuestFilterScr
 import neth.iecal.questphone.ui.screens.settings.SettingsCalendarSyncScreen
 import neth.iecal.questphone.ui.screens.settings.SettingsAiToolsScreen
 import neth.iecal.questphone.ui.screens.settings.SettingsBackupsDevScreen
+import neth.iecal.questphone.ui.screens.settings.OtherSettingsScreen
 import neth.iecal.questphone.ui.screens.quest.stats.specific.BaseQuestStatsView
 import neth.iecal.questphone.ui.theme.LauncherTheme
 import neth.iecal.questphone.utils.isOnline
@@ -157,6 +158,9 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Screen.SettingsBackupsDev.route) {
                             SettingsBackupsDevScreen(navController)
+                        }
+                        composable(Screen.SettingsOther.route) {
+                            OtherSettingsScreen(navController)
                         }
                         composable(Screen.GestureSettings.route) {
                             GestureSettingsScreen()

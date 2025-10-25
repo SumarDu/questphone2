@@ -31,6 +31,7 @@ import neth.iecal.questphone.data.ai.GeminiPro
 import neth.iecal.questphone.data.game.User
 import neth.iecal.questphone.data.game.getUserInfo
 import neth.iecal.questphone.data.game.xpToRewardForQuest
+import neth.iecal.questphone.data.game.addToken
 import neth.iecal.questphone.data.quest.CommonQuestInfo
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.data.quest.stats.StatsDatabaseProvider
@@ -96,6 +97,10 @@ fun SwiftMarkQuestView(
             )
         }
         checkForRewards(commonQuestInfo, rewardAmount)
+        // Award token for completing this quest (if enabled in settings)
+        if (settings.tokensEnabled) {
+            User.addToken(commonQuestInfo.title)
+        }
         isQuestComplete.value = true
     }
 

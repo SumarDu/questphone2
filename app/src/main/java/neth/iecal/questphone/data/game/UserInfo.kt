@@ -28,8 +28,13 @@ data class UserInfo(
     var has_profile: Boolean = false,
     var xp : Int= 0,
     var coins: Int = 0,
-    // Diamonds are a persistent premium currency (do not reset daily)
+    // Diamonds available to spend
     var diamonds: Int = 0,
+    // Diamonds earned today (pending; not spendable until next day)
+    var diamonds_pending: Int = 0,
+    // Tokens earned from completing quests (quest_title -> count)
+    val tokens: MutableMap<String, Int> = mutableMapOf(),
+
     var level : Int = 1,
     val inventory: HashMap<InventoryItem, Int> = hashMapOf(Pair(InventoryItem.STREAK_FREEZER,2)),
     val achievements: List<Achievements> = listOf(Achievements.THE_EARLY_FEW),
@@ -171,10 +176,11 @@ fun User.addCoins(coins:Int){
     saveUserInfo()
 }
 
-// Persistent diamonds management
+// Diamonds management
+// Add newly earned diamonds to pending so they are not spendable until next day
 fun User.addDiamonds(amount: Int){
     if (amount <= 0) return
-    userInfo.diamonds += amount
+    userInfo.diamonds_pending += amount
     saveUserInfo()
 }
 
@@ -184,4 +190,19 @@ fun User.useDiamonds(amount: Int): Boolean {
     userInfo.diamonds -= amount
     saveUserInfo()
     return true
+}
+
+// Token management - each token represents a completed quest with its title
+fun User.addToken(questTitle: String) {
+    val currentCount = userInfo.tokens[questTitle] ?: 0
+    userInfo.tokens[questTitle] = currentCount + 1
+    saveUserInfo()
+}
+
+fun User.getTotalTokens(): Int {
+    return userInfo.tokens.values.sum()
+}
+
+fun User.getTokens(): Map<String, Int> {
+    return userInfo.tokens.toMap()
 }

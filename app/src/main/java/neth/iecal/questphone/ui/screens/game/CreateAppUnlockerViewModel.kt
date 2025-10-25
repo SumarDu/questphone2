@@ -22,6 +22,9 @@ class CreateAppUnlockerViewModel(private val appUnlockerItemDao: AppUnlockerItem
     var price by mutableStateOf("")
     var hours by mutableStateOf("")
     var minutes by mutableStateOf("")
+    var enableTimeRestriction by mutableStateOf(false)
+    var purchaseStartTimeMinutes by mutableStateOf(0)
+    var purchaseEndTimeMinutes by mutableStateOf(1440)
 
     fun loadApps(context: Context) {
         viewModelScope.launch {
@@ -53,7 +56,9 @@ class CreateAppUnlockerViewModel(private val appUnlockerItemDao: AppUnlockerItem
             appName = app.name,
             packageName = app.packageName,
             price = priceValue,
-            unlockDurationMinutes = totalMinutes
+            unlockDurationMinutes = totalMinutes,
+            purchaseStartTimeMinutes = if (enableTimeRestriction) purchaseStartTimeMinutes else null,
+            purchaseEndTimeMinutes = if (enableTimeRestriction) purchaseEndTimeMinutes else null
         )
 
         viewModelScope.launch {

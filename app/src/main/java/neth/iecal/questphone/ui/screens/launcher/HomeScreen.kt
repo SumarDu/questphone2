@@ -39,6 +39,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
@@ -119,6 +120,8 @@ import neth.iecal.questphone.utils.toMinutesRange
 import neth.iecal.questphone.utils.isAllDayRange
 import neth.iecal.questphone.utils.formatInstantToDate
 import neth.iecal.questphone.utils.getCurrentDate
+import neth.iecal.questphone.data.SchedulingInfo
+import neth.iecal.questphone.data.SchedulingType
 import neth.iecal.questphone.data.timer.TimerMode
 import neth.iecal.questphone.data.timer.TimerService
 import neth.iecal.questphone.utils.getCurrentDay
@@ -136,6 +139,8 @@ import neth.iecal.questphone.data.remote.DevModeManager
 import neth.iecal.questphone.data.remote.SupabaseClient
 import neth.iecal.questphone.data.remote.SupabaseSyncService
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 
 private val json = Json { ignoreUnknownKeys = true }
 
@@ -308,11 +313,24 @@ fun HomeScreen(navController: NavController) {
         diamondBalance = User.userInfo.diamonds
     }
     var showStartConfirmation by remember { mutableStateOf(false) }
+    // Diamonds breakdown dialog
+    var showDiamondDialog by remember { mutableStateOf(false) }
     var selectedQuestForConfirmation by remember { mutableStateOf<CommonQuestInfo?>(null) }
     var showQuestFinishedDialog by remember { mutableStateOf(false) }
     var finishedQuestId by remember { mutableStateOf<String?>(null) }
     var showAddTimeDialog by remember { mutableStateOf(false) }
     var finishedQuestForReopening by remember { mutableStateOf<CommonQuestInfo?>(null) }
+    
+    // SwiftMark quick creation dialog state
+    var showSwiftMarkDialog by remember { mutableStateOf(false) }
+    var swiftMarkTitle by remember { mutableStateOf("") }
+    var swiftMarkDuration by remember { mutableStateOf(10) }
+    var showDurationDropdown by remember { mutableStateOf(false) }
+    var swiftMarkBreak by remember { mutableStateOf(5) }
+    var showBreakDurationDropdown by remember { mutableStateOf(false) }
+    var swiftMarkStartMinutes by remember { mutableStateOf(0) }
+    var swiftMarkEndMinutes by remember { mutableStateOf(1440) }
+    var showTimeRangeDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         timerViewModel.questFinishedEvent.collect { questId ->
@@ -641,6 +659,31 @@ fun HomeScreen(navController: NavController) {
                         showPenaltyDialog = true
                     }
             )
+
+            // Diamonds breakdown dialog content
+            if (showDiamondDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDiamondDialog = false },
+                    title = { Text("Diamonds") },
+                    text = {
+                        Column {
+                            Text(text = "Available: ${User.userInfo.diamonds}", style = MaterialTheme.typography.bodyLarge)
+                            Text(text = "Pending: ${User.userInfo.diamonds_pending}", style = MaterialTheme.typography.bodyLarge)
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = "Pending diamonds will become available the next day.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showDiamondDialog = false }) {
+                            Text("OK")
+                        }
+                    }
+                )
+            }
             Text(
                 text = "$coinBalance",
                 style = MaterialTheme.typography.bodyLarge,
@@ -659,9 +702,10 @@ fun HomeScreen(navController: NavController) {
                 modifier = Modifier
                     .padding(8.dp)
                     .size(20.dp)
+                    .clickable { showDiamondDialog = true }
             )
             Text(
-                text = "$diamondBalance",
+                text = "${User.userInfo.diamonds + User.userInfo.diamonds_pending}",
                 style = MaterialTheme.typography.bodyLarge,
             )
             Spacer(Modifier.size(8.dp))
@@ -1089,6 +1133,15 @@ fun HomeScreen(navController: NavController) {
                         navController.navigate(Screen.ListAllQuest.route)
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                SidebarButton(icon = Icons.Default.Add) {
+                    showSwiftMarkDialog = true
+                    swiftMarkTitle = ""
+                    swiftMarkDuration = 10
+                    swiftMarkBreak = 5
+                    swiftMarkStartMinutes = 0
+                    swiftMarkEndMinutes = 1440
+                }
             }
         }
 
@@ -1305,6 +1358,201 @@ fun HomeScreen(navController: NavController) {
                 TextButton(onClick = { showAddTimeDialog = false }) {
                     Text("Cancel")
                 }
+            }
+        )
+    }
+    
+    // SwiftMark quick creation dialog
+    if (showSwiftMarkDialog) {
+        val durationOptions = listOf(
+            10 to "10 хв",
+            20 to "20 хв",
+            30 to "30 хв",
+            60 to "60 хв",
+            120 to "2 год"
+        )
+        
+        AlertDialog(
+            onDismissRequest = { showSwiftMarkDialog = false },
+            title = { Text("Створити SwiftMark") },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Швидкий тимчасовий квест без нагороди",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    
+                    OutlinedTextField(
+                        value = swiftMarkTitle,
+                        onValueChange = { swiftMarkTitle = it },
+                        label = { Text("Назва") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    
+                    Spacer(Modifier.height(12.dp))
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showDurationDropdown = true }
+                    ) {
+                        OutlinedTextField(
+                            value = durationOptions.find { it.first == swiftMarkDuration }?.second ?: "",
+                            onValueChange = { },
+                            label = { Text("Час") },
+                            modifier = Modifier.fillMaxWidth(),
+                            readOnly = true,
+                            enabled = false,
+                            colors = androidx.compose.material3.TextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                disabledContainerColor = MaterialTheme.colorScheme.surface
+                            )
+                        )
+                        
+                        DropdownMenu(
+                            expanded = showDurationDropdown,
+                            onDismissRequest = { showDurationDropdown = false }
+                        ) {
+                            durationOptions.forEach { (minutes, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        swiftMarkDuration = minutes
+                                        showDurationDropdown = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // Break selector
+                    val breakOptions = listOf(
+                        0 to "Без перерви",
+                        5 to "Перерва 5 хв",
+                        10 to "Перерва 10 хв",
+                        15 to "Перерва 15 хв"
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showBreakDurationDropdown = true }
+                    ) {
+                        OutlinedTextField(
+                            value = breakOptions.find { it.first == swiftMarkBreak }?.second ?: "",
+                            onValueChange = { },
+                            label = { Text("Перерва") },
+                            modifier = Modifier.fillMaxWidth(),
+                            readOnly = true,
+                            enabled = false,
+                            colors = androidx.compose.material3.TextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                disabledContainerColor = MaterialTheme.colorScheme.surface
+                            )
+                        )
+
+                        DropdownMenu(
+                            expanded = showBreakDurationDropdown,
+                            onDismissRequest = { showBreakDurationDropdown = false }
+                        ) {
+                            breakOptions.forEach { (minutes, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        swiftMarkBreak = minutes
+                                        showBreakDurationDropdown = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // Time range selector (uses existing dialog component)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showTimeRangeDialog = true }
+                    ) {
+                        OutlinedTextField(
+                            value = "${formatTimeMinutes(swiftMarkStartMinutes)} — ${formatTimeMinutes(swiftMarkEndMinutes)}",
+                            onValueChange = {},
+                            label = { Text("Часовий діапазон") },
+                            modifier = Modifier.fillMaxWidth(),
+                            readOnly = true,
+                            enabled = false,
+                            colors = androidx.compose.material3.TextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                disabledContainerColor = MaterialTheme.colorScheme.surface
+                            )
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (swiftMarkTitle.isNotBlank()) {
+                            scope.launch {
+                                val scheduling = SchedulingInfo(
+                                    type = SchedulingType.SPECIFIC_DATE,
+                                    selectedDays = emptySet(),
+                                    specificDate = getCurrentDate()
+                                )
+                                val newQuest = CommonQuestInfo(
+                                    id = java.util.UUID.randomUUID().toString(),
+                                    title = swiftMarkTitle,
+                                    reward_min = 0,
+                                    reward_max = 0,
+                                    integration_id = IntegrationId.SWIFT_MARK,
+                                    priority = QuestPriority.NOT_IMPORTANT_URGENT,
+                                    quest_duration_minutes = swiftMarkDuration,
+                                    break_duration_minutes = swiftMarkBreak,
+                                    quest_started_at = 0L,
+                                    scheduling_info = scheduling,
+                                    auto_destruct = SchedulingUtils.getExpirationDate(scheduling, getCurrentDate()),
+                                    time_range = listOf(swiftMarkStartMinutes, swiftMarkEndMinutes),
+                                    selected_days = emptySet(),
+                                    synced = false,
+                                    last_updated = System.currentTimeMillis()
+                                )
+                                dao.upsertQuest(newQuest)
+                                showSwiftMarkDialog = false
+                                Toast.makeText(context, "SwiftMark створено", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    enabled = swiftMarkTitle.isNotBlank()
+                ) {
+                    Text("Створити")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSwiftMarkDialog = false }) {
+                    Text("Відмінити")
+                }
+            }
+        )
+    }
+
+    // Time range picker dialog for SwiftMark
+    if (showTimeRangeDialog) {
+        neth.iecal.questphone.ui.screens.quest.setup.components.TimeRangeDialog(
+            initialStartMinutes = swiftMarkStartMinutes,
+            initialEndMinutes = swiftMarkEndMinutes,
+            onDismiss = { showTimeRangeDialog = false },
+            onConfirm = { s, e ->
+                swiftMarkStartMinutes = s
+                swiftMarkEndMinutes = e
+                showTimeRangeDialog = false
             }
         )
     }

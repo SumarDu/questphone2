@@ -113,6 +113,10 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
             longBreakDuration.value = deepFocus.longBreakDurationInMillis
             rewardPerExtraSession.value = deepFocus.reward_per_extra_session
             longBreakAfterSessions.value = deepFocus.long_break_after_sessions
+            // Load diamond rewards
+            diamondRegular = deepFocus.diamond_reward_regular
+            diamondExtra = deepFocus.diamond_reward_extra
+            isDiamondEnabled = (deepFocus.diamond_reward_regular > 0 || deepFocus.diamond_reward_extra > 0)
         }
     }
     LaunchedEffect(apps) {

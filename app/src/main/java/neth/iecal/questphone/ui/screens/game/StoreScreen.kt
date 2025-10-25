@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +56,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import neth.iecal.questphone.R
 import neth.iecal.questphone.data.game.*
+import androidx.compose.material.icons.filled.Stars
 import neth.iecal.questphone.data.quest.QuestDatabaseProvider
 import neth.iecal.questphone.data.quest.BlockedUnlockerDao
 import neth.iecal.questphone.data.quest.SanctionsEnforcer
@@ -90,14 +92,21 @@ class StoreViewModel(
     val settings = settingsRepository.settings
     var coins by mutableIntStateOf(User.userInfo.coins)
     var diamonds by mutableIntStateOf(User.userInfo.diamonds)
+    var totalTokens by mutableIntStateOf(User.getTotalTokens())
     var selectedCategory by mutableStateOf(Category.UNLOCKERS)
     var items by mutableStateOf<List<StoreItem>>(emptyList())
     var selectedItem by mutableStateOf<StoreItem?>(null)
     var showPurchaseNotAllowedDialog by mutableStateOf(false)
     var itemToDelete by mutableStateOf<StoreItem?>(null)
+    var showTokensDialog by mutableStateOf(false)
 
     init {
         loadItems()
+        refreshTokens()
+    }
+    
+    fun refreshTokens() {
+        totalTokens = User.getTotalTokens()
     }
 
     private fun loadItems() {
@@ -135,6 +144,7 @@ class StoreViewModel(
                     }
 
                     val blocksById = blocks.associateBy { it.unlocker_id }
+                    val currentTimeMinutes = getCurrentTimeInMinutes()
                     val dynamicItems = unlockers.map { item ->
                         val hours = TimeUnit.MINUTES.toHours(item.unlockDurationMinutes.toLong())
                         val minutes = item.unlockDurationMinutes % 60
@@ -144,6 +154,11 @@ class StoreViewModel(
                             else -> "${minutes}m"
                         }
                         val block = blocksById[item.id]
+                        val isOutsidePurchaseTime = if (item.purchaseStartTimeMinutes != null && item.purchaseEndTimeMinutes != null) {
+                            !isTimeInRange(currentTimeMinutes, item.purchaseStartTimeMinutes, item.purchaseEndTimeMinutes)
+                        } else {
+                            false
+                        }
                         StoreItem(
                             id = item.id.toString(),
                             name = item.appName,
@@ -155,7 +170,10 @@ class StoreViewModel(
                             onPurchase = { purchaseSelectedItem() },
                             isBlocked = block != null,
                             blockedUntil = block?.blocked_until,
-                            blockedSources = block?.sources?.split('|')?.filter { it.isNotBlank() } ?: emptyList()
+                            blockedSources = block?.sources?.split('|')?.filter { it.isNotBlank() } ?: emptyList(),
+                            purchaseStartTimeMinutes = item.purchaseStartTimeMinutes,
+                            purchaseEndTimeMinutes = item.purchaseEndTimeMinutes,
+                            isOutsidePurchaseTime = isOutsidePurchaseTime
                         )
                     }
 
@@ -170,7 +188,7 @@ class StoreViewModel(
     }
 
     fun selectItem(item: StoreItem, timerState: neth.iecal.questphone.data.timer.TimerState) {
-        if (item.isBlocked) return
+        if (item.isBlocked || item.isOutsidePurchaseTime) return
         if (item.category == Category.UNLOCKERS) {
             val isBreak = timerState.mode == neth.iecal.questphone.data.timer.TimerMode.BREAK
             val isBreakOvertime = timerState.mode == neth.iecal.questphone.data.timer.TimerMode.OVERTIME && timerState.isBreakOvertime
@@ -288,6 +306,11 @@ fun StoreScreen(
         )
     )
     val settings by viewModel.settings.collectAsState()
+    
+    // Refresh tokens when screen becomes visible
+    LaunchedEffect(Unit) {
+        viewModel.refreshTokens()
+    }
 
     Scaffold(
         topBar = {
@@ -312,7 +335,26 @@ fun StoreScreen(
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "${viewModel.diamonds}", style = MaterialTheme.typography.titleMedium)
+                        Text(text = "${User.userInfo.diamonds + User.userInfo.diamonds_pending}", style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        if (settings.tokensEnabled) {
+                            Row(
+                                modifier = Modifier.clickable {
+                                    viewModel.refreshTokens()
+                                    viewModel.showTokensDialog = true
+                                },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Stars,
+                                    contentDescription = "Tokens",
+                                    modifier = Modifier.size(24.dp),
+                                    tint = Color(0xFFFFD700) // Gold color for tokens
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "${viewModel.totalTokens}", style = MaterialTheme.typography.titleMedium)
+                            }
+                        }
                     }
                 }
             )
@@ -382,6 +424,13 @@ fun StoreScreen(
                 onConfirm = { viewModel.onDeleteItemConfirm() }
             )
         }
+
+        if (settings.tokensEnabled && viewModel.showTokensDialog) {
+            TokensDialog(
+                tokens = User.getTokens(),
+                onDismiss = { viewModel.showTokensDialog = false }
+            )
+        }
     }
 }
 
@@ -407,12 +456,13 @@ fun StoreItemsList(
 @Composable
 fun StoreItemCard(item: StoreItem, onClick: () -> Unit, onDelete: () -> Unit, isDeletionEnabled: Boolean) {
     var showSources by remember { mutableStateOf(false) }
+    val isDisabled = item.isBlocked || item.isOutsidePurchaseTime
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .alpha(if (item.isBlocked) 0.4f else 1f)
-            .clickable(enabled = !item.isBlocked, onClick = onClick),
+            .alpha(if (isDisabled) 0.4f else 1f)
+            .clickable(enabled = !isDisabled, onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -439,6 +489,14 @@ fun StoreItemCard(item: StoreItem, onClick: () -> Unit, onDelete: () -> Unit, is
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.clickable { if (item.blockedSources.isNotEmpty()) showSources = true }
+                    )
+                }
+                if (item.isOutsidePurchaseTime && item.purchaseStartTimeMinutes != null && item.purchaseEndTimeMinutes != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Available: ${neth.iecal.questphone.utils.formatTimeMinutes(item.purchaseStartTimeMinutes)} — ${neth.iecal.questphone.utils.formatTimeMinutes(item.purchaseEndTimeMinutes)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
             }
@@ -546,4 +604,98 @@ fun DeleteConfirmationDialog(item: StoreItem, onDismiss: () -> Unit, onConfirm: 
             }
         }
     )
+}
+
+@Composable
+fun TokensDialog(tokens: Map<String, Int>, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Stars,
+                    contentDescription = null,
+                    tint = Color(0xFFFFD700),
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Tokens")
+            }
+        },
+        text = {
+            if (tokens.isEmpty()) {
+                Text(
+                    text = "No tokens yet. Complete SwiftMark quests to earn tokens!",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 400.dp)
+                ) {
+                    items(tokens.entries.sortedByDescending { it.value }) { (questTitle, count) ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = questTitle,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Stars,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFFD700),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "×$count",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
+}
+
+// Helper function to get current time in minutes from midnight
+private fun getCurrentTimeInMinutes(): Int {
+    val calendar = java.util.Calendar.getInstance()
+    val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+    val minute = calendar.get(java.util.Calendar.MINUTE)
+    return hour * 60 + minute
+}
+
+// Helper function to check if current time is within the allowed range
+private fun isTimeInRange(currentMinutes: Int, startMinutes: Int, endMinutes: Int): Boolean {
+    return if (startMinutes <= endMinutes) {
+        // Normal range (e.g., 8:00 AM to 10:00 PM)
+        currentMinutes in startMinutes..endMinutes
+    } else {
+        // Range crosses midnight (e.g., 10:00 PM to 2:00 AM)
+        currentMinutes >= startMinutes || currentMinutes <= endMinutes
+    }
 }

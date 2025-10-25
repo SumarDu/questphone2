@@ -3,10 +3,10 @@ package neth.iecal.questphone.ui.screens.game
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -40,16 +40,20 @@ fun CreateAppUnlockerScreen(
     var selectedTimePreset by remember { mutableStateOf<TimePreset?>(null) }
     var customTime by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var showPurchaseTimeRangeDialog by remember { mutableStateOf(false) }
     
     LaunchedEffect(Unit) {
         viewModel.loadApps(context)
     }
+
+    val scrollState = rememberScrollState()
 
     // System bar padding to prevent title overlap
     Column(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
+            .verticalScroll(scrollState)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -125,10 +129,12 @@ fun CreateAppUnlockerScreen(
                             CircularProgressIndicator()
                         }
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.heightIn(max = 200.dp)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 200.dp)
                         ) {
-                            items(filteredApps) { app ->
+                            filteredApps.forEach { app ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -196,10 +202,10 @@ fun CreateAppUnlockerScreen(
                     TimePreset("Custom", -1, -1)
                 )
                 
-                LazyColumn(
+                Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(timePresets) { preset ->
+                    timePresets.forEach { preset ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -259,6 +265,64 @@ fun CreateAppUnlockerScreen(
             }
         }
 
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Purchase Time Restriction (Optional)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Purchase Time Restriction",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Switch(
+                        checked = viewModel.enableTimeRestriction,
+                        onCheckedChange = { viewModel.enableTimeRestriction = it }
+                    )
+                }
+                
+                if (viewModel.enableTimeRestriction) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "This unlocker can only be purchased during the specified time range.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showPurchaseTimeRangeDialog = true }
+                    ) {
+                        OutlinedTextField(
+                            value = "${neth.iecal.questphone.utils.formatTimeMinutes(viewModel.purchaseStartTimeMinutes)} — ${neth.iecal.questphone.utils.formatTimeMinutes(viewModel.purchaseEndTimeMinutes)}",
+                            onValueChange = {},
+                            label = { Text("Purchase time range") },
+                            modifier = Modifier.fillMaxWidth(),
+                            readOnly = true,
+                            enabled = false,
+                            colors = androidx.compose.material3.TextFieldDefaults.colors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                disabledContainerColor = MaterialTheme.colorScheme.surface
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(32.dp))
 
         // Save Button
@@ -280,6 +344,20 @@ fun CreateAppUnlockerScreen(
                 style = MaterialTheme.typography.titleMedium
             )
         }
+    }
+    
+    // Purchase Time Range Dialog
+    if (showPurchaseTimeRangeDialog) {
+        neth.iecal.questphone.ui.screens.quest.setup.components.TimeRangeDialog(
+            initialStartMinutes = viewModel.purchaseStartTimeMinutes,
+            initialEndMinutes = viewModel.purchaseEndTimeMinutes,
+            onDismiss = { showPurchaseTimeRangeDialog = false },
+            onConfirm = { s, e ->
+                viewModel.purchaseStartTimeMinutes = s
+                viewModel.purchaseEndTimeMinutes = e
+                showPurchaseTimeRangeDialog = false
+            }
+        )
     }
 }
 

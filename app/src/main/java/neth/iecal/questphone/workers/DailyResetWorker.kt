@@ -59,10 +59,19 @@ class DailyResetWorker(
                 User.saveUserInfo()
             }
 
-            // Weekly reset: reset diamonds at the start of each week (Monday)
-            if (today.dayOfWeek == DayOfWeek.MONDAY && User.userInfo.diamonds != 0) {
-                User.userInfo.diamonds = 0
+            // Daily: release pending diamonds into available
+            if (User.userInfo.diamonds_pending > 0) {
+                User.userInfo.diamonds += User.userInfo.diamonds_pending
+                User.userInfo.diamonds_pending = 0
                 User.saveUserInfo()
+            }
+
+            // Weekly reset: clear both available and pending diamonds at the start of each week (Monday)
+            if (today.dayOfWeek == DayOfWeek.MONDAY) {
+                var changed = false
+                if (User.userInfo.diamonds != 0) { User.userInfo.diamonds = 0; changed = true }
+                if (User.userInfo.diamonds_pending != 0) { User.userInfo.diamonds_pending = 0; changed = true }
+                if (changed) User.saveUserInfo()
             }
 
             // Schedule next run
