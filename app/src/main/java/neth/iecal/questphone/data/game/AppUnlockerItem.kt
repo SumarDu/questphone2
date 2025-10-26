@@ -18,7 +18,8 @@ data class AppUnlockerItem(
     val price: Int,
     val unlockDurationMinutes: Int,
     val purchaseStartTimeMinutes: Int? = null, // Minutes from midnight (0-1439), null means always available
-    val purchaseEndTimeMinutes: Int? = null     // Minutes from midnight (0-1440), null means always available
+    val purchaseEndTimeMinutes: Int? = null,   // Minutes from midnight (0-1440), null means always available
+    val pendingDiamondsToConsume: Int = 0      // Amount of pending diamonds to consume on purchase
 )
 
 @Dao

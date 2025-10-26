@@ -176,6 +176,23 @@ fun CreateAppUnlockerScreen(
             modifier = Modifier.fillMaxWidth()
         )
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Pending Diamonds to Consume Input
+        OutlinedTextField(
+            value = viewModel.pendingDiamondsToConsume,
+            onValueChange = { viewModel.pendingDiamondsToConsume = it },
+            label = { Text("Pending Diamonds to Consume") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            supportingText = { 
+                Text(
+                    text = "Amount of pending diamonds to consume when purchasing this unlocker",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        )
+
         Spacer(modifier = Modifier.height(24.dp))
 
         // Modern Time Selector

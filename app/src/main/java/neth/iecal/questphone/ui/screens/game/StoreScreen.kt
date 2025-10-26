@@ -153,6 +153,9 @@ class StoreViewModel(
                             hours > 0 -> "${hours}h"
                             else -> "${minutes}m"
                         }
+                        val pendingDiamondsText = if (item.pendingDiamondsToConsume > 0) {
+                            " • ${item.pendingDiamondsToConsume} pending ♦"
+                        } else ""
                         val block = blocksById[item.id]
                         val isOutsidePurchaseTime = if (item.purchaseStartTimeMinutes != null && item.purchaseEndTimeMinutes != null) {
                             !isTimeInRange(currentTimeMinutes, item.purchaseStartTimeMinutes, item.purchaseEndTimeMinutes)
@@ -162,7 +165,7 @@ class StoreViewModel(
                         StoreItem(
                             id = item.id.toString(),
                             name = item.appName,
-                            description = "Unlocks for $durationString",
+                            description = "Unlocks for $durationString$pendingDiamondsText",
                             icon = R.drawable.ic_launcher_foreground, // Replace with a real icon
                             price = item.price,
                             category = Category.UNLOCKERS,
@@ -215,50 +218,67 @@ class StoreViewModel(
             val rateDiamonds = settingsSnapshot.diamondExchangeDiamonds.coerceAtLeast(1)
             val rateCoins = settingsSnapshot.diamondExchangeCoins.coerceAtLeast(0)
             val canAfford = if (isDiamondExchange) diamonds >= itemToPurchase.price else coins >= itemToPurchase.price
-            if (canAfford) {
-                val prePurchaseCoins = coins
-                if (isDiamondExchange) {
-                    // Exchange using configurable rate: per [rateDiamonds -> rateCoins]
-                    val spent = if (User.useDiamonds(itemToPurchase.price)) itemToPurchase.price else 0
-                    if (spent > 0) {
-                        val gainedCoins = (rateCoins * spent) / rateDiamonds
-                        User.addCoins(gainedCoins)
-                        coins = User.userInfo.coins
-                        diamonds = User.userInfo.diamonds
-                    }
-                } else {
-                    User.useCoins(itemToPurchase.price)
-                    coins = User.userInfo.coins // Manually update coins
+            if (!canAfford) {
+                // Show error message if cannot afford base currency (coins/diamonds)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(getApplication(), "Not enough coins or diamonds!", Toast.LENGTH_SHORT).show()
                 }
+                deselectItem()
+                return@launch
+            }
+            
+            // Process purchase
+            val prePurchaseCoins = coins
+            if (isDiamondExchange) {
+                // Exchange using configurable rate: per [rateDiamonds -> rateCoins]
+                val spent = if (User.useDiamonds(itemToPurchase.price)) itemToPurchase.price else 0
+                if (spent > 0) {
+                    val gainedCoins = (rateCoins * spent) / rateDiamonds
+                    User.addCoins(gainedCoins)
+                    coins = User.userInfo.coins
+                    diamonds = User.userInfo.diamonds
+                }
+            } else {
+                User.useCoins(itemToPurchase.price)
+                coins = User.userInfo.coins // Manually update coins
+            }
 
-                if (itemToPurchase.isFromEnum) {
-                    val inventoryItem = InventoryItem.valueOf(itemToPurchase.id)
-                    if (!isDiamondExchange) {
-                        User.addItemsToInventory(hashMapOf(inventoryItem to 1))
-                    }
-                } else {
-                    // Handle app unlocker purchase logic
-                    val unlockerId = itemToPurchase.id.toIntOrNull()
-                    if (unlockerId != null) {
-                        viewModelScope.launch(Dispatchers.IO) {
-                            val unlocker = appUnlockerItemDao.getById(unlockerId)
-                            if (unlocker != null) {
-                                withContext(Dispatchers.Main) {
-                                    val intent = Intent(getApplication(), TimerService::class.java).apply {
-                                        action = TimerService.ACTION_START_UNLOCK_TIMER
-                                        putExtra(TimerService.EXTRA_UNLOCK_DURATION, unlocker.unlockDurationMinutes)
-                                        putExtra(TimerService.EXTRA_PACKAGE_NAME, unlocker.packageName)
-                                        putExtra(TimerService.EXTRA_REWARD_COINS, -itemToPurchase.price)
-                                        putExtra(TimerService.EXTRA_PRE_REWARD_COINS, prePurchaseCoins)
-                                    }
-                                    getApplication<Application>().startService(intent)
+            if (itemToPurchase.isFromEnum) {
+                val inventoryItem = InventoryItem.valueOf(itemToPurchase.id)
+                if (!isDiamondExchange) {
+                    User.addItemsToInventory(hashMapOf(inventoryItem to 1))
+                }
+            } else {
+                // Handle app unlocker purchase logic
+                val unlockerId = itemToPurchase.id.toIntOrNull()
+                if (unlockerId != null) {
+                    viewModelScope.launch(Dispatchers.IO) {
+                        val unlocker = appUnlockerItemDao.getById(unlockerId)
+                        if (unlocker != null) {
+                            // Consume up to the available pending diamonds (opportunistic, not required)
+                            if (unlocker.pendingDiamondsToConsume > 0) {
+                                val available = User.userInfo.diamonds_pending
+                                val toConsume = kotlin.math.min(unlocker.pendingDiamondsToConsume, available)
+                                if (toConsume > 0) {
+                                    User.usePendingDiamonds(toConsume)
                                 }
+                            }
+                            
+                            withContext(Dispatchers.Main) {
+                                val intent = Intent(getApplication(), TimerService::class.java).apply {
+                                    action = TimerService.ACTION_START_UNLOCK_TIMER
+                                    putExtra(TimerService.EXTRA_UNLOCK_DURATION, unlocker.unlockDurationMinutes)
+                                    putExtra(TimerService.EXTRA_PACKAGE_NAME, unlocker.packageName)
+                                    putExtra(TimerService.EXTRA_REWARD_COINS, -itemToPurchase.price)
+                                    putExtra(TimerService.EXTRA_PRE_REWARD_COINS, prePurchaseCoins)
+                                }
+                                getApplication<Application>().startService(intent)
                             }
                         }
                     }
                 }
-                deselectItem()
             }
+            deselectItem()
         }
     }
 

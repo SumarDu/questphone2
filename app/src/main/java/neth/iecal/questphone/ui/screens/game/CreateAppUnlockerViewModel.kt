@@ -25,6 +25,7 @@ class CreateAppUnlockerViewModel(private val appUnlockerItemDao: AppUnlockerItem
     var enableTimeRestriction by mutableStateOf(false)
     var purchaseStartTimeMinutes by mutableStateOf(0)
     var purchaseEndTimeMinutes by mutableStateOf(1440)
+    var pendingDiamondsToConsume by mutableStateOf("")
 
     fun loadApps(context: Context) {
         viewModelScope.launch {
@@ -49,6 +50,7 @@ class CreateAppUnlockerViewModel(private val appUnlockerItemDao: AppUnlockerItem
         val hoursValue = hours.toIntOrNull() ?: 0
         val minutesValue = minutes.toIntOrNull() ?: 0
         val totalMinutes = (hoursValue * 60) + minutesValue
+        val pendingDiamondsValue = pendingDiamondsToConsume.toIntOrNull() ?: 0
 
         if (totalMinutes <= 0) return // Or show an error
 
@@ -58,7 +60,8 @@ class CreateAppUnlockerViewModel(private val appUnlockerItemDao: AppUnlockerItem
             price = priceValue,
             unlockDurationMinutes = totalMinutes,
             purchaseStartTimeMinutes = if (enableTimeRestriction) purchaseStartTimeMinutes else null,
-            purchaseEndTimeMinutes = if (enableTimeRestriction) purchaseEndTimeMinutes else null
+            purchaseEndTimeMinutes = if (enableTimeRestriction) purchaseEndTimeMinutes else null,
+            pendingDiamondsToConsume = pendingDiamondsValue
         )
 
         viewModelScope.launch {

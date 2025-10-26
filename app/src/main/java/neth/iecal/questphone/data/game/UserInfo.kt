@@ -192,6 +192,15 @@ fun User.useDiamonds(amount: Int): Boolean {
     return true
 }
 
+// Consume pending diamonds (before they become spendable)
+fun User.usePendingDiamonds(amount: Int): Boolean {
+    if (amount <= 0) return false
+    if (userInfo.diamonds_pending < amount) return false
+    userInfo.diamonds_pending -= amount
+    saveUserInfo()
+    return true
+}
+
 // Token management - each token represents a completed quest with its title
 fun User.addToken(questTitle: String) {
     val currentCount = userInfo.tokens[questTitle] ?: 0
