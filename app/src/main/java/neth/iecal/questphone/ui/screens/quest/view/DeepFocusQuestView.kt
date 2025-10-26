@@ -611,7 +611,7 @@ fun DeepFocusQuestView(
         }
 
     BaseQuestView(
-        hideStartQuestBtn = isQuestComplete.value || isQuestRunning || isFailed.value || !isInTimeRange.value,
+        hideStartQuestBtn = isQuestComplete.value || isQuestRunning || isFailed.value,
         progress = progressState,
         isFailed = isFailed,
         onQuestStarted = {

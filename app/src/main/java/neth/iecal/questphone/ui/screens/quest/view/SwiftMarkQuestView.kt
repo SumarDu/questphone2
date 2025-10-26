@@ -180,7 +180,7 @@ fun SwiftMarkQuestView(
     }
 
     BaseQuestView(
-        hideStartQuestBtn = isQuestComplete.value || !isInTimeRange.value || isFailed.value,
+        hideStartQuestBtn = isQuestComplete.value || isFailed.value,
         onQuestStarted = {
             if (commonQuestInfo.ai_photo_proof) {
                 when (PackageManager.PERMISSION_GRANTED) {

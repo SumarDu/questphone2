@@ -31,10 +31,19 @@ class QuestHelper(val context: Context) {
     }
 
     fun isOver(baseData: CommonQuestInfo): Boolean {
+        // Only the daily deadline determines failure; time ranges are informational
+        val deadlineMinutes = baseData.deadline_minutes
+        if (deadlineMinutes < 0) return false
         val cal = Calendar.getInstance()
-        val nowMinutes = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
-        val (start, end) = toMinutesRange(baseData.time_range)
-        return nowMinutes > end
+        val hours = deadlineMinutes / 60
+        val minutes = deadlineMinutes % 60
+        cal.set(Calendar.HOUR_OF_DAY, hours)
+        cal.set(Calendar.MINUTE, minutes)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val deadlineMillis = cal.timeInMillis
+        val nowMillis = System.currentTimeMillis()
+        return nowMillis > deadlineMillis
     }
 
     companion object {

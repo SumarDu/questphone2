@@ -916,6 +916,11 @@ fun HomeScreen(navController: NavController) {
                             if (hasActiveOrOverdueQuestBlocking(baseQuest, questList)) {
                                 return@onTileClick
                             }
+                            // If quest deadline is missed, open info screen only (no start flow)
+                            if (isOver) {
+                                viewQuest(baseQuest, navController)
+                                return@onTileClick
+                            }
                             // For completed quests, always open info screen directly
                             if (isCompleted) {
                                 viewQuest(baseQuest, navController)
