@@ -33,6 +33,14 @@ fun SetTimeRange(initialTimeRange: QuestInfoState) {
     var showEndPicker by remember { mutableStateOf(false) }
     var showDeadlinePicker by remember { mutableStateOf(false) }
 
+    // Update state when initialTimeRange changes (e.g., when editing a quest)
+    LaunchedEffect(initialTimeRange.initialTimeRange, initialTimeRange.deadlineMinutes) {
+        val (newStart, newEnd) = toMinutesRange(initialTimeRange.initialTimeRange)
+        startMinutes = newStart
+        endMinutes = newEnd
+        deadlineMinutes = initialTimeRange.deadlineMinutes
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             // Start time selector

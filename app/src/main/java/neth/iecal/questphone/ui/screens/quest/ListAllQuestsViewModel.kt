@@ -136,6 +136,22 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
         questToDelete.value = null
     }
 
+    fun onQuestResetRequest(quest: CommonQuestInfo) {
+        viewModelScope.launch {
+            if (isEditingEnabled.first()) {
+                val updatedQuest = quest.copy(
+                    last_completed_on = "0001-01-01",
+                    quest_started_at = 0L,
+                    last_completed_at = 0L
+                )
+                questDao.upsertQuest(updatedQuest)
+                Toast.makeText(getApplication(), "Quest reset successfully", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(getApplication(), "Editing is disabled in settings", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     fun syncCalendar() {
         viewModelScope.launch {
             val calendarSyncService = CalendarSyncService(getApplication(), settingsRepository)

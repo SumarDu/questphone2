@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Tab
@@ -180,6 +181,7 @@ fun ListAllQuests(navHostController: NavHostController) {
                             val route = questBase.integration_id.name + "/" + questBase.id
                             navHostController.navigate(route)
                         },
+                        onReset = { viewModel.onQuestResetRequest(questBase) },
                         isEditingEnabled = isEditingEnabled
                     )
                 }
@@ -214,6 +216,7 @@ private fun QuestItem(
     onDelete: () -> Unit,
     onClone: () -> Unit,
     onEdit: () -> Unit,
+    onReset: () -> Unit,
     isEditingEnabled: Boolean
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -257,6 +260,9 @@ private fun QuestItem(
                             modifier = Modifier.weight(1f)
                         )
                         if (isEditingEnabled) {
+                            IconButton(onClick = onReset) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Reset quest")
+                            }
                             IconButton(onClick = onClone) {
                                 Icon(Icons.Default.ContentCopy, contentDescription = "Clone quest")
                             }
