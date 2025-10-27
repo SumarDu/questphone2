@@ -201,6 +201,10 @@ fun DayQuestsScreen(navController: NavController, key: String) {
                             title = baseQuest.title,
                             duration = durationText,
                             subtaskProgress = subtaskChip,
+                            coinReward = when {
+                                (baseQuest.reward_min > 0 || baseQuest.reward_max > 0) -> if (baseQuest.reward_min == baseQuest.reward_max) "${baseQuest.reward_min}" else "${baseQuest.reward_min}-${baseQuest.reward_max}"
+                                else -> null
+                            },
                             hasCalendarMark = baseQuest.calendar_event_id != null,
                             startTime = startText,
                             endTime = endText,

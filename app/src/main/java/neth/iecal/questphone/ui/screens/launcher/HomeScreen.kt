@@ -1001,6 +1001,10 @@ fun HomeScreen(navController: NavController) {
                                 title = baseQuest.title,
                                 duration = durationText,
                                 subtaskProgress = if (totalSubtasks > 0) "${doneSubtasks}/${totalSubtasks}" else null,
+                                coinReward = when {
+                                    (baseQuest.reward_min > 0 || baseQuest.reward_max > 0) -> if (baseQuest.reward_min == baseQuest.reward_max) "${baseQuest.reward_min}" else "${baseQuest.reward_min}-${baseQuest.reward_max}"
+                                    else -> null
+                                },
                                 hasCalendarMark = baseQuest.calendar_event_id != null,
                                 startTime = startText,
                                 endTime = endText,
@@ -1568,6 +1572,7 @@ fun QuestTile(
     title: String,
     duration: String,
     subtaskProgress: String?,
+    coinReward: String? = null,
     hasCalendarMark: Boolean,
     startTime: String?,
     endTime: String?,
@@ -1616,6 +1621,20 @@ fun QuestTile(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Coin reward chip (yellow) if present
+                        if (coinReward != null) {
+                            Box(
+                                modifier = Modifier
+                                    .background(Color(0xFFF59E0B), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = coinReward,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFF111827)
+                                )
+                            }
+                        }
                         // Duration chip
                         Box(
                             modifier = Modifier
