@@ -42,6 +42,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -107,6 +108,28 @@ fun ListAllQuests(navHostController: NavHostController) {
                         }
                     }) {
                         Icon(Icons.Default.Sync, contentDescription = "Sync Calendar")
+                    }
+                    if (isEditingEnabled) {
+                        var showConfirm by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+                        IconButton(onClick = { showConfirm = true }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Destroy all rewards")
+                        }
+                        if (showConfirm) {
+                            AlertDialog(
+                                onDismissRequest = { showConfirm = false },
+                                title = { Text("Destroy All Rewards") },
+                                text = { Text("This will reset user's coins and diamonds (including pending). Quests are not affected. Proceed?") },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        viewModel.clearAllRewards()
+                                        showConfirm = false
+                                    }) { Text("Confirm") }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showConfirm = false }) { Text("Cancel") }
+                                }
+                            )
+                        }
                     }
                 }
             )

@@ -617,6 +617,11 @@ fun RewardSetter(
 ) {
     var isRandom by remember { mutableStateOf(questInfoState.rewardMin != questInfoState.rewardMax) }
     var isDiamondEnabled by remember { mutableStateOf(questInfoState.diamondReward > 0) }
+    
+    // Update isRandom when questInfoState changes (e.g., when editing a quest)
+    LaunchedEffect(questInfoState.rewardMin, questInfoState.rewardMax) {
+        isRandom = questInfoState.rewardMin != questInfoState.rewardMax
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {

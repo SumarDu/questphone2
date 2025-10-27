@@ -902,8 +902,14 @@ fun HomeScreen(navController: NavController) {
                             QuestPriority.IMPORTANT_URGENT -> Color(0xFFEF4444) // red
                             QuestPriority.IMPORTANT_NOT_URGENT -> Color(0xFF10B981) // green
                             QuestPriority.NOT_IMPORTANT_URGENT -> Color(0xFFF5DEB3) // beige
-                            QuestPriority.STABLE -> Color(0xFF3B82F6) // blue
-                            QuestPriority.NOT_IMPORTANT_NOT_URGENT -> Color(0xFFD1D5DB) // light gray
+                            // STABLE adopts light gray color previously used by NOT_IMPORTANT_NOT_URGENT
+                            QuestPriority.STABLE -> Color(0xFFD1D5DB) // light gray
+                            // NOT_IMPORTANT_NOT_URGENT will be border-only; keep transparent fill
+                            QuestPriority.NOT_IMPORTANT_NOT_URGENT -> Color.Transparent
+                        }
+                        val statusBorderColor: Color? = when (baseQuest.priority) {
+                            QuestPriority.NOT_IMPORTANT_NOT_URGENT -> Color(0xFFD1D5DB) // light gray border
+                            else -> null
                         }
 
                         val onTileClick: () -> Unit = onTileClick@{
@@ -1029,6 +1035,7 @@ fun HomeScreen(navController: NavController) {
                                 deadlineTime = deadlineTextOnly,
                                 containerColor = containerColor,
                                 statusColor = statusColor,
+                                statusBorderColor = statusBorderColor,
                                 enabled = enabled,
                                 onClick = { if (enabled) onTileClick() },
                                 onPlay = { if (enabled) onTileClick() },
@@ -1597,6 +1604,7 @@ fun QuestTile(
     deadlineTime: String?,
     containerColor: Color = Color(0xFF1F2937),
     statusColor: Color,
+    statusBorderColor: Color? = null,
     enabled: Boolean,
     onClick: () -> Unit,
     onPlay: () -> Unit,
@@ -1624,7 +1632,13 @@ fun QuestTile(
                         .width(6.dp)
                         .height(44.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(statusColor)
+                        .then(
+                            if (statusBorderColor != null) {
+                                Modifier.border(1.dp, statusBorderColor, RoundedCornerShape(12.dp))
+                            } else {
+                                Modifier.background(statusColor)
+                            }
+                        )
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 // Title + chips

@@ -26,6 +26,8 @@ import neth.iecal.questphone.services.CalendarSyncService
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import neth.iecal.questphone.data.game.User
+import neth.iecal.questphone.data.game.saveUserInfo
 
 enum class QuestTab {
     ALL, REPEATING, CLONED
@@ -76,6 +78,25 @@ class ListAllQuestsViewModel(application: Application, private val questDao: Que
         } else {
             questsToShow.filter {
                 it.title.contains(query, ignoreCase = true) || it.instructions.contains(query, ignoreCase = true)
+            }
+        }
+    }
+
+    fun clearAllRewards() {
+        viewModelScope.launch {
+            if (isEditingEnabled.first()) {
+                var changed = false
+                if (User.userInfo.coins != 0) { User.userInfo.coins = 0; changed = true }
+                if (User.userInfo.diamonds != 0) { User.userInfo.diamonds = 0; changed = true }
+                if (User.userInfo.diamonds_pending != 0) { User.userInfo.diamonds_pending = 0; changed = true }
+                if (changed) {
+                    User.saveUserInfo()
+                    Toast.makeText(getApplication(), "All rewards destroyed", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(getApplication(), "No rewards to destroy", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(getApplication(), "Editing is disabled in settings", Toast.LENGTH_SHORT).show()
             }
         }
     }

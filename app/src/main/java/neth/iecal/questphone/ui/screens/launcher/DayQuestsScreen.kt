@@ -139,8 +139,12 @@ fun DayQuestsScreen(navController: NavController, key: String) {
                     QuestPriority.IMPORTANT_URGENT -> Color(0xFFEF4444)
                     QuestPriority.IMPORTANT_NOT_URGENT -> Color(0xFF10B981)
                     QuestPriority.NOT_IMPORTANT_URGENT -> Color(0xFFF5DEB3)
-                    QuestPriority.STABLE -> Color(0xFF3B82F6)
+                    QuestPriority.STABLE -> Color(0xFFD1D5DB) // light gray fill for stable
+                    QuestPriority.NOT_IMPORTANT_NOT_URGENT -> Color.Transparent
+                }
+                val statusBorderColor: Color? = when (baseQuest.priority) {
                     QuestPriority.NOT_IMPORTANT_NOT_URGENT -> Color(0xFFD1D5DB)
+                    else -> null
                 }
 
                 val enabled = true
@@ -232,6 +236,7 @@ fun DayQuestsScreen(navController: NavController, key: String) {
                             deadlineTime = deadlineTextOnly,
                             containerColor = containerColor,
                             statusColor = statusColor,
+                            statusBorderColor = statusBorderColor,
                             enabled = enabled,
                             onClick = { viewQuest(baseQuest, navController) },
                             onPlay = { viewQuest(baseQuest, navController) },

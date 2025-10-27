@@ -86,6 +86,11 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
     val longBreakDuration = remember { mutableStateOf(0L) }
     // Start at 0 so placeholder default is shown (10)
     val rewardPerExtraSession = remember { mutableStateOf(0) }
+    // Independent extra reward randomness state
+    var isExtraRandom by remember { mutableStateOf(false) }
+    // Extra reward random range values
+    var extraRewardMin by remember { mutableStateOf(0) }
+    var extraRewardMax by remember { mutableStateOf(0) }
     val longBreakAfterSessions = remember { mutableStateOf(0) }
     // Diamond rewards UI state (shared across UI and ReviewDialog save block)
     var isDiamondEnabled by remember { mutableStateOf(false) }
@@ -112,7 +117,19 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
                 minWorkSessions.value = deepFocus.minWorkSessions
                 maxWorkSessions.value = deepFocus.maxWorkSessions
                 longBreakDuration.value = deepFocus.longBreakDurationInMillis
+                // Load extra reward settings
                 rewardPerExtraSession.value = deepFocus.reward_per_extra_session
+                // If min/max present, prefer random mode and populate fields
+                if (deepFocus.reward_extra_min > 0 && deepFocus.reward_extra_max >= deepFocus.reward_extra_min) {
+                    isExtraRandom = true
+                    extraRewardMin = deepFocus.reward_extra_min
+                    extraRewardMax = deepFocus.reward_extra_max
+                } else {
+                    isExtraRandom = false
+                    // Fall back to fixed per-session reward
+                    extraRewardMin = 0
+                    extraRewardMax = 0
+                }
                 longBreakAfterSessions.value = deepFocus.long_break_after_sessions
                 // Load diamond rewards
                 diamondRegular = deepFocus.diamond_reward_regular
@@ -166,7 +183,9 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
             minWorkSessions = effMinSessions,
             maxWorkSessions = effMaxSessions,
             longBreakDurationInMillis = effLongBreakMin * 60000L,
-            reward_per_extra_session = effExtraReward,
+            reward_per_extra_session = if (isExtraRandom) 0 else effExtraReward,
+            reward_extra_min = if (isExtraRandom) extraRewardMin.coerceAtLeast(0) else 0,
+            reward_extra_max = if (isExtraRandom) extraRewardMax.coerceAtLeast(extraRewardMin.coerceAtLeast(0)) else 0,
             // Persist diamond rewards
             diamond_reward_regular = if (isDiamondEnabled) diamondRegular else 0,
             diamond_reward_extra = if (isDiamondEnabled) diamondExtra else 0,
@@ -221,21 +240,27 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
                     // Base quest UI with DeepFocus specifics:
                     // - Hide default Duration/Break section (we'll render custom one below)
                     // - Provide trailing content for Reward (Extra reward in the same row)
-                    // Local UI-only state for random extra reward split
-                    var extraRewardMin by remember { mutableStateOf(0) }
-                    var extraRewardMax by remember { mutableStateOf(0) }
+                    // Local UI-only state moved to top-level remembers
 
                     SetBaseQuest(
                         questInfoState = questInfoState,
                         isTimeRangeSupported = true,
                         showDurationBreakSection = false,
-                        rewardExtraContent = { isRandom ->
-                            if (isRandom) {
+                        rewardExtraContent = { _ ->
+                            // Independent toggle for extra reward randomness
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+                                Text("Random extra reward", style = MaterialTheme.typography.bodyMedium)
+                                Spacer(Modifier.width(8.dp))
+                                Switch(checked = isExtraRandom, onCheckedChange = { isExtraRandom = it })
+                            }
+                            if (isExtraRandom) {
                                 // Min/Max Extra Reward in one row
                                 Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
                                     OutlinedTextField(
                                         value = if (extraRewardMin <= 0) "" else extraRewardMin.toString(),
-                                        onValueChange = { v -> extraRewardMin = v.filter { it.isDigit() }.take(5).toIntOrNull() ?: 0 },
+                                        onValueChange = { v -> 
+                                            extraRewardMin = v.filter { it.isDigit() }.take(5).toIntOrNull() ?: 0
+                                        },
                                         label = { Text("Min extra reward", style = MaterialTheme.typography.bodySmall) },
                                         placeholder = { Text("1", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
                                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
@@ -244,7 +269,9 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
                                     Spacer(Modifier.width(12.dp))
                                     OutlinedTextField(
                                         value = if (extraRewardMax <= 0) "" else extraRewardMax.toString(),
-                                        onValueChange = { v -> extraRewardMax = v.filter { it.isDigit() }.take(5).toIntOrNull() ?: 0 },
+                                        onValueChange = { v -> 
+                                            extraRewardMax = v.filter { it.isDigit() }.take(5).toIntOrNull() ?: 0
+                                        },
                                         label = { Text("Max extra reward", style = MaterialTheme.typography.bodySmall) },
                                         placeholder = { Text("10", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
                                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
@@ -307,6 +334,18 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                OutlinedTextField(
+                                    value = questInfoState.diamondDropChance.coerceIn(0, 100).toString(),
+                                    onValueChange = { v ->
+                                        val pct = v.filter { it.isDigit() }.take(3).toIntOrNull()?.coerceIn(0, 100) ?: 0
+                                        questInfoState.diamondDropChance = pct
+                                    },
+                                    label = { Text("Drop Chance (%)", style = MaterialTheme.typography.bodySmall) },
+                                    placeholder = { Text("100", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) },
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
                         },
                         afterTimeContent = {
