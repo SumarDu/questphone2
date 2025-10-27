@@ -799,7 +799,7 @@ fun DeepFocusQuestView(
 
             // Overdue confirmation button moved to Start area via questStartComponent
 
-            if (deepFocus.minWorkSessions > 1) {
+            if (deepFocus.maxWorkSessions > 1) {
                 Text(
                     text = "Sessions: ${deepFocus.completedWorkSessions} / ${deepFocus.minWorkSessions}",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Thin)

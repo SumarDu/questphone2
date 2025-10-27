@@ -128,6 +128,7 @@ import neth.iecal.questphone.utils.getCurrentDay
 import neth.iecal.questphone.utils.isSetToDefaultLauncher
 import neth.iecal.questphone.utils.openDefaultLauncherSettings
 import kotlinx.serialization.json.Json
+import neth.iecal.questphone.utils.json
 import neth.iecal.questphone.utils.SchedulingUtils
 import neth.iecal.questphone.data.local.AppDatabase
 import neth.iecal.questphone.data.local.PenaltyLog
@@ -952,7 +953,24 @@ fun HomeScreen(navController: NavController) {
                                       !(timerState.isDeepFocusLocking && baseQuest.id != timerState.activeQuestId)
 
                         // --- Compute values for QuestTile ---
-                        val durationText = formatDuration(baseQuest.quest_duration_minutes)
+                        val durationText = if (baseQuest.integration_id == IntegrationId.DEEP_FOCUS) {
+                            try {
+                                val deepFocus = json.decodeFromString<neth.iecal.questphone.data.quest.focus.DeepFocus>(baseQuest.quest_json)
+                                val regularSessions = deepFocus.minWorkSessions
+                                val extraSessions = deepFocus.maxWorkSessions - deepFocus.minWorkSessions
+                                val sessionMinutes = if (deepFocus.nextFocusDurationInMillis > 0) {
+                                    TimeUnit.MILLISECONDS.toMinutes(deepFocus.nextFocusDurationInMillis).toInt()
+                                } else {
+                                    deepFocus.focusTimeConfig.initialTime.toIntOrNull() ?: 1
+                                }
+                                val sessionDuration = formatDuration(sessionMinutes)
+                                "$regularSessions;$extraSessions * $sessionDuration"
+                            } catch (e: Exception) {
+                                formatDuration(baseQuest.quest_duration_minutes)
+                            }
+                        } else {
+                            formatDuration(baseQuest.quest_duration_minutes)
+                        }
                         val startText = if (isAllDayRange(baseQuest.time_range)) null else formatTimeMinutes(startMin)
                         val endText = if (isAllDayRange(baseQuest.time_range)) null else formatTimeMinutes(endMin)
                         val deadlineTextOnly = if (baseQuest.deadline_minutes >= 0) formatTimeMinutes(baseQuest.deadline_minutes) else null

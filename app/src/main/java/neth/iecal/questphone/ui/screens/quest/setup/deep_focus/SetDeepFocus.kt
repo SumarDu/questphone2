@@ -102,21 +102,23 @@ fun SetDeepFocus(editQuestId:String? = null,navController: NavHostController) {
     LaunchedEffect(Unit) {
         if(editQuestId!=null){
             val dao = QuestDatabaseProvider.getInstance(context).questDao()
-            val quest = dao.getQuest(editQuestId)
-            questInfoState.fromBaseQuest(quest!!)
-            val deepFocus = json.decodeFromString<DeepFocus>(quest.quest_json)
-            focusTimeConfig.value = deepFocus.focusTimeConfig
-            selectedApps.addAll(deepFocus.unrestrictedApps)
-                        breakDuration.value = deepFocus.breakDurationInMillis
-            minWorkSessions.value = deepFocus.minWorkSessions
-            maxWorkSessions.value = deepFocus.maxWorkSessions
-            longBreakDuration.value = deepFocus.longBreakDurationInMillis
-            rewardPerExtraSession.value = deepFocus.reward_per_extra_session
-            longBreakAfterSessions.value = deepFocus.long_break_after_sessions
-            // Load diamond rewards
-            diamondRegular = deepFocus.diamond_reward_regular
-            diamondExtra = deepFocus.diamond_reward_extra
-            isDiamondEnabled = (deepFocus.diamond_reward_regular > 0 || deepFocus.diamond_reward_extra > 0)
+            val quest = dao.getQuestById(editQuestId)
+            if (quest != null) {
+                questInfoState.fromBaseQuest(quest)
+                val deepFocus = kotlin.runCatching { json.decodeFromString<DeepFocus>(quest.quest_json) }.getOrElse { DeepFocus() }
+                focusTimeConfig.value = deepFocus.focusTimeConfig
+                selectedApps.addAll(deepFocus.unrestrictedApps)
+                breakDuration.value = deepFocus.breakDurationInMillis
+                minWorkSessions.value = deepFocus.minWorkSessions
+                maxWorkSessions.value = deepFocus.maxWorkSessions
+                longBreakDuration.value = deepFocus.longBreakDurationInMillis
+                rewardPerExtraSession.value = deepFocus.reward_per_extra_session
+                longBreakAfterSessions.value = deepFocus.long_break_after_sessions
+                // Load diamond rewards
+                diamondRegular = deepFocus.diamond_reward_regular
+                diamondExtra = deepFocus.diamond_reward_extra
+                isDiamondEnabled = (deepFocus.diamond_reward_regular > 0 || deepFocus.diamond_reward_extra > 0)
+            }
         }
     }
     LaunchedEffect(apps) {

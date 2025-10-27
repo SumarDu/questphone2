@@ -47,6 +47,10 @@ import neth.iecal.questphone.utils.isAllDayRange
 import neth.iecal.questphone.utils.formatTimeMinutes
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.utils.toMinutesRange
+import neth.iecal.questphone.data.IntegrationId
+import neth.iecal.questphone.data.quest.focus.DeepFocus
+import neth.iecal.questphone.utils.json
+import java.util.concurrent.TimeUnit
 
 private fun formatDuration(totalMinutes: Int): String {
     val h = totalMinutes / 60
@@ -141,7 +145,24 @@ fun DayQuestsScreen(navController: NavController, key: String) {
 
                 val enabled = true
 
-                val durationText = formatDuration(baseQuest.quest_duration_minutes)
+                val durationText = if (baseQuest.integration_id == IntegrationId.DEEP_FOCUS) {
+                    try {
+                        val deepFocus = json.decodeFromString<neth.iecal.questphone.data.quest.focus.DeepFocus>(baseQuest.quest_json)
+                        val regularSessions = deepFocus.minWorkSessions
+                        val extraSessions = deepFocus.maxWorkSessions - deepFocus.minWorkSessions
+                        val sessionMinutes = if (deepFocus.nextFocusDurationInMillis > 0) {
+                            TimeUnit.MILLISECONDS.toMinutes(deepFocus.nextFocusDurationInMillis).toInt()
+                        } else {
+                            deepFocus.focusTimeConfig.initialTime.toIntOrNull() ?: 1
+                        }
+                        val sessionDuration = formatDuration(sessionMinutes)
+                        "$regularSessions;$extraSessions * $sessionDuration"
+                    } catch (e: Exception) {
+                        formatDuration(baseQuest.quest_duration_minutes)
+                    }
+                } else {
+                    formatDuration(baseQuest.quest_duration_minutes)
+                }
                 val startText = if (isAllDayRange(baseQuest.time_range)) null else formatTimeMinutes(startMin)
                 val endText = if (isAllDayRange(baseQuest.time_range)) null else formatTimeMinutes(endMin)
                 val deadlineTextOnly = if (baseQuest.deadline_minutes >= 0) formatTimeMinutes(baseQuest.deadline_minutes) else null
