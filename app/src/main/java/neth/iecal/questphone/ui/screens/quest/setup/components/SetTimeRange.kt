@@ -88,7 +88,7 @@ fun SetTimeRange(initialTimeRange: QuestInfoState) {
             onDismiss = { showStartPicker = false },
             onConfirm = { minutes ->
                 startMinutes = minutes.coerceIn(0, 1435)
-                if (endMinutes <= startMinutes) endMinutes = (startMinutes + 5).coerceAtMost(1440)
+                if (endMinutes <= startMinutes) endMinutes = (startMinutes + 1).coerceAtMost(1440)
                 initialTimeRange.initialTimeRange = listOf(startMinutes, endMinutes)
                 showStartPicker = false
             }
@@ -102,7 +102,7 @@ fun SetTimeRange(initialTimeRange: QuestInfoState) {
             onDismiss = { showEndPicker = false },
             onConfirm = { minutes ->
                 val m = minutes.coerceIn(0, 1440)
-                endMinutes = if (m <= startMinutes) (startMinutes + 5).coerceAtMost(1440) else m
+                endMinutes = if (m <= startMinutes) (startMinutes + 1).coerceAtMost(1440) else m
                 initialTimeRange.initialTimeRange = listOf(startMinutes, endMinutes)
                 showEndPicker = false
             }
@@ -137,9 +137,9 @@ fun TimeRangeDialog(
     onConfirm: (Int, Int) -> Unit
 ) {
     var startH by remember { mutableStateOf((initialStartMinutes / 60).coerceIn(0, 23)) }
-    var startM by remember { mutableStateOf(((initialStartMinutes % 60) / 5) * 5) }
+    var startM by remember { mutableStateOf((initialStartMinutes % 60).coerceIn(0, 59)) }
     var endH by remember { mutableStateOf(((initialEndMinutes.coerceAtMost(1439)) / 60).coerceIn(0, 23)) }
-    var endM by remember { mutableStateOf((((initialEndMinutes.coerceAtMost(1440)) % 60) / 5) * 5) }
+    var endM by remember { mutableStateOf(((initialEndMinutes.coerceAtMost(1440)) % 60).coerceIn(0, 59)) }
     var isAllDay by remember { mutableStateOf(initialStartMinutes == 0 && initialEndMinutes == 1440) }
 
     fun startTotal() = startH * 60 + startM
@@ -147,7 +147,6 @@ fun TimeRangeDialog(
         return if (isAllDay) 1440 else (endH * 60 + endM)
     }
 
-    fun roundTo5(min: Int): Int = ((min + 2) / 5) * 5 % 60
 
     val startState = rememberTimePickerState(
         initialHour = startH,
@@ -165,13 +164,10 @@ fun TimeRangeDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    // Snap minutes to 5-minute increments
-                    val snappedStartM = roundTo5(startState.minute)
-                    val snappedEndM = roundTo5(endState.minute)
                     val sHour = startState.hour
                     val eHour = endState.hour
-                    val s = if (isAllDay) 0 else (sHour * 60 + snappedStartM)
-                    val rawE = if (isAllDay) 1440 else (eHour * 60 + snappedEndM)
+                    val s = if (isAllDay) 0 else (sHour * 60 + startState.minute)
+                    val rawE = if (isAllDay) 1440 else (eHour * 60 + endState.minute)
                     val e = if (isAllDay) 1440 else rawE.let { if (it <= s) (s + 5).coerceAtMost(1440) else it }
                     onConfirm(s, e)
                 }
@@ -280,14 +276,13 @@ private fun DeadlineTimePickerDialog(
         initialMinute = init % 60,
         is24Hour = false
     )
-    fun roundTo5(min: Int): Int = ((min + 2) / 5) * 5 % 60
 
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onClear) { Text("Clear") }
-                TextButton(onClick = { onConfirm(state.hour * 60 + roundTo5(state.minute)) }) { Text("OK") }
+                TextButton(onClick = { onConfirm(state.hour * 60 + state.minute) }) { Text("OK") }
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
@@ -313,12 +308,11 @@ private fun SingleTimePickerDialog(
     val initHour = (initialMinutes.coerceAtLeast(0).coerceAtMost(1439)) / 60
     val initMinute = (initialMinutes % 60)
     val state = rememberTimePickerState(initialHour = initHour, initialMinute = initMinute, is24Hour = false)
-    fun roundTo5(min: Int): Int = ((min + 2) / 5) * 5 % 60
 
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = { onConfirm(state.hour * 60 + roundTo5(state.minute)) }) { Text("OK") }
+            TextButton(onClick = { onConfirm(state.hour * 60 + state.minute) }) { Text("OK") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         text = {
