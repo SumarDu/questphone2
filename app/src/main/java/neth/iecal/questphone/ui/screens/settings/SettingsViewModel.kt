@@ -105,6 +105,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun updateSelectedRepeatingQuestIds(questIds: Set<String>) {
+        viewModelScope.launch {
+            repository.updateSelectedRepeatingQuestIds(questIds)
+        }
+    }
+
     fun createCheckpoint(checkpointName: String, comments: String? = null) {
         viewModelScope.launch {
             supabaseSyncService.createCheckpoint(checkpointName, comments)

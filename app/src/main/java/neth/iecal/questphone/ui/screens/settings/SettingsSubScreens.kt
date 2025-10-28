@@ -28,6 +28,7 @@ import androidx.navigation.NavController
 import android.app.Application
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
@@ -452,6 +453,16 @@ fun SettingsUnplannedQuestFilterScreen(navController: NavController) {
         factory = SettingsViewModelFactory(context.applicationContext as Application)
     )
     val settings by settingsViewModel.settings.collectAsState()
+    
+    var showRepeatingQuestDialog by remember { mutableStateOf(false) }
+    var allQuests by remember { mutableStateOf<List<neth.iecal.questphone.data.quest.CommonQuestInfo>>(emptyList()) }
+    
+    LaunchedEffect(Unit) {
+        val questDao = neth.iecal.questphone.data.quest.QuestDatabaseProvider.getInstance(context).questDao()
+        questDao.getPermanentQuests().collect { quests ->
+            allQuests = quests.filter { it.selected_days.isNotEmpty() }
+        }
+    }
 
     Scaffold(topBar = {
         TopAppBar(
@@ -489,6 +500,48 @@ fun SettingsUnplannedQuestFilterScreen(navController: NavController) {
                 enabled = !settings.isSettingsLocked,
                 onCheckedChange = { settingsViewModel.updateShowOneTimeQuestsInDialog(it) }
             )
+            
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            
+            Text(
+                text = "Specific Repeating Quests Filter",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            Text(
+                text = "Select specific repeating quests to show in the dialog. If none selected, all repeating quests will be shown.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !settings.isSettingsLocked) { showRepeatingQuestDialog = true }
+                    .padding(vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Selected Repeating Quests")
+                Text(
+                    if (settings.selectedRepeatingQuestIds.isEmpty()) "All" else "${settings.selectedRepeatingQuestIds.size} selected",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            
+            if (showRepeatingQuestDialog) {
+                RepeatingQuestSelectionDialog(
+                    availableQuests = allQuests,
+                    selectedQuestIds = settings.selectedRepeatingQuestIds,
+                    onDismiss = { showRepeatingQuestDialog = false },
+                    onConfirm = { selectedIds ->
+                        settingsViewModel.updateSelectedRepeatingQuestIds(selectedIds)
+                        showRepeatingQuestDialog = false
+                    }
+                )
+            }
         }
     }
 }
@@ -843,4 +896,76 @@ fun SettingsBackupsDevScreen(navController: NavController) {
             }
         }
     }
+}
+
+@Composable
+fun RepeatingQuestSelectionDialog(
+    availableQuests: List<neth.iecal.questphone.data.quest.CommonQuestInfo>,
+    selectedQuestIds: Set<String>,
+    onDismiss: () -> Unit,
+    onConfirm: (Set<String>) -> Unit
+) {
+    var tempSelectedQuestIds by remember { mutableStateOf(selectedQuestIds) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select Repeating Quests") },
+        text = {
+            Column {
+                Text(
+                    text = "Select specific repeating quests to display. Leave empty to show all.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                LazyColumn {
+                    items(availableQuests) { quest ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { 
+                                    val newSelection = if (quest.id in tempSelectedQuestIds) {
+                                        tempSelectedQuestIds - quest.id
+                                    } else {
+                                        tempSelectedQuestIds + quest.id
+                                    }
+                                    tempSelectedQuestIds = newSelection
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = quest.id in tempSelectedQuestIds,
+                                onCheckedChange = { isChecked ->
+                                    val newSelection = if (isChecked) {
+                                        tempSelectedQuestIds + quest.id
+                                    } else {
+                                        tempSelectedQuestIds - quest.id
+                                    }
+                                    tempSelectedQuestIds = newSelection
+                                }
+                            )
+                            Text(
+                                text = quest.title,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(tempSelectedQuestIds) }
+            ) {
+                Text("Confirm")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
 }

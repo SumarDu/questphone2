@@ -87,8 +87,8 @@ fun SetTimeRange(initialTimeRange: QuestInfoState) {
             initialMinutes = startMinutes,
             onDismiss = { showStartPicker = false },
             onConfirm = { minutes ->
-                startMinutes = minutes.coerceIn(0, 1435)
-                if (endMinutes <= startMinutes) endMinutes = (startMinutes + 1).coerceAtMost(1440)
+                startMinutes = minutes.coerceIn(0, 1439)
+                // Allow overnight ranges; do not force end > start
                 initialTimeRange.initialTimeRange = listOf(startMinutes, endMinutes)
                 showStartPicker = false
             }
@@ -102,7 +102,8 @@ fun SetTimeRange(initialTimeRange: QuestInfoState) {
             onDismiss = { showEndPicker = false },
             onConfirm = { minutes ->
                 val m = minutes.coerceIn(0, 1440)
-                endMinutes = if (m <= startMinutes) (startMinutes + 1).coerceAtMost(1440) else m
+                // Allow overnight ranges; end can be <= start
+                endMinutes = m
                 initialTimeRange.initialTimeRange = listOf(startMinutes, endMinutes)
                 showEndPicker = false
             }
@@ -167,8 +168,8 @@ fun TimeRangeDialog(
                     val sHour = startState.hour
                     val eHour = endState.hour
                     val s = if (isAllDay) 0 else (sHour * 60 + startState.minute)
-                    val rawE = if (isAllDay) 1440 else (eHour * 60 + endState.minute)
-                    val e = if (isAllDay) 1440 else rawE.let { if (it <= s) (s + 5).coerceAtMost(1440) else it }
+                    val e = if (isAllDay) 1440 else (eHour * 60 + endState.minute)
+                    // Allow overnight ranges (e can be <= s)
                     onConfirm(s, e)
                 }
             ) {

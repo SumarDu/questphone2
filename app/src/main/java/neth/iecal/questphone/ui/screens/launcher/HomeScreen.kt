@@ -119,6 +119,7 @@ import neth.iecal.questphone.utils.formatTimeMinutes
 import neth.iecal.questphone.utils.toMinutesRange
 import neth.iecal.questphone.utils.isAllDayRange
 import neth.iecal.questphone.utils.formatInstantToDate
+import kotlinx.datetime.Instant
 import neth.iecal.questphone.utils.getCurrentDate
 import neth.iecal.questphone.data.SchedulingInfo
 import neth.iecal.questphone.data.SchedulingType
@@ -393,6 +394,11 @@ fun HomeScreen(navController: NavController) {
         // Block if quest is active or overdue
         return now <= questEndTime || (now > questEndTime && activeQuest.last_completed_on != getCurrentDate())
     }
+    // Treat cloned/unplanned quests (e.g., "[C1]") as non-counting for overall progress
+    fun isClonedQuestProgressExcluded(quest: CommonQuestInfo): Boolean {
+        val clonedTitle = Regex("\\[C\\d+\\]").containsMatchIn(quest.title)
+        return clonedTitle || quest.auto_destruct == getCurrentDate()
+    }
     val swipeDownApp by gestureRepo.swipeDownApp.collectAsState(initial = null)
     val swipeLeftApp by gestureRepo.swipeLeftApp.collectAsState(initial = null)
     val swipeRightApp by gestureRepo.swipeRightApp.collectAsState(initial = null)
@@ -419,7 +425,8 @@ fun HomeScreen(navController: NavController) {
     val questList = remember { mutableStateListOf<CommonQuestInfo>() }
 
     val completedQuests = remember { SnapshotStateList<String>() }
-    val progress = (completedQuests.size.toFloat() / questList.size.toFloat()).coerceIn(0f,1f)
+    val nonClonedTotal = questList.count { !isClonedQuestProgressExcluded(it) }
+    val progress = if (nonClonedTotal == 0) 0f else (completedQuests.size.toFloat() / nonClonedTotal.toFloat()).coerceIn(0f,1f)
 
 
     BackHandler {  }
@@ -462,9 +469,10 @@ fun HomeScreen(navController: NavController) {
             questList.clear()
             questList.addAll(list)
 
-
+            // Recompute completed quests fresh each time to avoid duplicates and ensure correctness
+            completedQuests.clear()
             questList.forEach { item ->
-                if (item.last_completed_on == getCurrentDate()) {
+                if (item.last_completed_on == getCurrentDate() && !isClonedQuestProgressExcluded(item)) {
                     completedQuests.add(item.title)
                 }
                 if (questHelper.isQuestRunning(item.title)) {
@@ -825,7 +833,9 @@ fun HomeScreen(navController: NavController) {
                 ) {
                     LinearProgressIndicator(
                         progress = { progress },
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(50)),
                     )
                 }
             }
@@ -860,10 +870,19 @@ fun HomeScreen(navController: NavController) {
                 )
             }
             // Exclude finished quests from display (unless it's the active quest on break)
+            // Special rule: if a quest was started on a previous day and finished today,
+            // and it is also scheduled for today, keep it visible so it can be done again for today.
             val displayedQuests = sortedQuests.filter { q ->
-                val completed = completedQuests.contains(q.title)
+                val todayStr = getCurrentDate()
+                val completedToday = q.last_completed_on == todayStr
+                val startedDate = if (q.quest_started_at > 0L) formatInstantToDate(Instant.fromEpochMilliseconds(q.quest_started_at)) else ""
+                val startedToday = startedDate == todayStr
+                val scheduledToday = SchedulingUtils.isQuestAvailableOnDate(q.scheduling_info, LocalDate.now())
+                val countsAsCompletedToday = completedToday && startedToday
+                val allowCarryOverVisibility = completedToday && !startedToday && scheduledToday
                 val onBreak = (timerMode == TimerMode.BREAK && timerState.activeQuestId == q.id)
-                !(completed && !onBreak)
+                // Hide only if it truly counts as completed for today and it's not the active quest on break
+                (allowCarryOverVisibility || !countsAsCompletedToday) || onBreak
             }
             val pageCount = (displayedQuests.size + 3) / 4
             if (pageCount > 0) {
@@ -889,8 +908,19 @@ fun HomeScreen(navController: NavController) {
                     val timeRange = "${formatTimeMinutes(startMin)} - ${formatTimeMinutes(endMin)} : "
                     val prefix = if (isAllDayRange(baseQuest.time_range)) "" else timeRange
                     val isOver = questHelper.isOver(baseQuest)
-                    val isCompleted = completedQuests.contains(baseQuest.title)
-                    val isActive = timerState.activeQuestId == baseQuest.id && (timerMode == TimerMode.QUEST_COUNTDOWN || timerMode == TimerMode.BREAK)
+                    // Consider a quest completed for UI only if it was completed today AND also started today
+                    // If it started yesterday and finished today, treat as not-completed for today's occurrence
+                    val isCompleted = run {
+                        val todayStr = getCurrentDate()
+                        val startedDate = if (baseQuest.quest_started_at > 0L) formatInstantToDate(Instant.fromEpochMilliseconds(baseQuest.quest_started_at)) else ""
+                        val startedToday = startedDate == todayStr
+                        (baseQuest.last_completed_on == todayStr) && startedToday
+                    }
+                    val isActive = timerState.activeQuestId == baseQuest.id && (
+                        timerMode == TimerMode.QUEST_COUNTDOWN ||
+                        timerMode == TimerMode.BREAK ||
+                        timerMode == TimerMode.UNPLANNED_BREAK
+                    )
                     
                     // Check if quest is overdue (started but not completed today)
                     val isOverdue = baseQuest.quest_started_at > 0 && 
@@ -986,7 +1016,7 @@ fun HomeScreen(navController: NavController) {
                         val containerColor = when {
                             timerMode == TimerMode.OVERTIME -> Color(0xFF1F2937) // default gray-800 (no highlight)
                             isOver || isOverdue -> Color(0x33EF4444) // translucent red for overdue
-                            isActive && timerMode == TimerMode.BREAK -> Color(0x3310B981) // translucent green for break
+                            isActive && (timerMode == TimerMode.BREAK || timerMode == TimerMode.UNPLANNED_BREAK) -> Color(0x3310B981) // translucent green for (un)planned break
                             isActive -> Color(0x33F59E0B) // translucent yellow for active
                             else -> Color(0xFF1F2937) // default gray-800
                         }

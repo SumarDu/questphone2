@@ -54,7 +54,13 @@ class QuestHelper(val context: Context) {
             val cal = Calendar.getInstance()
             val nowMinutes = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
             val (start, end) = toMinutesRange(baseData.time_range)
-            return nowMinutes in start..end
+            return if (end >= start) {
+                // Normal same-day range: [start, end)
+                nowMinutes in start until end
+            } else {
+                // Overnight range crossing midnight: valid if now >= start OR now < end
+                (nowMinutes >= start) || (nowMinutes < end)
+            }
         }
 
 

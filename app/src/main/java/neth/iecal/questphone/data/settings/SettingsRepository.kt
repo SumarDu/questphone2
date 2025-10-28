@@ -24,6 +24,8 @@ data class SettingsData(
     val showRepeatingQuestsInDialog: Boolean = true,
     val showClonedQuestsInDialog: Boolean = true,
     val showOneTimeQuestsInDialog: Boolean = true,
+    // Set of repeating quest IDs to show when filter is enabled (empty = show all)
+    val selectedRepeatingQuestIds: Set<String> = emptySet(),
     val unplannedBreakReasons: List<String> = emptyList(),
     // Overdue penalty configuration
     val overduePenaltyEnabled: Boolean = false,
@@ -143,6 +145,11 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun updateShowOneTimeQuestsInDialog(show: Boolean) {
         val newSettings = _settings.value.copy(showOneTimeQuestsInDialog = show)
+        saveSettings(newSettings)
+    }
+
+    suspend fun updateSelectedRepeatingQuestIds(questIds: Set<String>) {
+        val newSettings = _settings.value.copy(selectedRepeatingQuestIds = questIds)
         saveSettings(newSettings)
     }
 
