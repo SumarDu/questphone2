@@ -119,7 +119,8 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
                 auto_destruct = today, // Will be deleted next day
                 quest_started_at = System.currentTimeMillis(),
                 last_completed_at = 0,
-                last_completed_on = ""
+                last_completed_on = "",
+                deadline_minutes = -1
             )
             questDao.upsertQuest(clonedQuest)
         }

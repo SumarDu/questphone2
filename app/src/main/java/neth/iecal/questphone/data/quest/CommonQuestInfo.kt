@@ -276,6 +276,7 @@ class QuestInfoState(
     var breakDurationMinutes by mutableIntStateOf(initialBreakDurationMinutes)
     var lastCompletedAt by mutableLongStateOf(initialLastCompletedAt)
     var questStartedAt by mutableLongStateOf(initialQuestStartedAt)
+    var lastCompletedOn by mutableStateOf("")
     var deadlineMinutes by mutableIntStateOf(-1)
     var priority by mutableStateOf(initialPriority)
     // Sanctions (UI-only for now)
@@ -307,6 +308,7 @@ class QuestInfoState(
         break_duration_minutes = breakDurationMinutes,
         last_completed_at = lastCompletedAt,
         quest_started_at = questStartedAt,
+        last_completed_on = lastCompletedOn,
         deadline_minutes = deadlineMinutes,
         priority = priority,
         sanction_ban_unlocker_ids = sanctionSelectedUnlockerIds.joinToString(","),
@@ -336,6 +338,7 @@ class QuestInfoState(
         breakDurationMinutes = commonQuestInfo.break_duration_minutes
         lastCompletedAt = commonQuestInfo.last_completed_at
         questStartedAt = commonQuestInfo.quest_started_at
+        lastCompletedOn = commonQuestInfo.last_completed_on
         deadlineMinutes = commonQuestInfo.deadline_minutes
         priority = commonQuestInfo.priority
         // Map sanctions to UI state

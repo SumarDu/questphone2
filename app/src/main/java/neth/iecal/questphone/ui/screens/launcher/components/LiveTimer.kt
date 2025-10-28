@@ -290,18 +290,35 @@ fun LiveTimer(
                         modifier = Modifier.padding(16.dp)
                     )
                 } else {
-                    LazyColumn {
-                        items(filteredQuests) { quest ->
-                            Text(
-                                text = quest.title,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable(enabled = timerMode != TimerMode.INFO) { 
-                                        timerViewModel.cloneAndStartQuest(quest)
-                                        showQuestListDialog = false
-                                    }
-                                    .padding(vertical = 8.dp)
-                            )
+                    var query by remember { mutableStateOf("") }
+                    Column {
+                        OutlinedTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            label = { Text("Search quests") },
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
+                        )
+                        val displayed = remember(filteredQuests, query) {
+                            val q = query.trim()
+                            if (q.isEmpty()) filteredQuests
+                            else filteredQuests.filter { it.title.contains(q, ignoreCase = true) || it.instructions.contains(q, ignoreCase = true) }
+                        }
+                        LazyColumn {
+                            items(displayed) { quest ->
+                                Text(
+                                    text = quest.title,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable(enabled = timerMode != TimerMode.INFO) { 
+                                            timerViewModel.cloneAndStartQuest(quest)
+                                            showQuestListDialog = false
+                                        }
+                                        .padding(vertical = 8.dp)
+                                )
+                            }
                         }
                     }
                 }
