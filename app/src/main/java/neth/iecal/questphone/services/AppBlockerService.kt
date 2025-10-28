@@ -166,7 +166,7 @@ class AppBlockerService : Service() {
     private fun detectAndHandleForegroundApp() {
         val currentTime = System.currentTimeMillis()
 
-        cleanUpExpiredUnlocks(currentTime)
+        val expiredApps = cleanUpExpiredUnlocks(currentTime)
 
         // Query events for a slightly longer period to catch transitions
         val usageEvents = usageStatsManager.queryEvents(currentTime - 2000, currentTime)
@@ -192,6 +192,17 @@ class AppBlockerService : Service() {
         }
         detectedForegroundPackage = currentForegroundAppFromEvents ?: getCurrentForegroundApp()
 
+        // Check if user is currently in an app that just had its unlock expire
+        if (expiredApps.isNotEmpty() && detectedForegroundPackage != null) {
+            if (expiredApps.contains(detectedForegroundPackage) && 
+                lockedApps.contains(detectedForegroundPackage) &&
+                !isOverlayActive) {
+                Log.d(TAG, "User is in app whose unlock expired: $detectedForegroundPackage (showing lock screen immediately)")
+                showLockScreenFor(detectedForegroundPackage)
+                return
+            }
+        }
+
         // If lock screen is active but pushed to background, bring it back
         if (isOverlayActive && detectedForegroundPackage != null && lockedApps.contains(
                 detectedForegroundPackage
@@ -215,7 +226,7 @@ class AppBlockerService : Service() {
         }
 
         // Handle locked app detection
-        if (shouldShowLockScreen(recentLockedAppActivities, detectedForegroundPackage)) {
+        if (shouldShowLockScreen(recentLockedAppActivities, detectedForegroundPackage, expiredApps)) {
             return // Lock screen shown, no further processing needed in this cycle
         }
 
@@ -226,7 +237,7 @@ class AppBlockerService : Service() {
     }
 
     // Cleans up apps whose temporary unlock duration has expired
-    private fun cleanUpExpiredUnlocks(currentTime: Long) {
+    private fun cleanUpExpiredUnlocks(currentTime: Long): List<String> {
         val expiredApps = mutableListOf<String>()
         for ((packageName, expiryTime) in ServiceInfo.unlockedApps) {
             if (currentTime >= expiryTime) {
@@ -235,11 +246,13 @@ class AppBlockerService : Service() {
             }
         }
         expiredApps.forEach { ServiceInfo.unlockedApps.remove(it) }
+        return expiredApps
     }
 
     private fun shouldShowLockScreen(
         recentLockedAppActivities: Set<String>,
-        detectedForegroundPackage: String?
+        detectedForegroundPackage: String?,
+        expiredApps: List<String>
     ): Boolean {
         if (detectedForegroundPackage == null) return false
 
