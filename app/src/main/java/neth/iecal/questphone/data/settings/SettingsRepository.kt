@@ -24,8 +24,7 @@ data class SettingsData(
     val showRepeatingQuestsInDialog: Boolean = true,
     val showClonedQuestsInDialog: Boolean = true,
     val showOneTimeQuestsInDialog: Boolean = true,
-    // Set of repeating quest IDs to show when filter is enabled (empty = show all)
-    val selectedRepeatingQuestIds: Set<String> = emptySet(),
+    val selectedRepeatingQuestIds: Set<String> = emptySet(), // If non-empty, only show these specific repeating quests
     val unplannedBreakReasons: List<String> = emptyList(),
     // Overdue penalty configuration
     val overduePenaltyEnabled: Boolean = false,

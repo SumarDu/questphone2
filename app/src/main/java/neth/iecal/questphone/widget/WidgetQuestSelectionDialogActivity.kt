@@ -103,19 +103,7 @@ fun QuestSelectionDialog(
     // Filter quests based on settings
     val filteredQuests = allQuests.filter { quest ->
         when {
-            isRepeatingQuest(quest) -> {
-                // Check if showing repeating quests is enabled
-                if (!settings.showRepeatingQuestsInDialog) {
-                    false
-                } else {
-                    // If specific repeating quests are selected, only show those
-                    if (settings.selectedRepeatingQuestIds.isEmpty()) {
-                        true // Show all repeating quests
-                    } else {
-                        quest.id in settings.selectedRepeatingQuestIds
-                    }
-                }
-            }
+            isRepeatingQuest(quest) -> settings.showRepeatingQuestsInDialog
             isClonedQuest(quest) -> settings.showClonedQuestsInDialog
             isOneTimeQuest(quest) -> settings.showOneTimeQuestsInDialog
             else -> true

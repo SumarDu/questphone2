@@ -273,16 +273,11 @@ fun LiveTimer(
         val filteredQuests = allQuests.filter { quest ->
             when {
                 isRepeatingQuest(quest) -> {
-                    // Check if showing repeating quests is enabled
-                    if (!settings.showRepeatingQuestsInDialog) {
-                        false
+                    // If specific repeating quests are selected, only show those
+                    if (settings.selectedRepeatingQuestIds.isNotEmpty()) {
+                        quest.id in settings.selectedRepeatingQuestIds
                     } else {
-                        // If specific repeating quests are selected, only show those
-                        if (settings.selectedRepeatingQuestIds.isEmpty()) {
-                            true // Show all repeating quests
-                        } else {
-                            quest.id in settings.selectedRepeatingQuestIds
-                        }
+                        settings.showRepeatingQuestsInDialog
                     }
                 }
                 isClonedQuest(quest) -> settings.showClonedQuestsInDialog

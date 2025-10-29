@@ -119,8 +119,8 @@ import neth.iecal.questphone.utils.formatTimeMinutes
 import neth.iecal.questphone.utils.toMinutesRange
 import neth.iecal.questphone.utils.isAllDayRange
 import neth.iecal.questphone.utils.formatInstantToDate
-import kotlinx.datetime.Instant
 import neth.iecal.questphone.utils.getCurrentDate
+import neth.iecal.questphone.utils.getPreviousDay
 import neth.iecal.questphone.data.SchedulingInfo
 import neth.iecal.questphone.data.SchedulingType
 import neth.iecal.questphone.data.timer.TimerMode
@@ -399,6 +399,16 @@ fun HomeScreen(navController: NavController) {
         val clonedTitle = Regex("\\[C\\d+\\]").containsMatchIn(quest.title)
         return clonedTitle || quest.auto_destruct == getCurrentDate()
     }
+    
+    // Check if quest was started yesterday and completed today (overnight quest)
+    fun isOvernightQuest(quest: CommonQuestInfo): Boolean {
+        if (quest.quest_started_at <= 0) return false
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val startedDate = sdf.format(Date(quest.quest_started_at))
+        val wasStartedYesterday = startedDate == getPreviousDay()
+        val completedToday = quest.last_completed_on == getCurrentDate()
+        return wasStartedYesterday && completedToday
+    }
     val swipeDownApp by gestureRepo.swipeDownApp.collectAsState(initial = null)
     val swipeLeftApp by gestureRepo.swipeLeftApp.collectAsState(initial = null)
     val swipeRightApp by gestureRepo.swipeRightApp.collectAsState(initial = null)
@@ -473,7 +483,10 @@ fun HomeScreen(navController: NavController) {
             completedQuests.clear()
             questList.forEach { item ->
                 if (item.last_completed_on == getCurrentDate() && !isClonedQuestProgressExcluded(item)) {
-                    completedQuests.add(item.title)
+                    // Don't mark overnight quests as completed - they should be available to start again today
+                    if (!isOvernightQuest(item)) {
+                        completedQuests.add(item.title)
+                    }
                 }
                 if (questHelper.isQuestRunning(item.title)) {
                     viewQuest(item, navController)
@@ -869,20 +882,18 @@ fun HomeScreen(navController: NavController) {
                     )
                 )
             }
-            // Exclude finished quests from display (unless it's the active quest on break)
-            // Special rule: if a quest was started on a previous day and finished today,
-            // and it is also scheduled for today, keep it visible so it can be done again for today.
+            // Exclude finished quests from display (unless it's the active quest on break or overnight quest)
             val displayedQuests = sortedQuests.filter { q ->
-                val todayStr = getCurrentDate()
-                val completedToday = q.last_completed_on == todayStr
-                val startedDate = if (q.quest_started_at > 0L) formatInstantToDate(Instant.fromEpochMilliseconds(q.quest_started_at)) else ""
-                val startedToday = startedDate == todayStr
-                val scheduledToday = SchedulingUtils.isQuestAvailableOnDate(q.scheduling_info, LocalDate.now())
-                val countsAsCompletedToday = completedToday && startedToday
-                val allowCarryOverVisibility = completedToday && !startedToday && scheduledToday
+                val completed = completedQuests.contains(q.title)
                 val onBreak = (timerMode == TimerMode.BREAK && timerState.activeQuestId == q.id)
-                // Hide only if it truly counts as completed for today and it's not the active quest on break
-                (allowCarryOverVisibility || !countsAsCompletedToday) || onBreak
+                
+                // Keep overnight quests visible if they're scheduled for today
+                // (they're already in questList, which means they passed the scheduling check)
+                if (completed && isOvernightQuest(q)) {
+                    true // Keep overnight quest visible
+                } else {
+                    !(completed && !onBreak) // Normal logic: hide if completed and not on break
+                }
             }
             val pageCount = (displayedQuests.size + 3) / 4
             if (pageCount > 0) {
@@ -908,14 +919,7 @@ fun HomeScreen(navController: NavController) {
                     val timeRange = "${formatTimeMinutes(startMin)} - ${formatTimeMinutes(endMin)} : "
                     val prefix = if (isAllDayRange(baseQuest.time_range)) "" else timeRange
                     val isOver = questHelper.isOver(baseQuest)
-                    // Consider a quest completed for UI only if it was completed today AND also started today
-                    // If it started yesterday and finished today, treat as not-completed for today's occurrence
-                    val isCompleted = run {
-                        val todayStr = getCurrentDate()
-                        val startedDate = if (baseQuest.quest_started_at > 0L) formatInstantToDate(Instant.fromEpochMilliseconds(baseQuest.quest_started_at)) else ""
-                        val startedToday = startedDate == todayStr
-                        (baseQuest.last_completed_on == todayStr) && startedToday
-                    }
+                    val isCompleted = completedQuests.contains(baseQuest.title)
                     val isActive = timerState.activeQuestId == baseQuest.id && (
                         timerMode == TimerMode.QUEST_COUNTDOWN ||
                         timerMode == TimerMode.BREAK ||

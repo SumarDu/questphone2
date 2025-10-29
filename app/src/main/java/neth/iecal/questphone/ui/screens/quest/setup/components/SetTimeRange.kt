@@ -62,7 +62,12 @@ fun SetTimeRange(initialTimeRange: QuestInfoState) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text("End time", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(2.dp))
-                    Text(formatTimeMinutes(endMinutes), style = MaterialTheme.typography.bodyLarge)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(formatTimeMinutes(endMinutes), style = MaterialTheme.typography.bodyLarge)
+                        if (endMinutes < startMinutes) {
+                            Text("+1", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
                 }
             }
             // Deadline selector
@@ -88,7 +93,7 @@ fun SetTimeRange(initialTimeRange: QuestInfoState) {
             onDismiss = { showStartPicker = false },
             onConfirm = { minutes ->
                 startMinutes = minutes.coerceIn(0, 1439)
-                // Allow overnight ranges; do not force end > start
+                // Allow end time to be less than start time (overnight range)
                 initialTimeRange.initialTimeRange = listOf(startMinutes, endMinutes)
                 showStartPicker = false
             }
@@ -101,12 +106,12 @@ fun SetTimeRange(initialTimeRange: QuestInfoState) {
             initialMinutes = endMinutes,
             onDismiss = { showEndPicker = false },
             onConfirm = { minutes ->
-                val m = minutes.coerceIn(0, 1440)
-                // Allow overnight ranges; end can be <= start
-                endMinutes = m
+                // Allow end time to be less than start time (overnight range)
+                endMinutes = minutes.coerceIn(0, 1439)
                 initialTimeRange.initialTimeRange = listOf(startMinutes, endMinutes)
                 showEndPicker = false
-            }
+            },
+            showOvernightIndicator = endMinutes < startMinutes
         )
     }
 
@@ -168,8 +173,9 @@ fun TimeRangeDialog(
                     val sHour = startState.hour
                     val eHour = endState.hour
                     val s = if (isAllDay) 0 else (sHour * 60 + startState.minute)
-                    val e = if (isAllDay) 1440 else (eHour * 60 + endState.minute)
-                    // Allow overnight ranges (e can be <= s)
+                    val rawE = if (isAllDay) 1440 else (eHour * 60 + endState.minute)
+                    // Allow overnight ranges: end time can be less than start time
+                    val e = if (isAllDay) 1440 else rawE
                     onConfirm(s, e)
                 }
             ) {
@@ -304,7 +310,8 @@ private fun SingleTimePickerDialog(
     title: String,
     initialMinutes: Int,
     onDismiss: () -> Unit,
-    onConfirm: (Int) -> Unit
+    onConfirm: (Int) -> Unit,
+    showOvernightIndicator: Boolean = false
 ) {
     val initHour = (initialMinutes.coerceAtLeast(0).coerceAtMost(1439)) / 60
     val initMinute = (initialMinutes % 60)
@@ -319,6 +326,14 @@ private fun SingleTimePickerDialog(
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+                if (showOvernightIndicator) {
+                    Text(
+                        "(Next day)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
                 TimePicker(state = state)
             }
         },
